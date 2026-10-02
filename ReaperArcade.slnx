@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Reaper.Checks/Reaper.Checks.csproj" />
+    <Project Path="src/Reaper.Core/Reaper.Core.csproj" />
+    <Project Path="src/Reaper.Windows/Reaper.Windows.csproj" />
+  </Folder>
+</Solution>

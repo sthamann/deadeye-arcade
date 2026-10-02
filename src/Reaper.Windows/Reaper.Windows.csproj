@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><EnableWindowsTargeting>true</EnableWindowsTargeting><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>ReaperArcade</AssemblyName><Version>0.1.0</Version><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../Reaper.Core/Reaper.Core.csproj"/><PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47"/><PackageReference Include="System.IO.Ports" Version="10.0.0"/><PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0"/></ItemGroup>
+ <ItemGroup><Content Include="../../ui/dist/**/*"><Link>web/%(RecursiveDir)%(Filename)%(Extension)</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content></ItemGroup>
+</Project>
