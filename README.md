@@ -1,6 +1,14 @@
 # Reaper Arcade 0.2
 
-Eine Windows-App für ein gemeinsames Lightgun-Menü: große Vollbildoberfläche, getrennte Gun-Eingänge und eine lokale Spielebibliothek.
+Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: große Vollbildoberfläche, getrennte Gun-Eingänge und Import vorhandener TeknoParrot-/MAME-Spiele.
+
+**[Windows-Version 0.2.0 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.2.0/Reaper-Arcade-0.2.0-Windows-x64.zip)** · [Release und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.2.0)
+
+![Cinema-Oberfläche mit ausdrücklich gewählter Beispielbibliothek](oberflaeche.png)
+
+Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhaltern. Die echte Bibliothek startet leer. Spiele, ROMs, Emulatoren und Herstellerwerkzeuge werden nicht mitgeliefert.
+
+**Früher Entwicklungsstand:** Die Windows-Oberfläche und der Programmstart wurden getestet. Echte RS3-Guns waren dabei nicht angeschlossen; vollständige Spielekompatibilität ist noch nicht nachgewiesen.
 
 ## Direkt auf dem Windows-PC starten
 
@@ -47,7 +55,7 @@ Spielauswahl, Dateiimport und seltene Texteingaben besitzen große Bedienelement
 
 ## Verifikation dieses Stands
 
-Version 0.2 wurde am 3. Oktober 2026 auf dem Windows-PC **5090STH** per Remote Desktop installiert und gestartet. WPF/WebView2, Cinema-Vollbild, Wechsel der Ansichten, Installationssuche, Dateiauswahl und Bildschirmtastatur liefen dort. Desktop- und Startmenü-Verknüpfung sind vorhanden. Windows-Autostart ist aktiviert und nach erneutem App-Start sowohl in der Bibliothek als auch im Benutzer-Run-Eintrag erhalten; ein Windows-Neustart wurde nicht durchgeführt.
+Version 0.2 wurde am 3. Oktober 2026 auf einem Windows-Test-PC per Remote Desktop installiert und gestartet. WPF/WebView2, Cinema-Vollbild, Wechsel der Ansichten, Installationssuche, Dateiauswahl und Bildschirmtastatur liefen dort. Desktop- und Startmenü-Verknüpfung sind vorhanden. Der optionale Windows-Autostart wurde aktiviert und nach erneutem App-Start sowohl in der Bibliothek als auch im Benutzer-Run-Eintrag nachgewiesen. Anschließend wurde er in den Einstellungen wieder ausgeschaltet; ein Windows-Neustart wurde nicht durchgeführt. Bei einer neuen Bibliothek ist Autostart standardmäßig aus.
 
 Ein temporäres Profil startete `cmd.exe /c "timeout /t 10"` durch die echte Spielsitzung. Das externe Programm war sichtbar; nach dessen Ende kehrte das Vollbildmenü automatisch zurück. Der Testeintrag wurde danach entfernt. Das ist ein Prozess- und Rückkehrtest, kein erfolgreich gespielter Lightgun-Titel.
 
@@ -73,3 +81,7 @@ Die portable Windows-App benötigt den vollständigen Inhalt von `release/window
 Für die Browserprüfung einmal `npx playwright install chromium` im Ordner `ui` ausführen. Danach dort die Vorschau mit `npm run dev -- --port 5199` starten und aus dem Projektordner `node scripts/check-ui.cjs` aufrufen. Alternativ setzt `REAPER_PREVIEW_URL` die Adresse der laufenden Vorschau.
 
 Technische Entscheidungen und Herstellerreferenzen: [docs/architecture.md](docs/architecture.md). Erster echter Test: [docs/windows-test.md](docs/windows-test.md).
+
+## Lizenz
+
+Der Quellcode ist öffentlich einsehbar; eine offene Lizenz für den eigenen Anwendungscode wurde noch nicht festgelegt. Siehe [LICENSE](LICENSE). Die Lizenzbedingungen der Abhängigkeiten sind unter [THIRD-PARTY.md](THIRD-PARTY.md) aufgeführt.

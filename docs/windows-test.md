@@ -2,11 +2,11 @@
 
 Ziel ist eine vollständige Runde: Einschalten → Menü → echte Gun → echtes Spiel → zurück ins Menü.
 
-Die App ist auf **5090STH** bereits installiert. Desktop und Startmenü enthalten **Reaper Arcade**; Autostart nach Windows-Anmeldung ist eingeschaltet. Der Softwaretest ohne Guns einschließlich Programmstart und Menü-Rückkehr hat funktioniert.
+Der Softwaretest auf Windows ohne angeschlossene Guns einschließlich Programmstart und Menü-Rückkehr hat funktioniert. Für diese Runde werden echte Guns und ein vorhandenes Spiel benötigt. Autostart ist optional und lässt sich unter **Einstellungen** ein- und ausschalten.
 
 ## Vorbereiten
 
-- **Reaper Arcade** über die vorhandene Verknüpfung starten; für einen anderen PC das vollständige 0.2-Paket entpacken.
+- Das vollständige 0.2-Paket entpacken und **ReaperArcade.exe** öffnen; bei bereits installierter App die vorhandene Verknüpfung verwenden.
 - Für den ersten Test den Zielbildschirm als Windows-Hauptbildschirm verwenden. Mehrere Monitore und abweichende Skalierungen werden anschließend gezielt geprüft.
 - RS3-Stromversorgung, USB und IR-Sensoren wie im Herstellerhandbuch anschließen. Unter **Meine Guns** die vorhandene Hersteller-Kalibrier-EXE auswählen und am lokalen Bildschirm ausführen.
 - Guns in Maus-/Tastaturmodus verwenden. Spieler 1 muss Start `1` und Münze `5` senden; Spieler 2 `2` und `6`.

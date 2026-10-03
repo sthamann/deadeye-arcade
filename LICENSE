@@ -1,8 +1,9 @@
-Reaper Arcade – private Entwicklungsfassung
+Reaper Arcade – öffentliche Entwicklungsfassung
 
-Eine Lizenz für die Weitergabe des eigenen Anwendungscodes ist noch nicht
-festgelegt. Es wurde keine Veröffentlichung oder Open-Source-Lizenzierung
-vorgenommen.
+Copyright (c) 2026 Stefan Hamann. Alle Rechte vorbehalten.
+
+Der Quellcode ist öffentlich einsehbar. Eine offene Lizenz für die Nutzung,
+Änderung und Weitergabe des eigenen Anwendungscodes ist noch nicht festgelegt.
 
 Drittanbieterkomponenten bleiben unter ihren jeweiligen Lizenzbedingungen.
 Siehe THIRD-PARTY.md und die Lizenzdateien der mitgelieferten Laufzeit.
