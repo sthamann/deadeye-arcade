@@ -37,6 +37,9 @@ export type State = {
   };
   bindingStage: null | { player: number; stage: string };
   version: string;
+  remoteSession?: boolean;
+  calibrationTool?: string | null;
+  installations: { kind: string; name: string; path: string }[];
   native: boolean;
 };
 export type Input = {
@@ -73,7 +76,8 @@ export const empty: State = {
   ports: [],
   settings: { startWithWindows: false, fullscreen: true, hasCoverKey: false },
   bindingStage: null,
-  version: "0.1.0",
+  version: "0.2.0",
+  installations: [],
   native: !!window.chrome?.webview,
 };
 export const examples: Game[] = [

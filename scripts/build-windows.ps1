@@ -15,6 +15,6 @@ try {
     New-Item -ItemType Directory -Path release/windows-x64/licenses -Force | Out-Null
     Copy-Item licenses/* release/windows-x64/licenses -Force
     Copy-Item docs release/windows-x64/docs -Recurse -Force
-    Compress-Archive -Path release/windows-x64/* -DestinationPath release/Reaper-Arcade-0.1.0-Windows-x64.zip -Force
+    Compress-Archive -Path release/windows-x64/* -DestinationPath release/Reaper-Arcade-0.2.0-Windows-x64.zip -Force
 }
 finally { Pop-Location }

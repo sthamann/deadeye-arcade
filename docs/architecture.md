@@ -4,9 +4,13 @@
 
 ## Eingaben
 
-Windows RawInput liefert die Gerätekennung getrennt vom gemeinsamen Windows-Mauszeiger. Absolute Gun-Pakete werden mit dem vom Gerät angegebenen primären/virtuellen Bildschirm auf die tatsächliche WebView-Fläche umgerechnet. Relative Mauspakete verwenden den Windows-Cursor als Einrichtungshilfe. Ein synthetischer UI-Klick folgt dem Abzugspaket; legacy Mausklicks im WebView werden unterdrückt, damit ein Schuss nicht zweimal auswählt. Tastennavigation verwendet im Mausmodus die normalen Tastenereignisse der Gun.
+Windows RawInput liefert die Gerätekennung getrennt vom gemeinsamen Windows-Mauszeiger. Absolute Gun-Pakete werden mit dem vom Gerät angegebenen primären/virtuellen Bildschirm auf die tatsächliche WebView-Fläche umgerechnet. Relative Mauspakete verwenden den Windows-Cursor als Einrichtungshilfe. Ein synthetischer UI-Klick folgt dem Abzugspaket; im lokalen Gun-Betrieb werden legacy Mausklicks im WebView unterdrückt, damit ein Schuss nicht zweimal auswählt. Tastennavigation verwendet im Mausmodus die normalen Tastenereignisse der Gun.
 
 Die Zuordnung wird am konkreten Maus- und Tasteneingang aufgenommen. Ein Produktname kann die Retro-Shooter-Familie erkennen, ist aber kein Firmwarebeleg. MAME-Stabilität hängt von der Gleichheit der RawInput-Gerätekennungen auf diesem Ziel-PC ab. USB-Portwechsel und fehlende eindeutige Hardware-Seriennummern können eine Neuzuordnung erfordern.
+
+Remote Desktop verwendet die normalen Maus-/Tastaturereignisse und unterdrückt Raw-Input-Navigation. Die sichtbare Sitzungswarnung erklärt die Grenze; Herstellerkalibrierung ist dort gesperrt. Datei- und Ordnerauswahl sowie Bildschirmtastatur laufen in derselben Vollbildoberfläche. Während eines Dialogs sind die darunterliegenden Bedienelemente inaktiv.
+
+Die Installationssuche ist begrenzt auf übliche Wurzeln, Tiefe und Anzahl; sie überspringt Reparse-Punkte und System-/Entwicklungsordner. Treffer zeigen nur eine gefundene EXE. Importadapter bestehen für TeknoParrot und MAME; andere Emulatoren werden als noch anzubinden geführt.
 
 ## Serieller Weg
 
@@ -35,4 +39,4 @@ Bibliothek und Covers liegen in `%LOCALAPPDATA%\ReaperArcade`. Vor dem Ersetzen 
 - [SteamGridDB API v2](https://www.steamgriddb.com/api/v2): Metadaten und Cover.
 - [Hook of the Reaper / RS3](https://hotr.6bolt.com/pmwiki.php/Tutorial/RS3Reaper): nächster Feedback-Adapter, einschließlich dokumentierter Geräteeigenheiten.
 
-Der erste Hardwaretest hat Vorrang vor einer Erweiterung der Emulatorliste. Danach: Herstellerkalibrierung, TeknoParrot-Inputprofile, DemulShooter/Hook of the Reaper und weitere Emulatoradapter.
+Der Softwaretest ohne angeschlossene Guns ist auf Windows erfolgt. Der nächste Hardwaretest umfasst echte Gun-Eingabe und einen realen Titel. Danach: TeknoParrot-Inputprofile, DemulShooter/Hook of the Reaper und weitere Spieleadapter.

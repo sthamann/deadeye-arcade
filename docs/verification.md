@@ -1,26 +1,32 @@
-# Verifikation – Version 0.1.0
+# Verifikation – Version 0.2.0
 
-Datum: 2. Oktober 2026. Entwicklungsrechner: macOS / Apple Silicon. Zielpaket: Windows x64.
+Datum: 3. Oktober 2026. Build auf macOS / Apple Silicon; Laufzeittest per Remote Desktop auf Windows-PC **5090STH**.
 
-## Geprüft
+## Auf Windows beobachtet
 
-- React-/TypeScript-Produktionsbuild erfolgreich.
-- Native WPF-/WebView2-Anwendung erfolgreich für Windows x64 veröffentlicht, mit eigener .NET-Laufzeit.
-- 21 Kernprüfungen erfolgreich: TeknoParrot-Lichtgun-Auswahl und Ausschluss eines Rennspielprofils; defektes XML; fehlende Spieldatei; Basename-Startparameter; Blockierung von Vorschau- und unvollständigen Einträgen; konsekutive MAME-Katalogeinträge; ROM-/Lightgun-Abgleich; RawInput-Startparameter; Wiederimport ohne Duplikate; Erhalt von Favorit und Cover; Zurücksetzen des Spielurteils bei geänderten Startparametern; Kaltladen der Bibliothek; Sicherung der vorigen Fassung; expliziter Fehler bei beschädigter Bibliothek; korrekte XML-Gerätekennung; gehaltene Ausstiegskombination und Abbruch beim Loslassen; exakter Coverabruf und Ablehnung mehrdeutiger Cover.
-- Browserbedienung erfolgreich: leere Bibliothek ohne erfundene Installationen; ausdrücklich gewählte Beispielbibliothek; Spieleauswahl; Favoriten-/Plattformfilter und Suche; fünf Zielschritte; Browsergrenze beim Dateizugriff; Gun-Navigation über den Nachrichteneingang; Ablehnung eines Zieltreffers des falschen Spielers; Zuordnungsbefehl für den richtigen Spieler.
-- Vier Hauptansichten bei 1440, 1024, 768, 390 und 320 Pixel Breite geprüft, ohne horizontalen Seitenüberlauf.
+- Native WPF-/WebView2-App erfolgreich installiert und mehrfach neu gestartet; Cinema-Layout im Vollbild sichtbar.
+- Navigation, automatische Installationssuche, große Dateiauswahl (geöffnet und abgebrochen) und Bildschirmtastatur ausgeführt.
+- Desktop- und Startmenü-Verknüpfungen vorhanden.
+- Autostart in der Oberfläche aktiviert; nach Neustart der App `startWithWindows=true` und passender HKCU-Run-Eintrag nachgewiesen. Kein Windows-Neustart in dieser Sitzung.
+- Tatsächlicher Sitzungsweg mit einem temporären Windows-Profil geprüft: `cmd.exe /c "timeout /t 10"` gestartet, App minimiert, externes Programm sichtbar, nach Ende Vollbildmenü wiederhergestellt. Aktivitätslog enthält den Start. Testprofil anschließend entfernt; Bibliothek wieder leer.
+- Die begrenzte Suche in üblichen Verzeichnissen meldete keine unterstützte Emulatorinstallation. Dies sagt nichts über andere, manuell auszuwählende Ordner aus.
 
-Der native UI-Nachrichtenvertrag wurde für diese Browserprüfung mit kontrollierten Eingaben gespeist. Das ist ein Softwaretest, keine angeschlossene Lightgun und keine Messung eines Windows-Eingabepfads.
+Die RS3-Guns waren laut Nutzer nicht angeschlossen. Remote Desktop bildet zudem nicht den physischen Gun-Eingabepfad ab.
 
-## Noch unbestätigt
+## Automatische Softwareprüfungen
 
-- Start der kompilierten Anwendung auf Windows einschließlich tatsächlicher WebView2-Initialisierung.
-- RS3-Produktnamen, RawInput-Gerätekennungen, absolutes Koordinatenformat und Maus-/Tastaturmodus auf diesem Ziel-PC.
-- COM-ID-Antworten und Modus-/Bildformatbefehle an der tatsächlich vorhandenen Hardware/Firmware.
-- Spielertrennung im echten Emulator; MAME-Abgleich der Controller-Kennungen.
-- Erfolgreicher Start und korrektes Ende der konkreten TeknoParrot-/MAME-/PC-Spiele.
-- Rückkehr nach Abziehen/Anschließen, Neustart und möglichem USB-Portwechsel.
+- React-/TypeScript-Produktionsbuild bestanden.
+- Native Windows-x64-Veröffentlichung mit eigener .NET-Laufzeit bestanden.
+- 26 Kernprüfungen bestanden: echte Importdateien/Gegenfälle, TeknoParrot-Lightgun-Auswahl, defektes XML, fehlende Spieldateien, Startregeln, MAME-Katalog/ROM-Abgleich, Geräteabbildung, Wiederimport, Favoriten/Cover-Erhalt, Rücksetzen geänderter/fehlender Startprofile, Kaltladen und JSON-Sicherung, beschädigte Bibliothek, Covermehrdeutigkeit, gehaltene Ausstiegskombination, Installationssuche und gefilterte Dateiauswahl.
+- Browserbedienung bestanden: leere echte Bibliothek, ausdrückliche Vorschau, Auswahl/Filter/Suche, Zieltest, Raw-Input-Nachrichten und Spielertrennung, Rückkehrschaltfläche nach Zieltest, Ordnerauswahl mit Gun-Nachricht, Bildschirmtastatur, Remote-Mausweg, korrekte Beschriftung der Bibliotheksprüfung.
+- Vier Hauptansichten bei 1440, 1024, 768, 390 und 320 Pixel Breite ohne horizontalen Seitenüberlauf geprüft.
 
-„Von dir bestätigt“ ist eine bewusste Nutzerangabe nach dem Spieltest, kein automatisch berechnetes Kompatibilitätsurteil.
+Kontrollierte Raw-Input-Nachrichten sind Softwaretests und keine Hardwaremessung.
 
-Nächster entscheidender Schritt: [windows-test.md](windows-test.md).
+## Noch offen
+
+Echte RS3-Geräteerkennung, RawInput-Koordinaten und Tasten, COM-ID/Modus/Bildformat, Herstellerkalibrierung, USB-Neuanmeldung, Windows-Neustart sowie Zielen/Mehrspieler/Beenden in den tatsächlichen Emulatoren. Die externe Kalibrier-EXE ist auswählbar/startbar implementiert, auf diesem PC ohne Guns nicht ausgeführt.
+
+TeknoParrot-/MAME-Import ist mit Dateifixtures geprüft; ein echter Titel war in dieser Windows-Sitzung nicht verfügbar. Automatische TeknoParrot-Controllerbelegung, DemulShooter-/Hook-of-the-Reaper-Feedback und weitere Emulatoradapter sind noch nicht fertig.
+
+„Von dir bestätigt“ bleibt eine bewusste Nutzerangabe nach dem Spieltest. Nächste reale Runde: [windows-test.md](windows-test.md).

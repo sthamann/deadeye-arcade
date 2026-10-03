@@ -1,10 +1,10 @@
-# Reaper Arcade 0.1
+# Reaper Arcade 0.2
 
 Eine Windows-App für ein gemeinsames Lightgun-Menü: große Vollbildoberfläche, getrennte Gun-Eingänge und eine lokale Spielebibliothek.
 
 ## Direkt auf dem Windows-PC starten
 
-1. Das Paket **Reaper-Arcade-0.1.0-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
+1. Das Paket **Reaper-Arcade-0.2.0-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
 2. **ReaperArcade.exe** öffnen. Eine separate .NET-Installation ist nicht nötig.
 3. Unter **Meine Guns** Spieler 1 zuordnen: Abzug an der ersten Gun drücken, dann ihre Start-Taste. Bei Spieler 1 muss Start die Taste `1` senden; bei Spieler 2 die Taste `2`. Dazu die Hardware-Spielerzuordnung und den Maus-/Tastaturmodus verwenden.
 4. Den Zieltest durchführen. Er prüft fünf Ziele; er schreibt keine Kalibrierung in die Firmware.
@@ -14,10 +14,15 @@ Eine Windows-App für ein gemeinsames Lightgun-Menü: große Vollbildoberfläche
 
 Vorausgesetzt werden Windows x64 und die Microsoft Edge WebView2 Runtime. Falls die Runtime fehlt, erklärt die App das beim Start. Download: https://developer.microsoft.com/microsoft-edge/webview2/ . Das Paket ist ein noch nicht signierter Entwicklungsstand.
 
-## Was in 0.1 implementiert ist
+## Was in 0.2 implementiert ist
 
 - Native WPF-Anwendung mit lokal verpackter React-Oberfläche. Kein Webserver oder Browserfenster für den Windows-Betrieb nötig.
-- Vollbild, Favoriten, Suche, Plattformfilter, Spielauswahl und Spieldetails.
+- Cinema-Layout mit horizontalem Hauptmenü, großem Spielbereich und Coverkarten; Vollbild, Favoriten, Suche, Plattformfilter und Spieldetails.
+- Automatische Suche in üblichen Installationsordnern nach TeknoParrot, MAME und weiteren Emulatoren/Tools. Eine gefundene Anwendung ist noch kein funktionierendes Spieleprofil.
+- Große Datei- und Ordnerauswahl direkt im Vollbild sowie Bildschirmtastatur für Suche und Cover-Schlüssel.
+- Bibliotheksprüfung auf fehlende Startdateien. Fehlende Dateien setzen alte Spielbestätigungen zurück.
+- Remote-Desktop-Modus für die Bedienprüfung; Gun-Zuordnung und Kalibrierung am echten Bildschirm prüfen.
+- Auswahl und Start eines vorhandenen Hersteller-Kalibrierwerkzeugs mit anschließender Rückkehr ins Menü.
 - Enumeration der Windows-Raw-Input-Geräte; Erkennung der Retro-Shooter-Familie, wenn das Gerät einen passenden Produktnamen liefert. Modell und Firmware werden nicht geraten.
 - Bewusste Zuordnung des Maus- und Tasteneingangs pro Spieler; kein automatisches Zusammenwerfen der Geräte.
 - Getrennte absolute Zielkoordinaten und Abzugseingaben; Navigation mit Stick im Maus-/Tastaturmodus.
@@ -32,19 +37,23 @@ Vorausgesetzt werden Windows x64 und die Microsoft Edge WebView2 Runtime. Falls 
 
 ## Was noch folgt
 
-- Automatische Konfiguration der TeknoParrot-Controller: 0.1 startet das bereits vorhandene Profil. Dessen Eingabebelegung muss zunächst im Emulator stimmen.
-- Einbindung der Herstellerkalibrierung. Der jetzige Zieltest ist eine Funktionsprüfung der Eingabe.
-- DemulShooter und Hook of the Reaper für titelabhängige Mehrspieler- und Spielefeedback-Profile. 0.1 verändert deren Konfiguration noch nicht und erzeugt keine spieleabhängigen Recoil-/LED-Ausgaben.
-- DuckStation, PCSX2, Dolphin, Flycast, Model 2, Supermodel, weitere Konsolen sowie automatischer Steam-Import.
-- Signierter Installer, Updates und eine zugängliche Bildschirmtastatur für seltene Texteingaben.
+- Automatische Konfiguration der TeknoParrot-Controller: 0.2 startet das bereits vorhandene Profil. Dessen Eingabebelegung muss zunächst im Emulator stimmen.
+- Automatische Geräte- und Firmwareprüfung des Hersteller-Kalibrierwerkzeugs. In 0.2 lässt sich dessen vorhandene EXE auswählen und lokal starten; der eigene Zieltest schreibt keine Firmwarekalibrierung.
+- DemulShooter und Hook of the Reaper für titelabhängige Mehrspieler- und Spielefeedback-Profile. 0.2 verändert deren Konfiguration noch nicht und erzeugt keine spieleabhängigen Recoil-/LED-Ausgaben.
+- Spieleimport und Eingabeadapter für DuckStation, PCSX2, Dolphin, Flycast, Model 2 und Supermodel sowie automatischer Steam-Import. Die Installationssuche erkennt die üblichen EXE-Namen bereits; vollständige Unterstützung folgt pro Adapter.
+- Signierter Installer und Updates.
 
-Der normale Spielbetrieb ist auf Guns ausgelegt. Der erste Dateiimport verwendet aktuell Windows-Auswahldialoge. Für API-Schlüssel und andere Texteingaben kann vorerst eine Tastatur erforderlich sein.
+Spielauswahl, Dateiimport und seltene Texteingaben besitzen große Bedienelemente für die Gun. Der optionale Diagnoseexport verwendet noch einen Windows-Speicherdialog. Ein externes Herstellerwerkzeug behält seine eigene Bedienoberfläche.
 
 ## Verifikation dieses Stands
 
-Die Oberfläche und der Windows-x64-Build wurden auf macOS erstellt. 21 Kernprüfungen decken echte Dateifixtures, Importgegenfälle, fehlende Spielpfade, Wiederimport, Kaltladen, Covermehrdeutigkeit, MAME-Geräteabbildung und die gehaltene Ausstiegskombination ab. Die Browserprüfung testet Auswahl, Suche, Filter, Vorschaugrenze, Zieltest, Raw-Input-Nachrichtenvertrag und Spielertrennung sowie das Layout in verschiedenen Breiten.
+Version 0.2 wurde am 3. Oktober 2026 auf dem Windows-PC **5090STH** per Remote Desktop installiert und gestartet. WPF/WebView2, Cinema-Vollbild, Wechsel der Ansichten, Installationssuche, Dateiauswahl und Bildschirmtastatur liefen dort. Desktop- und Startmenü-Verknüpfung sind vorhanden. Windows-Autostart ist aktiviert und nach erneutem App-Start sowohl in der Bibliothek als auch im Benutzer-Run-Eintrag erhalten; ein Windows-Neustart wurde nicht durchgeführt.
 
-**Das ersetzt keinen Windows-Hardwaretest.** WPF/WebView2 zur Laufzeit, echte RS3-Eingänge, COM-Kommunikation, MAME-Gerätekennungen, TeknoParrot-Prozessketten und die Rückkehr aus einem echten Spiel sind auf dem Ziel-PC noch zu prüfen. Die App startet deshalb mit einer leeren Bibliothek und vergibt keine automatisch erfundenen „spielbar“-Urteile. „Von dir bestätigt“ setzt der Nutzer nach einem tatsächlichen Spieltest.
+Ein temporäres Profil startete `cmd.exe /c "timeout /t 10"` durch die echte Spielsitzung. Das externe Programm war sichtbar; nach dessen Ende kehrte das Vollbildmenü automatisch zurück. Der Testeintrag wurde danach entfernt. Das ist ein Prozess- und Rückkehrtest, kein erfolgreich gespielter Lightgun-Titel.
+
+26 Kernprüfungen und die Browserprüfung bestanden. Die üblichen Installationsordner lieferten auf diesem PC keine unterstützte Emulatorinstallation. Individuelle Ordner können anschließend im Vollbild ausgewählt werden.
+
+**Die RS3-Guns waren dort nicht angeschlossen.** Echte USB-/COM-Eingaben, Kalibrierung, Spielertrennung und reale TeknoParrot-/MAME-Spiele bleiben deshalb offen. Die Bibliothek startet leer und vergibt keine erfundenen Spielbarkeitsurteile. „Von dir bestätigt“ setzt der Nutzer nach einem tatsächlichen Spieltest.
 
 ## Weiterentwickeln
 

@@ -37,13 +37,14 @@ import {
   type Input,
 } from "./types";
 import "./style.css";
+import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
 
 type Page = "play" | "guns" | "import" | "settings";
 type Modal =
   | { type: "game"; game: Game }
   | { type: "launch"; game: Game }
   | { type: "test"; player: number }
-  | { type: "report"; count: number; warnings: string[] }
+  | { type: "report"; count: number; warnings: string[]; validation?: boolean }
   | null;
 const icons = {
   play: Gamepad2,
@@ -77,6 +78,8 @@ const accents = [
 
 function App() {
   const [state, setState] = useState<State>(empty);
+  const [picker, setPicker] = useState<PickerState | null>(null);
+  const [keyboard, setKeyboard] = useState<"search" | "cover" | null>(null);
   const [page, setPage] = useState<Page>("play");
   const [demo, setDemo] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -169,6 +172,7 @@ function App() {
     if (!bridge) return;
     const receive = (event: { data: { type: string; payload: any } }) => {
       const { type, payload } = event.data;
+      if (type === "picker") setPicker(payload.closed ? null : payload);
       if (type === "state") {
         setState(payload);
         setDemo(false);
@@ -180,6 +184,7 @@ function App() {
           type: "report",
           count: payload.count,
           warnings: payload.warnings,
+          validation: payload.validation === true,
         });
         setPage("play");
       }
@@ -188,6 +193,7 @@ function App() {
         if (payload.status === "ended") setJustEnded(true);
       }
       if (type === "input") {
+        if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
         if (
@@ -198,21 +204,24 @@ function App() {
           if (input.player > 0)
             setAim({ x: input.x, y: input.y, player: input.player });
           if ((input.buttons ?? 0) & 1) {
-            if (modalRef.current?.type === "test")
+            const hit = document.elementFromPoint(
+              input.x * window.innerWidth,
+              input.y * window.innerHeight,
+            );
+            const button = hit?.closest("button") as HTMLButtonElement | null;
+            if (
+              modalRef.current?.type === "test" &&
+              stepRef.current < 5 &&
+              (!button || button.classList.contains("test-target"))
+            )
               handleShot(input.x, input.y, input.player);
-            else {
-              const hit = document.elementFromPoint(
-                input.x * window.innerWidth,
-                input.y * window.innerHeight,
-              );
-              const button = hit?.closest("button") as HTMLButtonElement | null;
-              if (button && !button.disabled) button.click();
-              else if (
-                hit instanceof HTMLInputElement ||
-                hit instanceof HTMLSelectElement
-              )
-                hit.focus();
-            }
+            else if (button && !button.disabled && !button.closest("[inert]"))
+              button.click();
+            else if (
+              hit instanceof HTMLInputElement ||
+              hit instanceof HTMLSelectElement
+            )
+              hit.focus();
           }
           if ((input.buttons ?? 0) & 4 && input.player > 0)
             document.dispatchEvent(
@@ -225,7 +234,7 @@ function App() {
     bridge.postMessage({ type: "ready" });
     // RawInput drives clicks in the native app; suppress duplicate legacy mouse clicks in the WebView.
     const legacy = (event: MouseEvent) => {
-      if (event.isTrusted) {
+      if (event.isTrusted && !stateRef.current.remoteSession) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
@@ -254,7 +263,9 @@ function App() {
       if (state.native) k = map[k.toLowerCase()] ?? k;
       if (k === "Escape" || (state.native && k === "5")) {
         event.preventDefault();
-        if (state.bindingStage) send("cancel-bind");
+        if (picker) send("cancel-picker");
+        else if (keyboard) setKeyboard(null);
+        else if (state.bindingStage) send("cancel-bind");
         else if (modal) setModal(null);
         else setPage("play");
         return;
@@ -320,7 +331,7 @@ function App() {
     };
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, [state.native, state.bindingStage, modal, page]);
+  }, [state.native, state.bindingStage, modal, page, picker, keyboard]);
   const allGames = demo ? examples : state.games;
   const games = allGames.filter(
     (g) =>
@@ -378,7 +389,10 @@ function App() {
   );
   return (
     <div className="arcade-app">
-      <aside className="sidebar" inert={!!modal || !!state.bindingStage}>
+      <aside
+        className="sidebar"
+        inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
+      >
         <button
           className="brand"
           onClick={() => setPage("play")}
@@ -418,7 +432,10 @@ function App() {
           </button>
         </div>
       </aside>
-      <div className="main-shell" inert={!!modal || !!state.bindingStage}>
+      <div
+        className="main-shell"
+        inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
+      >
         <header className="topbar">
           <div className="breadcrumb">
             DEIN SPIELZIMMER <span>/</span>{" "}
@@ -458,6 +475,15 @@ function App() {
             >
               Vorschau verlassen <X size={14} />
             </button>
+          </div>
+        )}
+        {state.remoteSession && (
+          <div className="preview-strip">
+            <Monitor size={18} />
+            <span>
+              Remote Desktop aktiv · Menüs mit Maus testen. Gun-Zuordnung und
+              Kalibrierung am echten Bildschirm prüfen.
+            </span>
           </div>
         )}
         <main>
@@ -559,6 +585,9 @@ function App() {
                           placeholder="Spiel suchen"
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
+                          onFocus={() => {
+                            if (state.native) setKeyboard("search");
+                          }}
                         />
                       </label>
                       <button
@@ -877,6 +906,28 @@ function App() {
               <div className="setup-note">
                 <ShieldCheck size={22} />
                 <div>
+                  <strong>Hersteller-Kalibrierung</strong>
+                  <p>
+                    Wähle das vorhandene Retro-Shooter-Kalibrierprogramm einmal
+                    aus. Danach kannst du es direkt von hier starten und nach
+                    dem Schließen zurückkehren.
+                  </p>
+                  <div className="inline-actions">
+                    <button
+                      className="secondary"
+                      onClick={() => send("set-calibration")}
+                    >
+                      Programm auswählen
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={!state.calibrationTool || !!state.remoteSession}
+                      onClick={() => send("run-calibration")}
+                    >
+                      Kalibrierung starten
+                    </button>
+                  </div>
+                  {state.calibrationTool && <p>{state.calibrationTool}</p>}
                   <strong>Erkannt ist noch nicht vollständig geprüft.</strong>
                   <p>
                     Der Zieltest prüft die Eingabe an fünf Zielen. Er ersetzt
@@ -945,6 +996,52 @@ function App() {
                   an ihrem bisherigen Ort.
                 </p>
               </div>
+              <div className="inline-actions">
+                <button
+                  className="primary"
+                  disabled={!!busy}
+                  onClick={() => send("scan-installations")}
+                >
+                  <Search size={20} />
+                  Installationen automatisch finden
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => send("validate-library")}
+                >
+                  <ShieldCheck size={18} />
+                  Bibliothek prüfen
+                </button>
+              </div>
+              {state.installations?.length > 0 && (
+                <div className="detected-list">
+                  {state.installations.map((i) => (
+                    <div key={i.path}>
+                      <div>
+                        <strong>{i.name}</strong>
+                        <small>{i.path}</small>
+                      </div>
+                      {i.kind === "tekno" || i.kind === "mame" ? (
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            send(
+                              i.kind === "tekno"
+                                ? "import-tekno"
+                                : "import-mame",
+                              { path: i.path },
+                            )
+                          }
+                        >
+                          Spiele importieren
+                        </button>
+                      ) : (
+                        <span>Programm gefunden · Spiele-Anbindung folgt</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="import-grid">
                 {action(
                   "TeknoParrot",
@@ -1006,7 +1103,7 @@ function App() {
                   · Steam
                 </span>
                 <p>
-                  Diese Plattformen sind in Version 0.1 noch nicht
+                  Diese Spiele-Anbindungen sind in Version 0.2 noch nicht
                   implementiert.
                 </p>
               </div>
@@ -1088,6 +1185,9 @@ function App() {
                       aria-label="SteamGridDB API Schlüssel"
                       value={coverKey}
                       onChange={(e) => setCoverKey(e.target.value)}
+                      onFocus={() => {
+                        if (state.native) setKeyboard("cover");
+                      }}
                     />
                     <button
                       className="secondary"
@@ -1230,6 +1330,7 @@ function App() {
         <div className="modal-backdrop">
           <section
             className="modal"
+            inert={!!picker || !!keyboard}
             role="dialog"
             aria-modal="true"
             aria-label={
@@ -1245,11 +1346,10 @@ function App() {
             </button>
             {modal.type === "report" ? (
               <>
-                <span className="eyebrow">IMPORT ABGESCHLOSSEN</span>
-                <h2>{modal.count} Spiele eingelesen.</h2>
+                <span className="eyebrow">{modal.validation ? "BIBLIOTHEK GEPRÜFT" : "IMPORT ABGESCHLOSSEN"}</span>
+                <h2>{modal.count} Spiele {modal.validation ? "mit vorhandenen Startdateien" : "eingelesen"}.</h2>
                 <p>
-                  Vorhandene Einträge wurden aktualisiert. Favoriten und eigene
-                  Cover bleiben erhalten.
+                  {modal.validation ? "Die Startdateien wurden geprüft. Zielen und Tasten bestätigst du nach einem echten Spieltest." : "Vorhandene Einträge wurden aktualisiert. Favoriten und eigene Cover bleiben erhalten."}
                 </p>
                 {modal.warnings.length > 0 && (
                   <details>
@@ -1462,6 +1562,22 @@ function App() {
             Spiel beenden
           </button>
         </div>
+      )}
+      {picker && <FilePicker picker={picker} send={send} />}
+      {keyboard && (
+        <ArcadeKeyboard
+          title={
+            keyboard === "search" ? "Spiel suchen" : "Cover-Schlüssel eingeben"
+          }
+          initial={keyboard === "search" ? search : coverKey}
+          secret={keyboard === "cover"}
+          cancel={() => setKeyboard(null)}
+          done={(value) => {
+            if (keyboard === "search") setSearch(value);
+            else setCoverKey(value);
+            setKeyboard(null);
+          }}
+        />
       )}
     </div>
   );

@@ -2,11 +2,13 @@
 
 Ziel ist eine vollständige Runde: Einschalten → Menü → echte Gun → echtes Spiel → zurück ins Menü.
 
+Die App ist auf **5090STH** bereits installiert. Desktop und Startmenü enthalten **Reaper Arcade**; Autostart nach Windows-Anmeldung ist eingeschaltet. Der Softwaretest ohne Guns einschließlich Programmstart und Menü-Rückkehr hat funktioniert.
+
 ## Vorbereiten
 
-- Vollständiges Paket entpacken und `ReaperArcade.exe` starten.
+- **Reaper Arcade** über die vorhandene Verknüpfung starten; für einen anderen PC das vollständige 0.2-Paket entpacken.
 - Für den ersten Test den Zielbildschirm als Windows-Hauptbildschirm verwenden. Mehrere Monitore und abweichende Skalierungen werden anschließend gezielt geprüft.
-- RS3-Stromversorgung, USB und IR-Sensoren wie im Herstellerhandbuch anschließen. Hardwarekalibrierung einmal mit dem Herstellerwerkzeug durchführen.
+- RS3-Stromversorgung, USB und IR-Sensoren wie im Herstellerhandbuch anschließen. Unter **Meine Guns** die vorhandene Hersteller-Kalibrier-EXE auswählen und am lokalen Bildschirm ausführen.
 - Guns in Maus-/Tastaturmodus verwenden. Spieler 1 muss Start `1` und Münze `5` senden; Spieler 2 `2` und `6`.
 - Ein TeknoParrot-Lightgun-Spiel zunächst direkt im vorhandenen Emulator öffnen. Dieses funktionierende UserProfile wird importiert.
 

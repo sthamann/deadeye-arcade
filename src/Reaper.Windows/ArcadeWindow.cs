@@ -20,6 +20,9 @@ public sealed class ArcadeWindow : Window
 {
     private readonly WebView2 web = new();
     private readonly RawInput raw = new();
+    private readonly ArcadePicker picker;
+    private readonly bool remoteSession = GetSystemMetrics(0x1000) != 0 || (Environment.GetEnvironmentVariable("SESSIONNAME")?.StartsWith("RDP-", StringComparison.OrdinalIgnoreCase) ?? false);
+    private List<Installation> installations = [];
     private readonly GunSerial serial = new();
     private readonly GameSession session = new();
     private readonly LibraryStore store;
@@ -38,6 +41,7 @@ public sealed class ArcadeWindow : Window
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
     public ArcadeWindow()
     {
+        picker = new ArcadePicker(Send);
         Title = "Reaper Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21)); Content = web;
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); logPath = Path.Combine(data, "activity.log");
@@ -96,7 +100,10 @@ public sealed class ArcadeWindow : Window
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
-            version = "0.1.0",
+            version = "0.2.0",
+            remoteSession,
+            installations,
+            calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
             native = true
         });
     }
@@ -123,7 +130,7 @@ public sealed class ArcadeWindow : Window
             if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
             gesture.Key(packet.Key, packet.Down, DateTimeOffset.UtcNow);
         }
-        if (session.Active) return;
+        if (session.Active || remoteSession) return;
         long now = Environment.TickCount64;
         if (packet.Kind == "mouse" && packet.Buttons == 0 && now - lastMove < 30) return;
         if (packet.Kind == "mouse") lastMove = now;
@@ -152,6 +159,10 @@ public sealed class ArcadeWindow : Window
         string Str(string name) => payload.GetProperty(name).GetString() ?? "";
         int Player() => payload.GetProperty("player").GetInt32() is var n && n is >= 1 and <= 2 ? n : throw new ArgumentException("Ungültiger Spieler.");
         GameEntry Game() => state.Games.FirstOrDefault(g => g.Id == Str("id")) ?? throw new ArgumentException("Das Spiel existiert nicht mehr.");
+        if (type == "browse-path") { picker.Browse(Str("path")); return; }
+        if (type == "choose-path") { picker.Choose(Str("path")); return; }
+        if (type == "cancel-picker") { picker.Cancel(); return; }
+        if (picker.Active) throw new InvalidOperationException("Bitte zuerst die Dateiauswahl schließen.");
         if (type == "ready") { ready = true; SendState(); return; }
         if (type == "end-game") { await session.End(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
@@ -159,6 +170,44 @@ public sealed class ArcadeWindow : Window
         if (busy) throw new InvalidOperationException("Die laufende Aktion wird noch abgeschlossen.");
         switch (type)
         {
+            case "scan-installations":
+                {
+                    busy = true; Send("busy", new { message = "Bekannte Spieleordner werden durchsucht …" });
+                    try
+                    {
+                        var roots = new List<string> { Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) };
+                        foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+                        {
+                            roots.Add(drive.RootDirectory.FullName);
+                            foreach (var folder in new[] { "Games", "Arcade", "Emulators", "RetroBat", "LaunchBox", "TeknoParrot" }) roots.Add(Path.Combine(drive.RootDirectory.FullName, folder));
+                        }
+                        installations = await Task.Run(() => InstallationFinder.Find(roots)); SendState();
+                        Send("notice", new { message = installations.Count == 0 ? "In den üblichen Ordnern nichts gefunden. Du kannst den richtigen Ordner über die großen Schaltflächen wählen." : $"{installations.Count} Programme gefunden. Wähle die gewünschte Installation." });
+                    }
+                    finally { busy = false; Send("busy", new { message = "" }); }
+                    break;
+                }
+            case "set-calibration":
+                {
+                    string? exe = await picker.Open("Hersteller-Kalibrierprogramm auswählen", false); if (exe is null) return;
+                    state = state with { Settings = state.Settings with { CalibrationTool = exe } }; Persist(); break;
+                }
+            case "run-calibration":
+                {
+                    if (remoteSession) throw new InvalidOperationException("Die Gun am echten Bildschirm lokal kalibrieren. Remote Desktop verändert die Anzeige.");
+                    string exe = state.Settings.CalibrationTool ?? throw new InvalidOperationException("Bitte zuerst das Herstellerprogramm auswählen.");
+                    await session.Run(GameImporter.Pc(exe, "RS3-Kalibrierung"), store.DirectoryPath, state.Bindings); break;
+                }
+            case "validate-library":
+                {
+                    var warnings = new List<string>();
+                    foreach (var game in state.Games.ToArray())
+                    {
+                        try { LaunchRules.Prepare(game); if (game.Source == "mame" && !System.IO.File.Exists(game.SourcePath)) throw new IOException("ROM-Datei fehlt."); }
+                        catch (Exception e) { warnings.Add(game.Title + ": " + e.Message); }
+                    }
+                    Send("import-result", new { count = state.Games.Count, warnings, validation = true }); break;
+                }
             case "refresh": raw.Refresh(); SendState(); break;
             case "bind": bindPlayer = Player(); bindMouse = null; SendState(); break;
             case "unbind": state.Bindings.RemoveAll(b => b.Player == Player()); Persist(); break;
@@ -186,13 +235,13 @@ public sealed class ArcadeWindow : Window
                 }
             case "import-tekno":
                 {
-                    string? root = Folder("TeknoParrot-Ordner auswählen"); if (root is null) return;
+                    string? root = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detected) && installations.Any(i => i.Kind == "tekno" && i.Path == detected.GetString()) ? Path.GetDirectoryName(detected.GetString()) : await picker.Open("TeknoParrot-Ordner auswählen", true); if (root is null) return;
                     await Import(() => GameImporter.TeknoParrot(root)); break;
                 }
             case "import-mame":
                 {
-                    string? exe = File("MAME-Anwendung auswählen"); if (exe is null) return;
-                    string? roms = Folder("MAME-ROM-Ordner auswählen"); if (roms is null) return;
+                    string? exe = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detectedMame) && installations.Any(i => i.Kind == "mame" && i.Path == detectedMame.GetString()) ? detectedMame.GetString() : await picker.Open("MAME-Anwendung auswählen", false); if (exe is null) return;
+                    string? roms = await picker.Open("MAME-ROM-Ordner auswählen", true); if (roms is null) return;
                     busy = true; Send("busy", new { message = "MAME-Spielekatalog wird gelesen …" });
                     try
                     {
@@ -208,10 +257,10 @@ public sealed class ArcadeWindow : Window
                     finally { busy = false; Send("busy", new { message = "" }); }
                     break;
                 }
-            case "add-pc": { string? exe = File("Lightgun-Spiel auswählen"); if (exe is not null) ApplyImport(new([GameImporter.Pc(exe)], [])); break; }
+            case "add-pc": { string? exe = await picker.Open("Lightgun-Spiel auswählen", false); if (exe is not null) ApplyImport(new([GameImporter.Pc(exe)], [])); break; }
             case "add-cover":
                 {
-                    var game = Game(); string? file = File("Cover auswählen", "Bilder|*.png;*.jpg;*.jpeg;*.webp"); if (file is null) return;
+                    var game = Game(); string? file = await picker.Open("Cover auswählen", false, [".png", ".jpg", ".jpeg", ".webp"]); if (file is null) return;
                     if (new FileInfo(file).Length > 8_000_000) throw new IOException("Das Cover ist größer als 8 MB.");
                     string dest = Path.Combine(store.DirectoryPath, "covers", game.Id + Path.GetExtension(file).ToLowerInvariant()); System.IO.File.Copy(file, dest, true);
                     state.Games[state.Games.IndexOf(game)] = game with { Cover = dest }; Persist(); break;
@@ -242,7 +291,10 @@ public sealed class ArcadeWindow : Window
                     var picker = new SaveFileDialog { Title = "Diagnose speichern", Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
                     System.IO.File.WriteAllText(picker.FileName, JsonSerializer.Serialize(new
                     {
-                        version = "0.1.0",
+                        version = "0.2.0",
+            remoteSession,
+            installations,
+            calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
                         os = Environment.OSVersion.ToString(),
                         devices = raw.Devices,
                         bindings = state.Bindings,

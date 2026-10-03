@@ -57,6 +57,15 @@ try
     using var ambiguousHttp = new HttpClient(new FixtureHttp(true));
     var ambiguous = await new CoverService(ambiguousHttp, Path.Combine(root, "covers")).Download("Point Blank", "fixture", CancellationToken.None);
     Check(ambiguous is null, "Ambiguous cover titles are not silently guessed");
+    LibraryStore.Merge(state, [scarlet with { Status = "needs-setup" }]);
+    Check(state.Games.Single(g => g.Id == scarlet.Id).Status == "needs-setup", "Reimport invalidates playable verdict when game files disappear");
+    var discoveries = InstallationFinder.Find([root]);
+    Check(discoveries.Count == 1 && discoveries[0].Kind == "tekno" && discoveries[0].Path == scarlet.Executable, "Installation search finds nested TeknoParrot and deduplicates paths");
+    var browse = InstallationFinder.Browse(tp, false, [".exe"]);
+    Check(browse.Entries.Any(e => !e.Directory && e.Path == scarlet.Executable) && !browse.Entries.Any(e => e.Name.EndsWith(".xml")), "Arcade picker filters applications and retains navigable folders");
+    var folderPage = InstallationFinder.Browse(tp, true, []);
+    Check(folderPage.Entries.All(e => e.Directory) && folderPage.Parent == root, "Folder selection cannot offer files and exposes correct parent");
+    Throws(() => InstallationFinder.Browse(Path.Combine(root, "absent"), true, []), "Picker rejects vanished directory");
     Console.WriteLine($"\n{checks} meaningful core checks passed.");
 }
 finally { Directory.Delete(root, true); }

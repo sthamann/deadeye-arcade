@@ -2096,3 +2096,169 @@ main {
     scroll-behavior: auto !important;
   }
 }
+
+.file-picker {
+  width: min(1050px, 95vw);
+  max-width: 1050px;
+}
+.picker-shortcuts,
+.picker-path,
+.keyboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+  align-items: center;
+}
+.picker-path span {
+  overflow-wrap: anywhere;
+  color: #a9b3c3;
+  flex: 1;
+  min-width: 150px;
+}
+.picker-entries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 48vh;
+  overflow-y: auto;
+  margin: 20px 0;
+}
+.picker-entries button {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid #29303b;
+  border-radius: 10px;
+  background: #171e29;
+  color: #e8edf5;
+  min-height: 64px;
+}
+.picker-entries button span {
+  overflow-wrap: anywhere;
+}
+.picker-entries button svg {
+  flex-shrink: 0;
+  color: #ff7959;
+}
+.picker-entries button:hover,
+.keyboard-keys button:hover {
+  background: #333747;
+}
+.arcade-keyboard {
+  width: min(840px, 95vw);
+  max-width: 840px;
+}
+.arcade-keyboard input {
+  width: 100%;
+  padding: 18px;
+  font-size: 22px;
+  border: 1px solid #3a4353;
+  border-radius: 10px;
+  background: #111823;
+  color: white;
+  box-sizing: border-box;
+}
+.keyboard-keys {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 18px;
+}
+.keyboard-keys button {
+  padding: 15px 0;
+  min-height: 58px;
+  font-size: 21px;
+  border: 1px solid #343f50;
+  background: #1b2535;
+  color: white;
+  border-radius: 10px;
+}
+.detected-list {
+  margin: 24px 0;
+  border: 1px solid #2b3441;
+  border-radius: 16px;
+}
+.detected-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px;
+  flex-wrap: wrap;
+}
+.detected-list small {
+  display: block;
+  margin-top: 5px;
+  color: #8e9bad;
+  overflow-wrap: anywhere;
+}
+.detected-list > div > div {
+  min-width: 0;
+  flex: 1;
+}
+@media (max-width: 600px) {
+  .picker-entries {
+    grid-template-columns: 1fr;
+  }
+  .keyboard-keys {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .keyboard-keys button {
+    min-height: 44px;
+    padding: 10px 0;
+  }
+}
+/* Cinema: navigation above the stage, a broad feature panel and calm artwork. */
+.arcade-app .sidebar {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  padding: 24px 4vw;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 32px;
+  border-right: 0;
+  border-bottom: 1px solid #343b48;
+  background: #101217;
+}
+.arcade-app .brand { padding: 0; }
+.arcade-app .brand > span { display: block; }
+.arcade-app .brand small { display: inline; margin-left: 12px; letter-spacing: 3px; }
+.arcade-app .nav-label, .arcade-app .nav-dot, .arcade-app .machine-label,
+.arcade-app .sidebar-bottom > span { display: none; }
+.arcade-app .sidebar nav { flex-direction: row; flex-wrap: wrap; gap: 8px; margin: 0; }
+.arcade-app .sidebar nav button { padding: 14px 18px; min-height: 52px; justify-content: center; }
+.arcade-app .sidebar nav button > span:not(.nav-dot) { display: inline; }
+.arcade-app .sidebar-bottom { display: block; margin: 0 0 0 auto; padding: 0; }
+.arcade-app .exit-link { padding: 14px; min-height: 52px; }
+.arcade-app .main-shell { margin-left: 0; }
+.arcade-app .topbar { height: 64px; }
+.arcade-app .busy-bar { left: 0; }
+.arcade-app .hero { background: #191d25; border-color: #343b48; grid-template-columns: 1.35fr 1fr; }
+.arcade-app .hero-art { background: linear-gradient(140deg, #422a30, #202b39); }
+.arcade-app .hero-art:after { background: linear-gradient(90deg, #191d25, transparent 35%); }
+.arcade-app .art-grid, .arcade-app .orbit-two, .arcade-app .art-cross { display: none; }
+.arcade-app .art-number { transform: none; letter-spacing: -5px; font-size: clamp(70px, 9vw, 145px); text-shadow: none; }
+.arcade-app .game-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.arcade-app .poster { aspect-ratio: 16/10; }
+.arcade-app .poster-kicker { margin-bottom: 22px; }
+@media (max-width: 850px) {
+  .arcade-app .sidebar { padding: 20px; gap: 16px; }
+  .arcade-app .sidebar nav { order: 3; width: 100%; }
+  .arcade-app .sidebar nav button { flex: 1; padding: 12px; }
+  .arcade-app .sidebar nav button > svg { display: none; }
+}
+@media (max-width: 600px) {
+  .arcade-app .hero { grid-template-columns: 1fr; }
+  .arcade-app .hero-art:after { background: linear-gradient(#191d25, transparent 40%); }
+  .arcade-app .sidebar nav { gap: 4px; }
+  .arcade-app .sidebar nav button { font-size: 11px; padding: 10px 6px; min-width: 0; }
+  .arcade-app .game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arcade-app .poster { aspect-ratio: 3/4; }
+  .arcade-app .brand small { display: block; margin: 4px 0 0; }
+}
