@@ -66,6 +66,43 @@ try
     var folderPage = InstallationFinder.Browse(tp, true, []);
     Check(folderPage.Entries.All(e => e.Directory) && folderPage.Parent == root, "Folder selection cannot offer files and exposes correct parent");
     Throws(() => InstallationFinder.Browse(Path.Combine(root, "absent"), true, []), "Picker rejects vanished directory");
+    string missingAsset = Path.Combine(root, "required.bin");
+    var incomplete = LaunchRules.Validate(scarlet with { RequiredFiles = [missingAsset], Status = "tested" });
+    Check(incomplete.Status == "needs-setup" && incomplete.SetupIssues!.Length == 1, "Required assets block and invalidate a previously tested game");
+    File.WriteAllText(missingAsset, "asset");
+    Check(LaunchRules.Validate(incomplete).Status == "unverified", "Restored assets unlock only file readiness, never claim gameplay");
+    string handoff = Path.Combine(root, "spiele.json");
+    var options = new[] { new { target = Path.Combine(root, "missing.exe"), cwd = root, requires = new[] {missingAsset}, arguments_array = new[] {"bad"} },
+        new { target = scarlet.Executable, cwd = tp, requires = new[] { scarlet.SourcePath, missingAsset }, arguments_array = scarlet.Arguments } };
+    File.WriteAllText(handoff, System.Text.Json.JsonSerializer.Serialize(new { games = new[] { new { id = 316, title = "Fixture collection game", system = "Arcade", priority = 1, two_player = "2", dual_gun = "not tested", notes = "", launch_options = options } } }));
+    var collection = CollectionImporter.Read(handoff);
+    Check(collection.Games.Count == 1 && collection.Games[0].Executable == scarlet.Executable && collection.Games[0].Status == "unverified", "Collection chooses the complete alternative and validates the actual TP GamePath");
+    Check(collection.Games[0].Id == "inventory-316" && collection.Games[0].Favorite && collection.Games[0].RequiredFiles!.Length == 2, "Collection preserves stable IDs, priority and runtime dependencies");
+    File.Delete(missingAsset);
+    Check(CollectionImporter.Read(handoff).Games[0].Status == "needs-setup", "Collection keeps unavailable titles visible but blocked");
+    var shared = LibraryState.Empty;
+    LibraryStore.Merge(shared, [scarlet with { Id = "inventory-a" }, scarlet with { Id = "inventory-b", Title = "Other title in shared collection" }]);
+    Check(shared.Games.Count == 2, "Separate games sharing one launcher remain separate inventory entries");
+    string chd = Path.Combine(roms, "carnevil"); Directory.CreateDirectory(chd);
+    string archive = chd + ".zip", emulator = Path.Combine(root, "mame.exe"); File.WriteAllText(emulator, "fixture");
+    File.WriteAllText(handoff, System.Text.Json.JsonSerializer.Serialize(new { games = new[] { new { id = 67, title = "CarnEvil", system = "MAME", c_paths = new[] { chd, archive, Path.Combine(roms, "other-clone.zip") }, launch_options = new[] { new { target = emulator, cwd = root, requires = new[] { chd }, arguments_array = new[] { "carnevil" } } } } } }));
+    var chdGame = CollectionImporter.Read(handoff).Games.Single();
+    Check(chdGame.SourcePath == archive && chdGame.RequiredFiles!.Length == 2 && chdGame.Status == "needs-setup", "MAME collection requires the ROM archive beside its data folder without requiring unrelated clones");
+    File.WriteAllText(archive, "fixture");
+    Check(CollectionImporter.Read(handoff).Games.Single().Status == "unverified", "MAME collection becomes file-ready only when archive and data folder both exist");
+    string mediaRoot = Path.Combine(root, "media"); Directory.CreateDirectory(mediaRoot);
+    string image = Path.Combine(mediaRoot, "cover #1.png"); File.WriteAllText(image, "fixture");
+    Check(MediaPaths.Url(image, mediaRoot, "media.reaper.local") == "https://media.reaper.local/cover%20%231.png", "Media URL escapes real files under the dedicated folder");
+    Check(MediaPaths.Url(scarlet.Executable, mediaRoot, "media.reaper.local") is null && MediaPaths.Url(Path.Combine(root, "outside.png"), mediaRoot, "media.reaper.local") is null, "Media URL refuses executables and paths outside its folder");
+    string link = Path.Combine(mediaRoot, "escape.png"); File.CreateSymbolicLink(link, image);
+    Check(MediaPaths.Url(link, mediaRoot, "media.reaper.local") is null, "Media URL refuses symbolic links");
+    if (args.Length > 1)
+    {
+        var actual = CollectionImporter.Read(args[1]);
+        Check(actual.Games.Count == 183 && actual.Games.Select(g => g.Id).Distinct().Count() == 183, "Actual handoff imports all 183 distinct selected titles, including absent media");
+        Check(actual.Games.Count(g => g.Priority == 1) == 25 && actual.Games.Count(g => g.PreviewVideo is not null) == 133, "Actual handoff preserves 25 first priorities and 133 video references");
+        File.WriteAllText(Path.Combine(args[0], "collection-import-check.json"), System.Text.Json.JsonSerializer.Serialize(actual, JsonDefaults.Options));
+    }
     Console.WriteLine($"\n{checks} meaningful core checks passed.");
 }
 finally { Directory.Delete(root, true); }

@@ -12,6 +12,15 @@ export type Game = {
   favorite: boolean;
   aspect: string;
   lastPlayed: string | null;
+  previewVideo?: string | null;
+  screenshot?: string | null;
+  logo?: string | null;
+  setupIssues?: string[];
+  requiredFiles?: string[];
+  priority?: number;
+  players?: string | null;
+  setupNotes?: string | null;
+  helpers?: { executable: string; arguments: string[]; workingDirectory: string }[];
 };
 export type Binding = {
   player: number;
@@ -76,7 +85,7 @@ export const empty: State = {
   ports: [],
   settings: { startWithWindows: false, fullscreen: true, hasCoverKey: false },
   bindingStage: null,
-  version: "0.2.0",
+  version: "0.3.0",
   installations: [],
   native: !!window.chrome?.webview,
 };

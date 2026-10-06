@@ -37,6 +37,7 @@ import {
   type Input,
 } from "./types";
 import "./style.css";
+import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
 
 type Page = "play" | "guns" | "import" | "settings";
@@ -84,6 +85,8 @@ function App() {
   const [demo, setDemo] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
+  const [platform, setPlatform] = useState("all");
+  const [previewEnabled, setPreviewEnabled] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState("");
@@ -336,8 +339,11 @@ function App() {
   const games = allGames.filter(
     (g) =>
       (filter !== "favorites" || g.favorite) &&
-      (filter !== "modern" || g.platform === "TeknoParrot") &&
-      (filter !== "classic" || g.platform === "MAME") &&
+      (filter !== "modern" || g.source === "teknoparrot" || g.platform === "TeknoParrot") &&
+      (filter !== "priority" || g.priority === 1) &&
+      (filter !== "available" || g.status !== "needs-setup") &&
+      (platform === "all" || g.platform === platform) &&
+      (filter !== "classic" || g.source === "mame" || g.platform === "MAME") &&
       g.title.toLowerCase().includes(search.toLowerCase()),
   );
   const featured =
@@ -358,7 +364,7 @@ function App() {
     }
     if (g.status === "needs-setup") {
       announce(
-        "Der Spielpfad oder ein benötigtes Profil fehlt. Bitte in TeknoParrot korrigieren und erneut importieren.",
+        "Die Einrichtung ist noch unvollständig. In den Spieldetails findest du die fehlenden Dateien; danach Bibliothek erneut prüfen.",
       );
       return;
     }
@@ -524,7 +530,7 @@ function App() {
                         <button
                           className="primary"
                           onClick={() => start(featured)}
-                          disabled={!!busy}
+                          disabled={!!busy || featured.status === "needs-setup"}
                         >
                           <Play size={20} fill="currentColor" />
                           {featured.source === "demo"
@@ -539,11 +545,13 @@ function App() {
                         >
                           Spieldetails <ArrowRight size={17} />
                         </button>
+                        {featured.previewVideo && <button className="secondary" onClick={() => setPreviewEnabled(!previewEnabled)}>{previewEnabled ? "Vorschau pausieren" : "Vorschau abspielen"}</button>}
                       </div>
+                      {featured.players && <p className="players-note">{featured.players} · Gun-Einrichtung separat prüfen</p>}
                     </div>
-                    <div className="hero-art" aria-hidden="true">
-                      {featured.cover ? (
-                        <img src={featured.cover} alt="" />
+                    <div className="hero-art">
+                      {featured.cover || featured.previewVideo || featured.screenshot || featured.logo ? (
+                        <MediaPreview key={featured.id + featured.previewVideo} game={featured} active={previewEnabled && !modal && !session && !busy} />
                       ) : (
                         <>
                           <div className="art-grid" />
@@ -599,12 +607,15 @@ function App() {
                       </button>
                     </div>
                   </div>
+                  <label className="platform-filter">System auswählen <select aria-label="System filtern" value={platform} onChange={e => { setPlatform(e.target.value); setSelected(null); }}>{["all", ...Array.from(new Set(allGames.map(g => g.platform))).sort()].map(p => <option key={p} value={p}>{p === "all" ? "Alle Systeme" : p}</option>)}</select></label>
                   <div className="filters">
                     {[
                       ["all", "Alle Spiele"],
                       ["modern", "Modern Arcade"],
                       ["classic", "Klassiker"],
                       ["favorites", "Favoriten"],
+                      ["priority", "Erste Auswahl"],
+                      ["available", "Dateien vorhanden"],
                     ].map(([id, title]) => (
                       <button
                         key={id}
@@ -856,7 +867,7 @@ function App() {
                           <p>
                             Optional: den COM-Port dieser Gun auswählen. Die App
                             prüft zuerst die RS3-ID und fordert nur Mausmodus
-                            und Bildformat an.
+                            und Bildformat an. Einzelimpulse lassen sich am lokalen Bildschirm testen.
                           </p>
                           <label>
                             Gun-COM-Port
@@ -890,6 +901,8 @@ function App() {
                               Mausmodus setzen
                             </button>
                           </div>
+                          <div className="inline-actions feedback-actions">{[["recoil", "Rückstoß testen"], ["rumble", "Vibration testen"], ["combined", "Kombiniert testen"]].map(([effect, title]) => <button key={effect} className="secondary" disabled={!!busy || !online || !binding.serialPort || !!state.remoteSession} onClick={() => send("test-feedback", {player, effect})}>{title}</button>)}</div>
+                          <p>Gun in der Hand halten und die vorgesehene 24-V-Versorgung verwenden. Ein Klick sendet einen einzelnen Impuls; die Kraft ist kein frei regelbarer Softwarewert. Unter Remote Desktop sind diese Tests gesperrt.</p>
                           <p className="technical">{binding.mouseId}</p>
                           <button
                             className="text-button danger"
@@ -931,8 +944,7 @@ function App() {
                   <strong>Erkannt ist noch nicht vollständig geprüft.</strong>
                   <p>
                     Der Zieltest prüft die Eingabe an fünf Zielen. Er ersetzt
-                    keine Firmwarekalibrierung. Recoil und Pedal werden aktuell
-                    im Spiel geprüft.
+                    keine Firmwarekalibrierung. Einzelimpulse für Recoil und Rumble prüfst du am lokalen Bildschirm; Spielefeedback und Pedal brauchen den Spieltest.
                   </p>
                 </div>
               </div>
@@ -1012,6 +1024,7 @@ function App() {
                   <ShieldCheck size={18} />
                   Bibliothek prüfen
                 </button>
+                <button className="secondary" disabled={!!busy} onClick={() => send("import-collection")}><FolderOpen size={18} /> Übergabepaket importieren</button>
               </div>
               {state.installations?.length > 0 && (
                 <div className="detected-list">
@@ -1241,7 +1254,7 @@ function App() {
                   <p>
                     Auf der zugeordneten Gun Start + Münze für etwa zwei
                     Sekunden halten. Spieler 1: Tasten 1 + 5, Spieler 2: 2 + 6.
-                    Die App beobachtet die Kombination im Hintergrund.
+                    Die App beobachtet die Kombination im Hintergrund. Mit einer Tastatur beendet auch F12 die eigene Spielsitzung.
                   </p>
                 </div>
               </div>
@@ -1413,7 +1426,7 @@ function App() {
                 </span>
                 <h2>{modal.game.title}</h2>
                 <div className="detail-actions">
-                  <button className="primary" onClick={() => start(modal.game)}>
+                  <button className="primary" disabled={modal.game.status === "needs-setup"} onClick={() => start(modal.game)}>
                     <Play size={18} /> Spiel starten
                   </button>
                   <button
@@ -1423,6 +1436,10 @@ function App() {
                     <Heart size={17} /> Favorit umschalten
                   </button>
                 </div>
+                {(modal.game.setupIssues?.length ?? 0) > 0 && <div className="setup-issues"><strong>Vor dem Start fehlt noch:</strong><ul>{modal.game.setupIssues?.map(issue => <li key={issue}>{issue}</li>)}</ul></div>}
+                {modal.game.players && <p>Spieler laut Spiel: {modal.game.players}. Zwei eingerichtete Guns sind noch separat zu prüfen.</p>}
+                {modal.game.setupNotes && <details><summary>Einrichtung und Helfer</summary><p className="technical">{modal.game.setupNotes}</p></details>}
+                <details><summary>Gespeicherter Startweg</summary><p className="technical">{modal.game.executable}<br />{modal.game.arguments.join(" ")}<br />Arbeitsordner: {modal.game.workingDirectory}</p></details>
                 <div className="setting-row">
                   <strong>Bildformat der Gun</strong>
                   <div className="segmented">
@@ -1452,6 +1469,7 @@ function App() {
                   </button>
                   <button
                     className="secondary"
+                    disabled={modal.game.status === "needs-setup"}
                     onClick={() => {
                       send("mark-tested", { id: modal.game.id });
                       setModal(null);

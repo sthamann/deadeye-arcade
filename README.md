@@ -1,4 +1,4 @@
-# Reaper Arcade 0.2
+# Reaper Arcade 0.3 – in Entwicklung
 
 Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: große Vollbildoberfläche, getrennte Gun-Eingänge und Import vorhandener TeknoParrot-/MAME-Spiele.
 
@@ -9,6 +9,17 @@ Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: gr
 Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhaltern. Die echte Bibliothek startet leer. Spiele, ROMs, Emulatoren und Herstellerwerkzeuge werden nicht mitgeliefert.
 
 **Früher Entwicklungsstand:** Die Windows-Oberfläche und der Programmstart wurden getestet. Echte RS3-Guns waren dabei nicht angeschlossen; vollständige Spielekompatibilität ist noch nicht nachgewiesen.
+
+## Erweiterungen in 0.3
+
+- Import der `spiele.json`-Übergabe mit alternativen Startwegen, Abhängigkeiten, Prioritäten und Spielerangaben. Fehlende Dateien sperren den Start; eine erneute Prüfung kann abgeschlossene Kopien freigeben.
+- Vorschauvideos ohne Ton mit Pause beim Ansichtswechsel, Dialog und Spielstart; Screenshots und Logos. Medienzugriff bleibt auf eigene Medienordner begrenzt.
+- Große Systemauswahl sowie Filter für erste Priorität und vorhandene Startdateien.
+- Einzeltests für Rückstoß, Rumble und die Kombination am lokalen Bildschirm; keine stufenlose Kraftsteuerung.
+- Explizit konfigurierte Helfer starten mit der Spielsitzung und werden vor der Menürückkehr beendet. Dies allein ersetzt keine Konfiguration ihrer Spieloutputs.
+- F12 beendet die eigene Spielsitzung zusätzlich zur Gun-Kombination.
+
+Der neue Stand ist lokal gebaut und softwareseitig geprüft. Die Installation und Spieleprüfung auf dem neuen Lightgun-PC stehen noch aus. Der Download oben bleibt die veröffentlichte Version 0.2.0.
 
 ## Direkt auf dem Windows-PC starten
 
@@ -85,3 +96,11 @@ Technische Entscheidungen und Herstellerreferenzen: [docs/architecture.md](docs/
 ## Lizenz
 
 Der Quellcode ist öffentlich einsehbar; eine offene Lizenz für den eigenen Anwendungscode wurde noch nicht festgelegt. Siehe [LICENSE](LICENSE). Die Lizenzbedingungen der Abhängigkeiten sind unter [THIRD-PARTY.md](THIRD-PARTY.md) aufgeführt.
+
+## Vorhandene Sammlung einrichten
+
+Unter **Spiele finden → Übergabepaket importieren** die `spiele.json` auswählen. Bereits gespeicherte Favoriten, Covers und Gun-Bindings bleiben erhalten. **Bibliothek prüfen** kontrolliert Abhängigkeiten und TeknoParrot-GamePath; der Spieltest bleibt davon getrennt. Medien aus dem Übergabeplan liegen unter `C:\Lightgun\Media` und werden ohne zusätzliche Kopie in den Benutzerordner bereitgestellt.
+
+`scripts/install-collection.ps1 -Package <Windows-ZIP> -Handoff <Übergabeordner> -StartAfter` sichert eine vorhandene Installation/Bibliothek, wartet auf abgeschlossene Migrationsjournale, kopiert Medien, importiert die Bibliothek und legt Verknüpfungen an. Es startet keine konkurrierenden Migrationsjobs und schaltet Autostart nicht ein. Fehlende Quellen bleiben im Bericht unter `C:\Lightgun\Setup\Logs`.
+
+Einrichten ohne Oberfläche: `ReaperArcade.exe --import-collection <spiele.json>` beziehungsweise `--validate-library`, jeweils bei geschlossener App und unter dem vorgesehenen Windows-Spielbenutzer. Die Ergebnisse stehen in `%LOCALAPPDATA%\ReaperArcade\library-import-report.json`.

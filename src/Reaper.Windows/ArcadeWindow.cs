@@ -66,6 +66,10 @@ public sealed class ArcadeWindow : Window
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("reaper.local", webDirectory, CoreWebView2HostResourceAccessKind.DenyCors);
             Directory.CreateDirectory(Path.Combine(store.DirectoryPath, "covers"));
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("covers.reaper.local", Path.Combine(store.DirectoryPath, "covers"), CoreWebView2HostResourceAccessKind.DenyCors);
+            Directory.CreateDirectory(Path.Combine(store.DirectoryPath, "media"));
+            web.CoreWebView2.SetVirtualHostNameToFolderMapping("media.reaper.local", Path.Combine(store.DirectoryPath, "media"), CoreWebView2HostResourceAccessKind.DenyCors);
+            if (Directory.Exists(@"C:\Lightgun\Media"))
+                web.CoreWebView2.SetVirtualHostNameToFolderMapping("collection.reaper.local", @"C:\Lightgun\Media", CoreWebView2HostResourceAccessKind.DenyCors);
             web.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             web.CoreWebView2.Settings.AreDevToolsEnabled = false;
             web.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -90,22 +94,32 @@ public sealed class ArcadeWindow : Window
     { if (ready && web.CoreWebView2 is not null) web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type, payload }, JsonDefaults.Options)); }
     private void SendState()
     {
+        if (web.CoreWebView2 is not null && Directory.Exists(@"C:\Lightgun\Media"))
+            web.CoreWebView2.SetVirtualHostNameToFolderMapping("collection.reaper.local", @"C:\Lightgun\Media", CoreWebView2HostResourceAccessKind.DenyCors);
         foreach (var binding in state.Bindings.Where(b => !raw.Devices.Any(d => d.Id == b.KeyboardId)))
             if (binding.KeyboardId is not null && gestures.TryGetValue(binding.KeyboardId, out var gesture)) gesture.Reset();
         Send("state", new
         {
-            games = state.Games.Select(g => g with { Cover = g.Cover is null ? null : "https://covers.reaper.local/" + Uri.EscapeDataString(Path.GetFileName(g.Cover)) }),
+            games = state.Games.Select(g => g with { Cover = MediaUrl(g.Cover, true), PreviewVideo = MediaUrl(g.PreviewVideo), Screenshot = MediaUrl(g.Screenshot), Logo = MediaUrl(g.Logo) }),
             bindings = state.Bindings,
             devices = raw.Devices,
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
-            version = "0.2.0",
+            version = "0.3.0",
             remoteSession,
             installations,
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
             native = true
         });
+    }
+    private string? MediaUrl(string? file, bool cover = false)
+    {
+        if (string.IsNullOrWhiteSpace(file)) return null;
+        if (!Path.IsPathRooted(file)) file = Path.Combine(store.DirectoryPath, file);
+        return (cover ? MediaPaths.Url(file, Path.Combine(store.DirectoryPath, "covers"), "covers.reaper.local") : null)
+            ?? MediaPaths.Url(file, Path.Combine(store.DirectoryPath, "media"), "media.reaper.local")
+            ?? MediaPaths.Url(file, @"C:\Lightgun\Media", "collection.reaper.local");
     }
     private void Persist() { store.Save(state); SendState(); }
     private void Log(string message) { System.IO.File.AppendAllText(logPath, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine); }
@@ -124,6 +138,7 @@ public sealed class ArcadeWindow : Window
                 state.Bindings.Add(new(player, bindMouse, packet.DeviceId)); bindMouse = null; bindPlayer = null; Persist(); return;
             }
         }
+        if (session.Active && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
         var binding = state.Bindings.FirstOrDefault(b => b.MouseId == packet.DeviceId || b.KeyboardId == packet.DeviceId);
         if (packet.Kind == "keyboard" && binding is not null)
         {
@@ -203,10 +218,30 @@ public sealed class ArcadeWindow : Window
                     var warnings = new List<string>();
                     foreach (var game in state.Games.ToArray())
                     {
-                        try { LaunchRules.Prepare(game); if (game.Source == "mame" && !System.IO.File.Exists(game.SourcePath)) throw new IOException("ROM-Datei fehlt."); }
-                        catch (Exception e) { warnings.Add(game.Title + ": " + e.Message); }
+                        var checkedGame = LaunchRules.Validate(game);
+                        state.Games[state.Games.IndexOf(game)] = checkedGame;
+                        warnings.AddRange((checkedGame.SetupIssues ?? []).Select(issue => game.Title + ": " + issue));
                     }
-                    Send("import-result", new { count = state.Games.Count, warnings, validation = true }); break;
+                    Persist();
+                    Send("import-result", new { count = state.Games.Count(g => g.Status != "needs-setup"), warnings, validation = true }); break;
+                }
+            case "import-collection":
+                {
+                    string? path = await picker.Open("spiele.json aus der Übergabe auswählen", false, [".json"]);
+                    if (path is not null) await Import(() => CollectionImporter.Read(path));
+                    break;
+                }
+            case "test-feedback":
+                {
+                    if (remoteSession) throw new InvalidOperationException("Feedback am lokalen Bildschirm testen und die Gun dabei in der Hand halten.");
+                    var b = state.Bindings.First(x => x.Player == Player());
+                    if (b.SerialPort is null) throw new InvalidOperationException("Bitte zuerst den Gun-COM-Port zuordnen.");
+                    string effect = Str("effect");
+                    string[] commands = effect switch { "recoil" => ["ZS", "Z5", "ZX"], "rumble" => ["ZS", "ZZ", "ZX"], "combined" => ["ZS", "Z5", "ZZ", "ZX"], _ => throw new ArgumentException("Unbekannter Feedbacktest.") };
+                    busy = true;
+                    try { await serial.Command(b.SerialPort, b.Player, commands); Send("notice", new { message = "Einzelimpuls gesendet. Stärke und Gefühl beurteilst du an der Gun; dies bestätigt noch kein Spielefeedback." }); }
+                    finally { busy = false; }
+                    break;
                 }
             case "refresh": raw.Refresh(); SendState(); break;
             case "bind": bindPlayer = Player(); bindMouse = null; SendState(); break;
@@ -291,7 +326,7 @@ public sealed class ArcadeWindow : Window
                     var picker = new SaveFileDialog { Title = "Diagnose speichern", Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
                     System.IO.File.WriteAllText(picker.FileName, JsonSerializer.Serialize(new
                     {
-                        version = "0.2.0",
+                        version = "0.3.0",
             remoteSession,
             installations,
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),

@@ -2262,3 +2262,13 @@ main {
   .arcade-app .poster { aspect-ratio: 3/4; }
   .arcade-app .brand small { display: block; margin: 4px 0 0; }
 }
+
+.hero-art video { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+.hero-art .game-logo { position:absolute; width:70%; height:auto; max-height:110px; object-fit:contain; bottom:44px; right:6%; z-index:2; }
+.video-caption { position:absolute; bottom:14px; right:18px; z-index:3; font-size:11px; padding:7px 10px; background:#10151ecc; border-radius:6px; }
+.missing-media { display:grid; place-items:center; height:100%; color:#b9c2d0; padding:30px; }
+.platform-filter { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; color:#aeb8c8; }
+.platform-filter select { max-width:100%; min-height:44px; color:#e6edf7; background:#202733; border:1px solid #485365; padding:9px 12px; border-radius:8px; }
+.setup-issues { padding:16px; border:1px solid #9e6243; background:#2b211d; border-radius:10px; margin:18px 0; overflow-wrap:anywhere; }
+.players-note { font-size:13px; color:#aeb8c8; }
+.feedback-actions { margin-top:16px; }

@@ -29,6 +29,40 @@ public sealed class GameSession
     public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
         if (Active) throw new InvalidOperationException("Es läuft bereits ein Spiel.");
+        _ = LaunchRules.Prepare(game);
+        var helpers = new List<Process>();
+        try
+        {
+            foreach (var helper in game.Helpers ?? [])
+            {
+                var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(helper.Executable));
+                bool running = previous.Length > 0; foreach (var p in previous) p.Dispose();
+                if (running) throw new IOException("Der Helfer läuft bereits. Bitte vor dem Start schließen: " + Path.GetFileName(helper.Executable));
+                var info = new ProcessStartInfo(helper.Executable) { WorkingDirectory = helper.WorkingDirectory, UseShellExecute = false };
+                foreach (var argument in helper.Arguments) info.ArgumentList.Add(argument);
+                helpers.Add(Process.Start(info) ?? throw new IOException("Helfer konnte nicht gestartet werden."));
+            }
+            await RunGame(game, dataDirectory, bindings);
+        }
+        finally
+        {
+            foreach (var helper in helpers)
+            {
+                try { if (!helper.HasExited) helper.CloseMainWindow(); } catch (InvalidOperationException) { }
+            }
+            if (helpers.Count > 0) await Task.Delay(1200);
+            foreach (var helper in helpers)
+            {
+                try { if (!helper.HasExited) helper.Kill(true); }
+                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                helper.Dispose();
+            }
+            Active = false; Changed?.Invoke("ended");
+        }
+    }
+    private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
+    {
+        if (Active) throw new InvalidOperationException("Es läuft bereits ein Spiel.");
         var info = LaunchRules.Prepare(game);
         if (game.Source == "teknoparrot")
         {
@@ -99,7 +133,7 @@ public sealed class GameSession
         finally
         {
             if (game.Source == "teknoparrot") try { if (!process.HasExited) process.CloseMainWindow(); } catch (InvalidOperationException) { }
-            Active = false; Changed?.Invoke("ended");
+            // The owning wrapper releases this session's helpers before returning to the menu.
         }
     }
     public async Task End()
