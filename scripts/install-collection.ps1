@@ -69,6 +69,8 @@ foreach($directory in @([Environment]::GetFolderPath('Desktop'),(Join-Path ([Env
 }
 Copy-Item -LiteralPath (Join-Path $data 'library-import-report.json') -Destination (Join-Path $logs 'reaper-games.json') -Force
 $report=Get-Content -LiteralPath (Join-Path $data 'library-import-report.json') -Raw | ConvertFrom-Json
+$report.rows | Select-Object @{n='Datum';e={$report.time}},id,title,platform,players,filesPresent,launchObserved,player1Verified,player2Verified,recoilVerified,returnVerified,status,@{n='OffenePunkte';e={$_.setupIssues -join ' | '}},setupNotes |
+    Export-Csv -LiteralPath (Join-Path $logs 'reaper-games.csv') -Delimiter ';' -NoTypeInformation -Encoding UTF8
 $result=@{time=(Get-Date).ToString('o');computer=$env:COMPUTERNAME;user=$env:USERNAME;install=$install;backup=$backup;games=$report.games;filesAvailable=$report.available;mediaCopied=@($mediaRows.ToArray() | Where-Object {$_.status -eq 'Copied'}).Count;mediaBytes=$mediaBytes;hardwareVerified=$false;gameplayVerified=$false}
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $logs 'reaper-install.json') -Encoding UTF8
 $result

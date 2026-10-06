@@ -25,7 +25,7 @@ public static class App
                 File.WriteAllText(Path.Combine(data, "library-import-report.json"), JsonSerializer.Serialize(new
                 {
                     time = DateTimeOffset.Now, games = state.Games.Count, available = state.Games.Count(g => g.Status != "needs-setup"),
-                    rows = state.Games.Select(g => new { g.Id, g.Title, g.Status, g.SetupIssues, g.Executable, g.Arguments,
+                    rows = state.Games.Select(g => new { g.Id, g.Title, g.Platform, g.Players, g.Status, g.SetupIssues, g.SetupNotes, g.Executable, g.Arguments,
                         filesPresent = g.Status != "needs-setup", launchObserved = false, player1Verified = false, player2Verified = false, recoilVerified = false, returnVerified = false })
                 }, JsonDefaults.Options));
             }
