@@ -50,10 +50,32 @@ public static class LaunchRules
     }
     public static string MameController(IEnumerable<GunBinding> bindings)
     {
-        var maps = bindings.Where(b => !string.IsNullOrWhiteSpace(b.MouseId)).Select(b => new XElement("mapdevice",
-            new XAttribute("device", b.MouseId), new XAttribute("controller", "GUNCODE_" + b.Player)));
-        return new XDocument(new XElement("mameconfig", new XAttribute("version", "10"),
-            new XElement("system", new XAttribute("name", "default"), new XElement("input", maps)))).ToString();
+        var devices = bindings.Where(b => !string.IsNullOrWhiteSpace(b.MouseId)).ToArray();
+        var input = new XElement("input", devices.Select(b => new XElement("mapdevice", new XAttribute("device", b.MouseId), new XAttribute("controller", "GUNCODE_" + b.Player))));
+        foreach (var binding in devices)
+        {
+            var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player);
+            foreach (var action in new[] { "shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right" })
+            {
+                string type = action switch
+                {
+                    "start" => "START" + binding.Player, "coin" => "COIN" + binding.Player,
+                    "shoot" => $"P{binding.Player}_BUTTON1", "reload" => $"P{binding.Player}_BUTTON2", "secondary" => $"P{binding.Player}_BUTTON3",
+                    _ => $"P{binding.Player}_JOYSTICK_" + action.ToUpperInvariant()
+                };
+                string[] tokens = map.Where(pair => pair.Value == action && GunSystems.ValidToken(pair.Key)).Select(pair => MameToken(pair.Key, binding.Player)).OfType<string>().ToArray();
+                if (tokens.Length > 0) input.Add(new XElement("port", new XAttribute("type", type), new XElement("newseq", new XAttribute("type", "standard"), string.Join(" OR ", tokens))));
+            }
+        }
+        return new XDocument(new XElement("mameconfig", new XAttribute("version", "10"), new XElement("system", new XAttribute("name", "default"), input))).ToString();
+    }
+    private static string? MameToken(string token, int player)
+    {
+        if (token.StartsWith("mouse:")) return $"GUNCODE_{player}_BUTTON{token[6..]}";
+        int key = int.Parse(token[4..]);
+        if (key is >= 48 and <= 57 or >= 65 and <= 90) return "KEYCODE_" + (char)key;
+        string? name = key switch { 13 => "ENTER", 27 => "ESC", 32 => "SPACE", 37 => "LEFT", 38 => "UP", 39 => "RIGHT", 40 => "DOWN", _ => null };
+        return name is null ? null : "KEYCODE_" + name;
     }
 }
 

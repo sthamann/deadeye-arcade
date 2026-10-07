@@ -27,6 +27,11 @@ export type Binding = {
   mouseId: string;
   keyboardId: string | null;
   serialPort: string | null;
+  systemId?: string;
+  physicalId?: string | null;
+  buttonMap?: Record<string, string> | null;
+  feedback?: {recoil: boolean; rumble: boolean; offscreenReload: boolean; aspect: string} | null;
+  softwareConfigured?: boolean;
 };
 export type Device = {
   id: string;
@@ -34,7 +39,16 @@ export type Device = {
   kind: string;
   retroShooter: boolean;
 };
+export type PhysicalGun = {id: string; name: string; systemId: string; identityEvidence: string; inputIds: string[]; mouseId: string | null; keyboardId: string | null; port: string | null; driverHealthy: boolean; liveInputAvailable?: boolean; issues: string[]};
+export type GunSystem = {id: string; name: string; connection: string; detection: string; software: string; guide: string};
+export type GunSignal = {player: number; token: string; down: boolean; action: string};
 export type State = {
+  guns?: PhysicalGun[];
+  gunSystems?: GunSystem[];
+  gunIssues?: Record<string, string>;
+  gunSignals?: Record<string, string>;
+  gunSoftware?: {id: string; downloaded: boolean; status: string}[];
+  learning?: null | {player: number; action: string};
   games: Game[];
   bindings: Binding[];
   devices: Device[];

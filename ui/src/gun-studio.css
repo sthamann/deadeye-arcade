@@ -1,0 +1,717 @@
+.gun-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0;
+  text-align: left;
+}
+.gun-header-count b {
+  font-size: 13px;
+}
+.gun-header-count small,
+.header-player small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.header-player {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  min-width: 168px;
+}
+.header-player > b {
+  font-size: 12px;
+}
+.header-player > span strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.header-player .gun-shape {
+  width: 49px;
+  height: 32px;
+}
+.online {
+  color: #6ed9a4;
+}
+.offline {
+  color: #e7787e;
+}
+.header-player > span {
+  color: #e3eaf4;
+}
+.gun-shape {
+  width: 100%;
+  height: auto;
+  color: #66798e;
+  overflow: visible;
+}
+.gun-shape.mini {
+  color: inherit;
+}
+.gun-hotspot circle {
+  fill: #233c50;
+  stroke: #91a2b8;
+  stroke-width: 1.5;
+}
+.gun-hotspot.pressed circle {
+  fill: #76efb4;
+  stroke: #a8ffd6;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px #51db8b);
+}
+.gun-hotspot {
+  cursor: pointer;
+}
+.studio-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.studio-heading h1 {
+  font-size: clamp(28px, 3vw, 44px);
+  letter-spacing: -1.5px;
+  margin: 8px 0;
+}
+.studio-heading p {
+  color: var(--muted);
+  margin: 0;
+}
+.system-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+.system-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 10px;
+  min-height: 94px;
+  border: 1px solid #354154;
+  border-radius: 13px;
+  background: linear-gradient(140deg, #202a38, #151c27);
+  padding: 14px;
+}
+.system-card.selected {
+  border-color: #ff7850;
+  background: linear-gradient(140deg, #382722, #191d27);
+}
+.system-card .gun-shape {
+  width: 65px;
+  flex-shrink: 0;
+  color: #91a3b8;
+}
+.system-card.selected .gun-shape {
+  color: #ff9974;
+}
+.system-card > svg:last-child:not(.gun-shape) {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  color: var(--orange);
+}
+.system-card strong {
+  display: block;
+  font-size: 14px;
+}
+.system-card small {
+  display: block;
+  color: #a5b3c6;
+  font-size: 11px;
+  margin-top: 7px;
+  line-height: 1.45;
+}
+.studio-console {
+  border: 1px solid #334055;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #141b26;
+  box-shadow: 0 22px 70px #0003;
+}
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  background: #1a2331;
+}
+.player-tabs {
+  display: flex;
+  gap: 8px;
+}
+.player-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 13px 18px;
+  min-height: 52px;
+  border: 1px solid #3c4b61;
+  border-radius: 9px;
+  font-weight: 700;
+}
+.player-tabs button small {
+  font-size: 11px;
+  color: #aab8ca;
+  font-weight: 400;
+}
+.player-tabs button.selected {
+  border-color: #ff9677;
+  background: #ff785014;
+}
+.studio-connection {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: right;
+}
+.status-led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #8493a8;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.online .status-led,
+.status-led.active {
+  background: #75e5a7;
+}
+.offline .status-led {
+  background: #e7787e;
+}
+.studio-tabs {
+  display: flex;
+  border-bottom: 1px solid #334055;
+  background: #17202e;
+  padding: 0 24px;
+  gap: 25px;
+}
+.studio-tabs button {
+  padding: 20px 0;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  color: #a8b6c8;
+  min-height: 58px;
+}
+.studio-tabs .selected {
+  border-color: var(--orange);
+  color: #fff;
+}
+.studio-body {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  min-height: 590px;
+}
+.gun-live-panel {
+  padding: 28px;
+  background:
+    radial-gradient(ellipse at 50% 40%, #29465b44, transparent 75%),
+    linear-gradient(#ffffff03 1px, transparent 1px),
+    linear-gradient(90deg, #ffffff03 1px, transparent 1px);
+  background-size:
+    auto,
+    30px 30px,
+    30px 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.live-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  margin-bottom: 32px;
+}
+.live-heading small {
+  margin-left: auto;
+  color: #9caac0;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.gun-live-panel > .gun-shape {
+  margin: 26px 0 18px;
+}
+.signal-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  color: #b8dacb;
+  font-size: 13px;
+  border: 1px solid #375a5544;
+  background: #19332e44;
+  border-radius: 8px;
+}
+.studio-caption {
+  font-size: 12px !important;
+  line-height: 1.7;
+  color: #a5b2c6;
+  margin-top: 15px !important;
+}
+.gun-live-panel > .studio-caption {
+  text-align: center;
+  margin-bottom: 34px;
+}
+.live-stats {
+  display: flex;
+  gap: 18px;
+  padding-top: 25px;
+  border-top: 1px solid #334055;
+}
+.live-stats span {
+  flex: 1;
+  font-size: 11px;
+  color: #99acc5;
+}
+.live-stats b {
+  display: block;
+  font-size: 24px;
+  color: #e7eef8;
+  margin-bottom: 5px;
+}
+.mapping-panel {
+  padding: 26px;
+  border-left: 1px solid #334055;
+  background: #18212f;
+}
+.gun-studio h2 {
+  font-size: 19px;
+  letter-spacing: -0.4px;
+  margin: 0 0 12px;
+}
+.mapping-panel > p {
+  color: #a4b4c9;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.mapping-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  min-height: 57px;
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #121b28;
+  margin-top: 7px;
+}
+.mapping-row.pressed {
+  border-color: #7beeb1;
+  background: #1c4038;
+}
+.mapping-row.learning {
+  border-color: #ff976b;
+  background: #423027;
+}
+.mapping-row strong {
+  font-size: 13px;
+}
+.mapping-row small {
+  display: block;
+  font-size: 11px;
+  color: #a3b3c9;
+  margin-top: 4px;
+}
+.mapping-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #283648;
+  border-radius: 6px;
+  width: 29px;
+  height: 29px;
+}
+.mapping-indicator > span {
+  width: 5px;
+  height: 5px;
+  background: #6e85a3;
+  border-radius: 50%;
+}
+.mapping-change {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #c5d4e8;
+}
+.feedback-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.feedback-visual {
+  padding: 38px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 25%, #73452b44, transparent 70%);
+}
+.feedback-visual > svg:not(.gun-shape) {
+  color: #ff9876;
+  margin: 22px;
+}
+.feedback-visual > p {
+  color: #b5c1d1;
+  line-height: 1.8;
+  font-size: 14px;
+}
+.feedback-settings {
+  padding: 30px;
+  background: #192230;
+  border-left: 1px solid #334055;
+}
+.feedback-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 78px;
+  border-bottom: 1px solid #344054;
+  padding: 12px 0;
+}
+.feedback-switch strong {
+  font-size: 14px;
+}
+.feedback-switch small {
+  display: block;
+  font-size: 12px;
+  color: #a5b5ca;
+  margin-top: 6px;
+}
+.toggle {
+  width: 57px;
+  height: 31px;
+  border-radius: 18px;
+  background: #3d4b60;
+  padding: 4px;
+  flex-shrink: 0;
+  min-height: 44px;
+  align-content: center;
+}
+.toggle > span {
+  display: block;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: #e1e8f2;
+}
+.toggle.on {
+  background: #347258;
+}
+.toggle.on > span {
+  margin-left: auto;
+  background: #a4ffd0;
+}
+.dip-card {
+  border: 1px solid #725b4555;
+  background: #382b1c44;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 22px 0;
+}
+.dip-card b {
+  color: #ffc79d;
+  font-size: 14px;
+}
+.dip-card p {
+  font-size: 13px;
+  line-height: 1.9;
+  color: #c8d3e0;
+}
+.dip-card small {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #c4b4a5;
+  display: block;
+}
+.feedback-tests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.feedback-tests button {
+  font-size: 13px;
+  min-height: 50px;
+}
+.setup-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  padding: 30px;
+}
+.setup-progress > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0;
+}
+.setup-progress > div > span {
+  border: 1px solid #48586e;
+  background: #273347;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.setup-progress .done > span {
+  color: #8defb9;
+  border-color: #447960;
+  background: #224839;
+}
+.setup-progress b {
+  font-size: 14px;
+}
+.setup-progress small {
+  display: block;
+  color: #a6b6cd;
+  font-size: 12px;
+  margin-top: 7px;
+  line-height: 1.6;
+}
+.detected-panel {
+  border-left: 1px solid #334055;
+  padding-left: 30px;
+}
+.detected-gun {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  border-bottom: 1px solid #334055;
+}
+.detected-gun > .gun-shape {
+  width: 82px;
+  color: #79dba7;
+}
+.detected-gun strong {
+  font-size: 13px;
+}
+.detected-gun small {
+  display: block;
+  color: #a6b6cd;
+  font-size: 11px;
+  margin-top: 6px;
+  line-height: 1.7;
+}
+.detected-panel p {
+  color: #acb9cd;
+  line-height: 1.8;
+  font-size: 13px;
+}
+.setup-warning {
+  background: #522a2244;
+  border: 1px solid #ac6656;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ffc5b1;
+}
+.aspect-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.aspect-buttons button {
+  border: 1px solid #42546e;
+  padding: 14px;
+  border-radius: 8px;
+  min-width: 65px;
+}
+.aspect-buttons .selected {
+  background: #ff785024;
+  border-color: #ff9970;
+}
+.gun-studio summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 14px 0;
+}
+.gun-studio .technical {
+  word-break: break-all;
+  font-size: 11px;
+}
+.gun-studio .setup-note {
+  margin-top: 20px;
+  padding: 18px;
+  background: #23304855;
+}
+.gun-studio .setup-note p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 0;
+}
+.studio-tabs button:focus-visible,
+.mapping-row:focus-visible {
+  outline-offset: -4px;
+}
+@media (max-width: 1200px) {
+  .system-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .system-card .gun-shape {
+    width: 70px;
+    height: 35px;
+  }
+  .header-player {
+    min-width: 130px;
+  }
+  .header-player > span strong {
+    font-size: 10px;
+  }
+  .gun-header-count {
+    display: none;
+  }
+  .header-player .gun-shape {
+    width: 35px;
+  }
+  .studio-body {
+    grid-template-columns: 1fr 1fr;
+  }
+  .gun-live-panel {
+    padding: 20px;
+  }
+  .live-stats {
+    gap: 8px;
+  }
+  .mapping-panel {
+    padding: 20px;
+  }
+  .setup-layout {
+    gap: 18px;
+    padding: 20px;
+  }
+  .studio-connection {
+    max-width: 45%;
+    line-height: 1.7;
+  }
+}
+@media (max-width: 900px) {
+  .studio-body,
+  .feedback-layout,
+  .setup-layout {
+    grid-template-columns: 1fr;
+  }
+  .mapping-panel,
+  .feedback-settings,
+  .detected-panel {
+    border-left: 0;
+    border-top: 1px solid #334055;
+  }
+  .gun-live-panel {
+    min-height: 420px;
+  }
+  .system-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .system-card {
+    flex-direction: row;
+    align-items: center;
+  }
+  .studio-heading {
+    align-items: flex-start;
+  }
+  .studio-heading .secondary {
+    font-size: 12px;
+  }
+  .studio-tabs {
+    gap: 14px;
+    padding: 0 15px;
+  }
+  .studio-tabs button {
+    font-size: 12px;
+  }
+  .studio-connection {
+    font-size: 11px;
+  }
+  .header-player {
+    min-width: 0;
+    border: 0;
+    padding-left: 0;
+  }
+  .header-player > span {
+    display: none;
+  }
+  .player-tabs button {
+    padding: 12px;
+  }
+  .player-tabs button small {
+    display: none;
+  }
+  .gun-header {
+    gap: 14px;
+  }
+  .setup-layout .detected-panel {
+    padding: 24px 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gun-studio button {
+    transition: none;
+  }
+}
+@media (max-width: 600px) {
+  .system-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .system-card {
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+  }
+  .system-card > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .studio-heading {
+    flex-wrap: wrap;
+  }
+  .studio-toolbar {
+    padding: 15px;
+  }
+  .studio-tabs {
+    flex-wrap: wrap;
+    gap: 0 16px;
+  }
+  .studio-body > * {
+    min-width: 0;
+  }
+  .mapping-row > span {
+    min-width: 0;
+  }
+  .live-stats {
+    flex-wrap: wrap;
+  }
+  .feedback-settings,
+  .feedback-visual {
+    padding: 20px;
+  }
+  .studio-connection {
+    overflow-wrap: anywhere;
+  }
+  .studio-caption {
+    overflow-wrap: anywhere;
+  }
+  .setup-layout > section {
+    min-width: 0;
+  }
+}

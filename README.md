@@ -2,13 +2,23 @@
 
 Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: große Vollbildoberfläche, getrennte Gun-Eingänge und Import vorhandener TeknoParrot-/MAME-Spiele.
 
-**[Windows-Version 0.2.0 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.2.0/Reaper-Arcade-0.2.0-Windows-x64.zip)** · [Release und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.2.0)
+**[Windows-Version 0.3.0 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.0/Reaper-Arcade-0.3.0-Windows-x64.zip)** · [Entwicklungsrelease und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.0)
 
 ![Cinema-Oberfläche mit ausdrücklich gewählter Beispielbibliothek](oberflaeche.png)
 
 Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhaltern. Die echte Bibliothek startet leer. Spiele, ROMs, Emulatoren und Herstellerwerkzeuge werden nicht mitgeliefert.
 
-**Früher Entwicklungsstand:** Die Windows-Oberfläche und der Programmstart wurden getestet. Echte RS3-Guns waren dabei nicht angeschlossen; vollständige Spielekompatibilität ist noch nicht nachgewiesen.
+**Früher Entwicklungsstand:** Die Windows-Oberfläche und der Programmstart wurden getestet. Eine RS3 ist inzwischen per USB und COM-ID nachgewiesen. Reale Tastendrücke, Zielgenauigkeit und vollständige Spielekompatibilität sind noch nicht abschließend geprüft.
+
+## Lightgun Studio in 0.3
+
+- Auswahl für RS3 Reaper Pro, Sinden, X-Gunner Wireless und Blamcon Vyper.
+- Physische USB-Geräte gruppieren, automatische RS3-Spielerzuordnung per COM-ID und zusätzliche Windows-Schnittstellenabfrage für Remote-Sitzungen.
+- P1/P2-Silhouetten und Status im Header; Live-Tasten in einer schematischen Gun-Zeichnung und lernbare Menübelegung. Die unterstützten MAME-Spielaktionen werden beim Start exportiert.
+- RS3-Format, Offscreen-Reload und begrenzte Feedbacktests; tatsächliche Kraftschalter verständlich erklärt.
+- Offizielle Herstellerprogramme vorbereiten: Sinden/X-Gunner per geprüftem Download, Blamcon ARC über Steam. Kalibrierung und nicht implementierte Hersteller-/Emulatoradapter bleiben ausdrücklich offen.
+
+Details, unterstützte Pfade und Grenzen: [Gun Studio](docs/gun-studio.md).
 
 ## Erweiterungen in 0.3
 
@@ -21,13 +31,13 @@ Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhalt
 - Ein großer nativer Knopf „App schließen · Windows“ bleibt außerhalb der scrollenden Browseroberfläche sichtbar, auch bei Dateiauswahl und laufender Suche. Start + Münze etwa zwei Sekunden halten beendet im Spiel die Sitzung und im Menü die App; vor dem zweiten Ausstieg beide Tasten loslassen.
 - F12 beendet die eigene Spielsitzung zusätzlich zur Gun-Kombination, auch per Remote Desktop. Die Tastenerkennung dafür ist ausschließlich während einer eigenen Spielsitzung aktiv.
 
-Version 0.3 wurde auf dem Lightgun-PC installiert: 183 Titel importiert und 639 Medien kopiert. Echte Vorschauvideos laufen in WebView2. Dead Space Extraction startet über Dolphin bis zum Titelbildschirm und CarnEvil über MAME bis zur echten Arcade-Bootsequenz und Blue Estate bis ins Hauptmenü; F12 beendet die eigene Spielsitzung und bringt das Vollbildmenü zurück. Die Spielekopie und weitere Emulatorprüfungen laufen noch. RS3-Guns sind noch nicht angeschlossen. Der Download oben bleibt die veröffentlichte Version 0.2.0; Details stehen in [verification-0.3.md](docs/verification-0.3.md).
+Version 0.3 wurde auf dem Lightgun-PC installiert: 183 Titel importiert und 639 Medien kopiert. Echte Vorschauvideos laufen in WebView2. Dead Space Extraction startet über Dolphin bis zum Titelbildschirm und CarnEvil über MAME bis zur echten Arcade-Bootsequenz und Blue Estate bis ins Hauptmenü; F12 beendet die eigene Spielsitzung und bringt das Vollbildmenü zurück. Die Spielekopie und weitere Emulatorprüfungen laufen noch. Eine RS3 ist inzwischen angeschlossen und antwortet mit Spieler-ID 1. Der Download oben enthält diesen Entwicklungsstand; Details stehen in [verification-0.3.md](docs/verification-0.3.md).
 
 ## Direkt auf dem Windows-PC starten
 
-1. Das Paket **Reaper-Arcade-0.2.0-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
+1. Das Paket **Reaper-Arcade-0.3.0-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
 2. **ReaperArcade.exe** öffnen. Eine separate .NET-Installation ist nicht nötig.
-3. Unter **Meine Guns** Spieler 1 zuordnen: Abzug an der ersten Gun drücken, dann ihre Start-Taste. Bei Spieler 1 muss Start die Taste `1` senden; bei Spieler 2 die Taste `2`. Dazu die Hardware-Spielerzuordnung und den Maus-/Tastaturmodus verwenden.
+3. Unter **Meine Guns** das Lightgun Studio öffnen. Eine erkannte RS3 wird über ihre COM-Spieler-ID automatisch P1 oder P2 zugeordnet und für Maus-/Tastatureingaben eingerichtet. Weitere Systeme auswählen und deren Herstellerprogramm vorbereiten lassen. Tasten mit dem Live-Test prüfen und bei Bedarf durch Anklicken einer Aktion neu belegen.
 4. Den Zieltest durchführen. Er prüft fünf Ziele; er schreibt keine Kalibrierung in die Firmware.
 5. Unter **Spiele finden** TeknoParrot, MAME oder eine Windows-Spielanwendung auswählen.
 6. Das erste Spiel starten, Zielen und Tasten im Spiel prüfen und anschließend Start + Münze etwa zwei Sekunden halten. Auf Spieler 1 entspricht das `1` + `5`, auf Spieler 2 `2` + `6`.

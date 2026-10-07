@@ -16,6 +16,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await page.getByRole('textbox',{name:'Spiele suchen'}).fill('jurassic');assert.equal(await page.locator('.game-tile').count(),1);
  await page.getByRole('textbox',{name:'Spiele suchen'}).fill('');
  await page.getByRole('button',{name:'Meine Guns',exact:true}).click();
+ await page.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).click();
  await page.getByRole('button',{name:'Zieltest',exact:true}).first().click();
  for(let i=1;i<=5;i++)await page.getByRole('button',{name:'Ziel '+i,exact:true}).click();
  await page.getByRole('heading',{name:'Bedienprobe abgeschlossen.',exact:true}).waitFor();
@@ -34,15 +35,20 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.addInitScript(()=>{
   const listeners=[];window.fixture={sent:[],emit:(type,payload)=>listeners.forEach(fn=>fn({data:{type,payload}}))};
   window.chrome={webview:{addEventListener:(name,fn)=>listeners.push(fn),removeEventListener:()=>{},postMessage:message=>{
-   window.fixture.sent.push(message);if(message.type==='ready')setTimeout(()=>window.fixture.emit('state',{native:true,version:'fixture',games:[],bindings:[{player:1,mouseId:'gun-1',keyboardId:'key-1',serialPort:null}],devices:[{id:'gun-1',name:'Fixture gun',kind:'mouse',retroShooter:true}],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false},bindingStage:null,installations:[],remoteSession:false}),0);
+   window.fixture.sent.push(message);if(message.type==='ready')setTimeout(()=>window.fixture.emit('state',{native:true,version:'fixture',games:[],bindings:[{player:1,mouseId:'gun-1',keyboardId:'key-1',serialPort:'COM3',systemId:'rs3',physicalId:'physical-1',softwareConfigured:true}],guns:[{id:'physical-1',name:'3A-3H Retro Shooter 1',systemId:'rs3',mouseId:'gun-1',keyboardId:'key-1',port:'COM3',inputIds:['gun-1','key-1'],driverHealthy:true,issues:[],identityEvidence:'Fixture container'}],devices:[{id:'gun-1',name:'Fixture gun',kind:'mouse',retroShooter:true}],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false},bindingStage:null,installations:[],remoteSession:false}),0);
   }}};
  });
- await native.goto(url);await native.getByRole('button',{name:/1 Gun verbunden/}).waitFor();
+ await native.goto(url);await native.getByRole('button',{name:'Lightguns einrichten'}).waitFor();
  const clickRaw=async(name)=>{
   const box=await native.getByRole('button',{name,exact:true}).boundingBox();assert(box);
   await native.evaluate(({x,y})=>window.fixture.emit('input',{deviceId:'gun-1',kind:'mouse',player:1,x:x/window.innerWidth,y:y/window.innerHeight,buttons:1}),{x:box.x+box.width/2,y:box.y+box.height/2});
  };
- await clickRaw('Meine Guns');await native.getByRole('heading',{name:'Gute Kontrolle. Ab dem ersten Schuss.'}).waitFor();
+ await clickRaw('Meine Guns');await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).waitFor();
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:true,action:'shoot'}));
+ await native.waitForFunction(()=>document.querySelector('.gun-hotspot.pressed'));
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'shoot'}));
+ await native.waitForFunction(()=>!document.querySelector('.gun-hotspot.pressed'));
+ await native.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).evaluate(b=>b.click());
  await native.getByRole('button',{name:'Zieltest',exact:true}).first().evaluate(b=>b.click());
  // An unassigned mouse / the other player's gun cannot certify this player's target test.
  await native.evaluate(()=>window.fixture.emit('input',{deviceId:'other',kind:'mouse',player:2,x:.5,y:.5,buttons:1}));
@@ -52,8 +58,12 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('heading',{name:'Eingabetest abgeschlossen.',exact:true}).waitFor();
  await clickRaw('Zurück zu meinen Guns');
  await native.getByRole('dialog',{name:'Zieltest'}).waitFor({state:'hidden'});
- await native.getByRole('button',{name:'Neu zuordnen',exact:true}).evaluate(b=>b.click());
- assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='bind'&&m.payload.player===1)),'Bind requests proper player');
+ await native.getByRole('button',{name:'Tasten & Live-Eingabe',exact:true}).evaluate(b=>b.click());
+ await native.locator('.mapping-row').first().evaluate(b=>b.click());
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='learn-button'&&m.payload.player===1&&m.payload.action==='shoot')),'Physical input learning requests the selected player and action');
+ await native.getByRole('button',{name:'Rückstoß & Vibration',exact:true}).evaluate(b=>b.click());
+ await native.getByRole('button',{name:'Rückstoß im Test aktivieren'}).evaluate(b=>b.click());
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='set-gun-feedback'&&m.payload.feedback.recoil===false)),'Feedback toggle persists actual test selection');
  await native.evaluate(()=>window.fixture.emit('picker',{title:'Ordner wählen',foldersOnly:true,page:{path:'C:/Arcade',parent:'C:/',entries:[{name:'TeknoParrot',path:'C:/Arcade/TeknoParrot',directory:true}],warning:null},shortcuts:[{name:'C:',path:'C:/'}]}));
  await native.waitForTimeout(350);
  await clickRaw('Diesen Ordner verwenden');

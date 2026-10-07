@@ -11,8 +11,8 @@ public record GameEntry(string Id, string Title, string Platform, string Executa
     string[]? RequiredFiles = null, string[]? SetupIssues = null, int Priority = 0,
     string? Players = null, string? SetupNotes = null, HelperLaunch[]? Helpers = null);
 public record HelperLaunch(string Executable, string[] Arguments, string WorkingDirectory);
-public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null);
-public record InputDevice(string Id, string Name, string Kind, bool RetroShooter);
+public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null, string SystemId = "rs3", string? PhysicalId = null, Dictionary<string, string>? ButtonMap = null, GunFeedback? Feedback = null, bool SoftwareConfigured = false);
+public record InputDevice(string Id, string Name, string Kind, bool RetroShooter, string? PhysicalId = null);
 public record AppSettings(bool StartWithWindows = false, bool Fullscreen = true, string? CoverKey = null, string? CalibrationTool = null);
 public record LibraryState(List<GameEntry> Games, List<GunBinding> Bindings, AppSettings Settings)
 {

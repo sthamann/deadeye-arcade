@@ -25,12 +25,20 @@ public sealed class ArcadeWindow : Window
     private readonly bool remoteSession = GetSystemMetrics(0x1000) != 0 || (Environment.GetEnvironmentVariable("SESSIONNAME")?.StartsWith("RDP-", StringComparison.OrdinalIgnoreCase) ?? false);
     private List<Installation> installations = [];
     private readonly GunSerial serial = new();
+    private PhysicalGun[] guns = [];
+    private readonly Dictionary<string, string> gunIssues = [];
+    private readonly Dictionary<string, DateTimeOffset> gunSignals = [];
+    private bool scanningGuns;
+    private readonly HashSet<string> preparedVendors = [];
+    private int? learningPlayer;
+    private string? learningAction;
+    private readonly DispatcherTimer gunTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
     private readonly GameSession session = new();
     private EmergencyExit? emergencyExit;
     private DependencyReport? dependencies;
     private readonly LibraryStore store;
     private LibraryState state;
-    private readonly Dictionary<string, ExitGesture> gestures = [];
+    private readonly Dictionary<string, ExitGesture> gestures = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private int? bindPlayer;
     private string? bindMouse;
@@ -65,7 +73,8 @@ public sealed class ArcadeWindow : Window
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
-        raw.Packet += Input; raw.DevicesChanged += () => SendState();
+        raw.Packet += Input; raw.DevicesChanged += () => { if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); } };
+        gunTimer.Tick += async (_, _) => { gunTimer.Stop(); if (!busy && !session.Active) await DiscoverGuns(); else { gunTimer.Start(); } };
         session.Changed += status => Dispatcher.Invoke(() =>
         {
             emergencyExit?.Dispose(); emergencyExit = null;
@@ -100,9 +109,9 @@ public sealed class ArcadeWindow : Window
             }
             closing = true; ready = false; Log("exit: desktop");
         };
-        Closed += (_, _) => { timer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
+        Closed += (_, _) => { timer.Stop(); gunTimer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
-    private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); return 0; }
+    private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); } return 0; }
     private async Task Initialize()
     {
         try
@@ -144,13 +153,19 @@ public sealed class ArcadeWindow : Window
     {
         if (web.CoreWebView2 is not null && Directory.Exists(@"C:\Lightgun\Media"))
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("collection.reaper.local", @"C:\Lightgun\Media", CoreWebView2HostResourceAccessKind.DenyCors);
-        foreach (var binding in state.Bindings.Where(b => !raw.Devices.Any(d => d.Id == b.KeyboardId)))
+        foreach (var binding in state.Bindings.Where(b => !raw.Devices.Any(d => string.Equals(d.Id, b.KeyboardId, StringComparison.OrdinalIgnoreCase))))
             if (binding.KeyboardId is not null && gestures.TryGetValue(binding.KeyboardId, out var gesture)) gesture.Reset();
         Send("state", new
         {
             games = state.Games.Select(g => g with { Cover = MediaUrl(g.Cover, true), PreviewVideo = MediaUrl(g.PreviewVideo), Screenshot = MediaUrl(g.Screenshot), Logo = MediaUrl(g.Logo) }),
             bindings = state.Bindings,
             devices = raw.Devices,
+            gunSystems = GunSystems.Catalog,
+            gunSoftware = GunSoftware.Status(store.DirectoryPath),
+            guns,
+            gunIssues,
+            gunSignals,
+            learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
@@ -174,6 +189,13 @@ public sealed class ArcadeWindow : Window
     private void Log(string message) { System.IO.File.AppendAllText(logPath, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine); }
     private void Input(RawPacket packet)
     {
+        // The physical trigger can always reach the native exit, even while learning a button.
+        if (!session.Active && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
+        {
+            var exitPoint = exitButton.PointFromScreen(PacketPoint(packet));
+            if (exitPoint.X >= 0 && exitPoint.Y >= 0 && exitPoint.X < exitButton.ActualWidth && exitPoint.Y < exitButton.ActualHeight)
+            { Close(); return; }
+        }
         if (bindPlayer.HasValue && !session.Active)
         {
             if (bindMouse is null && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
@@ -188,34 +210,119 @@ public sealed class ArcadeWindow : Window
             }
         }
         if (session.Active && emergencyExit is null && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
-        var binding = state.Bindings.FirstOrDefault(b => b.MouseId == packet.DeviceId || b.KeyboardId == packet.DeviceId);
+        var binding = state.Bindings.FirstOrDefault(b => string.Equals(b.MouseId, packet.DeviceId, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, packet.DeviceId, StringComparison.OrdinalIgnoreCase));
         if (packet.Kind == "keyboard" && binding is not null)
         {
             if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
             gesture.Key(packet.Key, packet.Down, DateTimeOffset.UtcNow);
         }
-        if (session.Active || remoteSession) return;
+        if (binding is not null)
+        {
+            foreach (var signal in Signals(packet))
+            {
+                var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player);
+                string action = map.GetValueOrDefault(signal.Token, "none");
+                if (binding.PhysicalId is not null)
+                {
+                    bool firstSignal = !gunSignals.ContainsKey(binding.PhysicalId); gunSignals[binding.PhysicalId] = DateTimeOffset.UtcNow;
+                    if (firstSignal) SendState();
+                }
+                Send("gun-input", new { player = binding.Player, token = signal.Token, down = signal.Down, action });
+                if (learningPlayer == binding.Player && signal.Down && !session.Active)
+                {
+                    var updated = new Dictionary<string, string>(map);
+                    foreach (var old in updated.Where(kv => kv.Value == learningAction).Select(kv => kv.Key).ToArray()) updated.Remove(old);
+                    updated[signal.Token] = learningAction!;
+                    int index = state.Bindings.IndexOf(binding);
+                    state.Bindings[index] = binding with { ButtonMap = GunSystems.ValidateMap(updated) };
+                    learningPlayer = null; learningAction = null; Persist(); return;
+                }
+            }
+        }
+        if (session.Active || remoteSession || learningPlayer is not null) return;
         long now = Environment.TickCount64;
         if (packet.Kind == "mouse" && packet.Buttons == 0 && now - lastMove < 30) return;
         if (packet.Kind == "mouse") lastMove = now;
+        if (binding is not null && packet.Kind == "mouse")
+            foreach (var signal in Signals(packet).Where(s => s.Down))
+            {
+                string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player)).GetValueOrDefault(signal.Token, "none");
+                if (action is not ("shoot" or "reload" or "none")) Send("menu-action", new { action });
+            }
         // No global shared cursor is used for absolute lightgun packets.
         if (packet.Kind == "mouse")
         {
-            double sx, sy;
-            if (packet.Absolute)
-            {
-                int left = packet.VirtualDesktop ? GetSystemMetrics(76) : 0, top = packet.VirtualDesktop ? GetSystemMetrics(77) : 0;
-                int width = GetSystemMetrics(packet.VirtualDesktop ? 78 : 0), height = GetSystemMetrics(packet.VirtualDesktop ? 79 : 1);
-                sx = left + packet.X / 65535.0 * (width - 1); sy = top + packet.Y / 65535.0 * (height - 1);
-            }
-            else { GetCursorPos(out var point); sx = point.X; sy = point.Y; }
-            var client = web.PointFromScreen(new Point(sx, sy));
-            var exitPoint = exitButton.PointFromScreen(new Point(sx, sy));
-            if ((packet.Buttons & 1) != 0 && exitPoint.X >= 0 && exitPoint.Y >= 0 && exitPoint.X < exitButton.ActualWidth && exitPoint.Y < exitButton.ActualHeight)
-            { Close(); return; }
-            Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), packet.Buttons });
+            var point = PacketPoint(packet);
+            int menuButtons = binding is null ? packet.Buttons : 0;
+            if (binding is not null)
+                foreach (var signal in Signals(packet).Where(s => s.Down))
+                {
+                    string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player)).GetValueOrDefault(signal.Token, "none");
+                    if (action == "shoot") menuButtons |= 1; if (action == "reload") menuButtons |= 4;
+                }
+            var client = web.PointFromScreen(point);
+            Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), buttons = menuButtons });
         }
-        else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down });
+        else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down, action = binding is null ? null : (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player)).GetValueOrDefault("key:" + packet.Key, "none") });
+    }
+    private static Point PacketPoint(RawPacket packet)
+    {
+        if (!packet.Absolute) { GetCursorPos(out var point); return new(point.X, point.Y); }
+        int left = packet.VirtualDesktop ? GetSystemMetrics(76) : 0, top = packet.VirtualDesktop ? GetSystemMetrics(77) : 0;
+        int width = GetSystemMetrics(packet.VirtualDesktop ? 78 : 0), height = GetSystemMetrics(packet.VirtualDesktop ? 79 : 1);
+        return new(left + packet.X / 65535.0 * (width - 1), top + packet.Y / 65535.0 * (height - 1));
+    }
+    private static IEnumerable<(string Token, bool Down)> Signals(RawPacket packet)
+    {
+        if (packet.Kind == "keyboard") { yield return ("key:" + packet.Key, packet.Down); yield break; }
+        if (packet.Kind != "mouse") yield break;
+        for (int i = 0; i < 5; i++)
+        {
+            if ((packet.Buttons & (1 << (i * 2))) != 0) yield return ("mouse:" + (i + 1), true);
+            if ((packet.Buttons & (2 << (i * 2))) != 0) yield return ("mouse:" + (i + 1), false);
+        }
+    }
+    private async Task DiscoverGuns()
+    {
+        if (scanningGuns || closing) return;
+        scanningGuns = true; Send("busy", new { message = "Lightguns werden erkannt und zugeordnet …" });
+        try
+        {
+            var devices = raw.Devices.ToArray(); guns = await Task.Run(() => GunDiscovery.Scan(devices)); gunIssues.Clear();
+            foreach (var gun in guns.Where(g => g.SystemId == "rs3"))
+            {
+                try
+                {
+                    if (!gun.DriverHealthy) throw new IOException(string.Join("; ", gun.Issues));
+                    if (gun.Port is null || gun.MouseId is null || gun.KeyboardId is null) throw new IOException("USB-Maus, Tastatur oder COM-Port fehlen. Mausmodus prüfen.");
+                    int player = await serial.Probe(gun.Port);
+                    if (player > 2) throw new IOException($"Gun meldet P{player}. Die Oberfläche unterstützt aktuell P1/P2.");
+                    var existing = state.Bindings.FirstOrDefault(b => b.Player == player);
+                    if (existing is not null && !string.Equals(existing.MouseId, gun.MouseId, StringComparison.OrdinalIgnoreCase) && existing.PhysicalId != gun.Id && guns.Any(g => g.Id == existing.PhysicalId || string.Equals(g.MouseId, existing.MouseId, StringComparison.OrdinalIgnoreCase)))
+                        throw new IOException($"P{player} ist schon durch eine andere angeschlossene Gun belegt. DIP-Spielerzuordnung prüfen.");
+                    if (state.Bindings.Any(b => b.Player != player && (b.PhysicalId == gun.Id || b.MouseId == gun.MouseId)))
+                        throw new IOException("Dieselbe Gun ist bereits einem anderen Spieler zugeordnet.");
+                    var feedback = existing?.Feedback ?? new();
+                    await serial.Command(gun.Port, player, GunSystems.ReaperConfiguration(feedback));
+                    state.Bindings.RemoveAll(b => b.Player == player);
+                    state.Bindings.Add(new(player, gun.MouseId, gun.KeyboardId, gun.Port, "rs3", gun.Id, existing?.ButtonMap ?? GunSystems.DefaultMap(player), feedback, true));
+                }
+                catch (Exception error) { gunIssues[gun.Id] = error.Message; Log("gun setup: " + error.Message); }
+            }
+            foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy))
+                if (preparedVendors.Add(gun.Id))
+                    try { string result = await GunSoftware.Prepare(gun.SystemId, store.DirectoryPath, text => Send("busy", new { message = text })); Send("notice", new { message = result }); }
+                    catch (Exception error) { gunIssues[gun.Id] = error.Message; }
+            foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy && g.MouseId is not null))
+            {
+                if (state.Bindings.Any(b => b.PhysicalId == gun.Id)) continue;
+                int player = Enumerable.Range(1, 2).FirstOrDefault(p => !state.Bindings.Any(b => b.Player == p));
+                if (player != 0) state.Bindings.Add(new(player, gun.MouseId!, gun.KeyboardId, gun.Port, gun.SystemId, gun.Id, GunSystems.DefaultMap(player)));
+            }
+            if (!closing) { store.Save(state); SendState(); }
+        }
+        catch (Exception error) { Log("gun discovery: " + error.Message); Send("error", new { message = error.Message }); }
+        finally { scanningGuns = false; Send("busy", new { message = "" }); }
     }
     private static string? Folder(string title) { var picker = new OpenFolderDialog { Title = title }; return picker.ShowDialog() == true ? picker.FolderName : null; }
     private static string? File(string title, string filter = "Windows-Anwendung|*.exe") { var picker = new OpenFileDialog { Title = title, Filter = filter }; return picker.ShowDialog() == true ? picker.FileName : null; }
@@ -231,11 +338,12 @@ public sealed class ArcadeWindow : Window
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException("Bitte zuerst die Dateiauswahl schließen.");
-        if (type == "ready") { ready = true; SendState(); await CheckDependencies(); return; }
+        if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); return; }
         if (type == "end-game") { await session.End(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
         if (session.Active && type != "fullscreen") throw new InvalidOperationException("Bitte zuerst das laufende Spiel beenden.");
-        if (busy) throw new InvalidOperationException("Die laufende Aktion wird noch abgeschlossen.");
+        if (type == "cancel-learn") { learningPlayer = null; learningAction = null; SendState(); return; }
+        if (busy || scanningGuns) throw new InvalidOperationException("Die laufende Aktion wird noch abgeschlossen.");
         switch (type)
         {
             case "check-dependencies": await CheckDependencies(); break;
@@ -314,15 +422,57 @@ public sealed class ArcadeWindow : Window
                 {
                     if (remoteSession) throw new InvalidOperationException("Feedback am lokalen Bildschirm testen und die Gun dabei in der Hand halten.");
                     var b = state.Bindings.First(x => x.Player == Player());
-                    if (b.SerialPort is null) throw new InvalidOperationException("Bitte zuerst den Gun-COM-Port zuordnen.");
+                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Bitte zuerst den Gun-COM-Port zuordnen.");
                     string effect = Str("effect");
+                    var feedback = b.Feedback ?? new();
+                    if (effect is "recoil" or "combined" && !feedback.Recoil || effect is "rumble" or "combined" && !feedback.Rumble) throw new InvalidOperationException("Diesen Testeffekt zuerst in der Feedback-Auswahl aktivieren.");
                     string[] commands = effect switch { "recoil" => ["ZS", "Z5", "ZX"], "rumble" => ["ZS", "ZZ", "ZX"], "combined" => ["ZS", "Z5", "ZZ", "ZX"], _ => throw new ArgumentException("Unbekannter Feedbacktest.") };
                     busy = true;
                     try { await serial.Command(b.SerialPort, b.Player, commands); Send("notice", new { message = "Einzelimpuls gesendet. Stärke und Gefühl beurteilst du an der Gun; dies bestätigt noch kein Spielefeedback." }); }
                     finally { busy = false; }
                     break;
                 }
-            case "refresh": raw.Refresh(); SendState(); break;
+            case "refresh": raw.Refresh(); await DiscoverGuns(); break;
+            case "learn-button":
+                {
+                    int player = Player(); string action = Str("action");
+                    if (!GunSystems.Actions.Contains(action) || action == "none") throw new ArgumentException("Unbekannte Aktion.");
+                    if (!state.Bindings.Any(b => b.Player == player)) throw new InvalidOperationException("Bitte zuerst die Gun einrichten.");
+                    learningPlayer = player; learningAction = action; SendState(); break;
+                }
+            case "reset-button-map":
+                {
+                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException("Keine Gun zugeordnet.");
+                    state.Bindings[i] = state.Bindings[i] with { ButtonMap = GunSystems.DefaultMap(Player()) }; Persist(); break;
+                }
+            case "set-gun-feedback":
+                {
+                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException("Keine Gun zugeordnet.");
+                    var feedback = JsonSerializer.Deserialize<GunFeedback>(payload.GetProperty("feedback"), JsonDefaults.Options) ?? throw new ArgumentException("Einstellungen fehlen.");
+                    _ = GunSystems.ReaperConfiguration(feedback);
+                    var b = state.Bindings[i];
+                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Diese Konfiguration benötigt eine erkannte RS3 mit COM-Port.");
+                    await serial.Command(b.SerialPort, b.Player, GunSystems.ReaperConfiguration(feedback));
+                    state.Bindings[i] = b with { Feedback = feedback, SoftwareConfigured = true }; Persist();
+                    Send("notice", new { message = "Mausmodus, Bildformat und Offscreen-Reload angefordert. Feedback-Auswahl für die Testimpulse gespeichert; die DIP-Schalter an der Gun bleiben maßgeblich." }); break;
+                }
+            case "setup-gun":
+                {
+                    string system = Str("system"); if (!GunSystems.Catalog.Any(g => g.Id == system)) throw new ArgumentException("Unbekanntes Lightgun-System.");
+                    if (system == "rs3") { await DiscoverGuns(); break; }
+                    busy = true;
+                    try { var path = await GunSoftware.Prepare(system, store.DirectoryPath, text => Send("busy", new { message = text })); Send("notice", new { message = path }); }
+                    finally { busy = false; Send("busy", new { message = "" }); SendState(); }
+                    break;
+                }
+            case "assign-gun":
+                {
+                    int player = Player(); var gun = guns.First(g => g.Id == Str("id"));
+                    if (gun.SystemId == "rs3") throw new InvalidOperationException("RS3-Spieler werden über die Hardware-ID zugeordnet. DIP-Spieler prüfen und neu erkennen.");
+                    if (gun.MouseId is null) throw new InvalidOperationException("Noch kein Maus-Eingang der Gun vorhanden. Zuerst Hersteller-Software einrichten.");
+                    if (state.Bindings.Any(b => b.Player != player && b.PhysicalId == gun.Id)) throw new InvalidOperationException("Die Gun gehört schon zu einem anderen Spieler.");
+                    state.Bindings.RemoveAll(b => b.Player == player); state.Bindings.Add(new(player, gun.MouseId, gun.KeyboardId, gun.Port, gun.SystemId, gun.Id, GunSystems.DefaultMap(player))); Persist(); break;
+                }
             case "bind": bindPlayer = Player(); bindMouse = null; SendState(); break;
             case "unbind": state.Bindings.RemoveAll(b => b.Player == Player()); Persist(); break;
             case "favorite": { var game = Game(); state.Games[state.Games.IndexOf(game)] = game with { Favorite = !game.Favorite }; Persist(); break; }
@@ -337,13 +487,13 @@ public sealed class ArcadeWindow : Window
                 }
             case "test-serial":
                 {
-                    var binding = state.Bindings.First(b => b.Player == Player()); if (binding.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
+                    var binding = state.Bindings.First(b => b.Player == Player()); if (binding.SystemId != "rs3" || binding.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
                     busy = true; try { int number = await serial.Command(binding.SerialPort, binding.Player); Send("notice", new { message = $"RS3 antwortet: Spieler {number}. Zielgenauigkeit und Recoil sind damit noch nicht geprüft." }); } finally { busy = false; }
                     break;
                 }
             case "mouse-mode":
                 {
-                    var b = state.Bindings.First(b => b.Player == Player()); if (b.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
+                    var b = state.Bindings.First(b => b.Player == Player()); if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
                     busy = true; try { await serial.Command(b.SerialPort, b.Player, "ZS", "ZM", "ZW", "ZX"); Send("notice", new { message = "Mausmodus und 16:9 angefordert. Mit dem Zieltest prüfen." }); } finally { busy = false; }
                     break;
                 }
@@ -482,16 +632,16 @@ public sealed class ArcadeWindow : Window
         busy = true; launching = true; var changed = new List<GunBinding>();
         try
         {
-            foreach (var binding in state.Bindings.Where(b => b.SerialPort is not null))
-            { await serial.Command(binding.SerialPort!, binding.Player, "ZS", "ZM", game.Aspect == "4:3" ? "ZN" : "ZW", "ZX"); changed.Add(binding); }
+            foreach (var binding in state.Bindings.Where(b => b.SystemId == "rs3" && b.SerialPort is not null && guns.Any(g => g.Id == b.PhysicalId || g.MouseId == b.MouseId)))
+            { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect })); changed.Add(binding); }
             foreach (var gesture in gestures.Values) gesture.Reset();
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);
-            await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => raw.Devices.Any(d => d.Id == b.MouseId)));
+            await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))));
         }
         finally
         {
             foreach (var binding in changed)
-            { try { await serial.Command(binding.SerialPort!, binding.Player, "ZS", "ZM", "ZW", "ZX"); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = "Menümodus konnte nicht wiederhergestellt werden: " + e.Message }); } }
+            { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = "Menümodus konnte nicht wiederhergestellt werden: " + e.Message }); } }
             busy = false; launching = false;
             if (closeRequested) Close(); else SendState();
         }

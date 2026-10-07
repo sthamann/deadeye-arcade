@@ -18,6 +18,17 @@ public static class App
             try
             {
                 var store = new LibraryStore(data); var state = store.Load();
+                if (args.Length == 1 && args[0] == "--inspect-guns")
+                {
+                    using var inputs = new RawInput(); inputs.Refresh();
+                    var guns = GunDiscovery.Scan(inputs.Devices);
+                    var ids = new List<object>(); var serial = new GunSerial();
+                    foreach (var gun in guns.Where(g => g.SystemId == "rs3" && g.Port is not null))
+                        try { ids.Add(new { gun.Id, gun.Port, player = serial.Probe(gun.Port!).GetAwaiter().GetResult(), error = (string?)null }); }
+                        catch (Exception error) { ids.Add(new { gun.Id, gun.Port, player = 0, error = error.Message }); }
+                    File.WriteAllText(Path.Combine(data, "guns-report.json"), JsonSerializer.Serialize(new { time = DateTimeOffset.Now, guns, ids, inputs = inputs.Devices, bindings = state.Bindings }, JsonDefaults.Options));
+                    return;
+                }
                 if (args.Length == 1 && args[0] == "--check-dependencies")
                 {
                     File.WriteAllText(Path.Combine(data, "dependencies.json"), JsonSerializer.Serialize(RuntimeInstaller.Scan(state.Games), JsonDefaults.Options));

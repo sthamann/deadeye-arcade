@@ -48,6 +48,17 @@ try
     string mouse = @"\\?\HID#VID_1234&PID_4321#player1";
     var controller = XDocument.Parse(LaunchRules.MameController([new(1, mouse)]));
     Check(controller.Descendants("mapdevice").Single().Attribute("device")!.Value == mouse, "MAME mapping retains and XML-escapes exact device identity");
+    Check(GunSystems.Identify("3A-3H Retro Shooter 1") == "rs3" && GunSystems.Identify("STM32 USB Serial") is null, "Product identity detects the RS3 family without treating generic STM devices as guns");
+    Check(GunSystems.Identify("Sinden Lightgun") == "sinden" && GunSystems.Identify("X-Gunner") == "xgunner" && GunSystems.Identify("Blamcon Vyper") == "blamcon", "Known manufacturer product names select their own system adapters");
+    Throws(() => GunSystems.ValidateMap(new() { ["mouse:99"] = "shoot" }), "Binding rejects invalid physical inputs");
+    Throws(() => GunSystems.ValidateMap(new() { ["key:49"] = "delete-all" }), "Binding rejects unsupported actions");
+    Check(GunSystems.ReaperConfiguration(new(OffscreenReload:false, Aspect:"4:3")).SequenceEqual(new[] {"ZS", "ZM", "ZN", "ZB", "ZX"}), "RS3 configuration applies aspect and reload and exits external mode without firing recoil");
+    var remapped = XDocument.Parse(LaunchRules.MameController([new(1, mouse, ButtonMap:new() { ["mouse:2"]="shoot", ["key:49"]="start" })]));
+    Check(remapped.Descendants("port").Single(p => (string?)p.Attribute("type") == "P1_BUTTON1").Value == "GUNCODE_1_BUTTON2", "Learned trigger binding reaches the actual MAME controller output");
+    Check(remapped.Descendants("port").Single(p => (string?)p.Attribute("type") == "START1").Value == "KEYCODE_1", "MAME receives keyboard start mapping independently of gun numbering");
+    var savedGuns = new LibraryStore(Path.Combine(root, "gun-data"));
+    var gunState = LibraryState.Empty; gunState.Bindings.Add(new(1, mouse, "keyboard", "COM3", "rs3", "physical-container", new() { ["mouse:2"]="shoot" }, new(Aspect:"4:3"), true)); savedGuns.Save(gunState);
+    Check(savedGuns.Load().Bindings.Single().ButtonMap!["mouse:2"] == "shoot" && savedGuns.Load().Bindings.Single().Feedback!.Aspect == "4:3", "Physical assignment, learned bindings and feedback survive cold reload");
     var gesture = new ExitGesture(); var now = DateTimeOffset.UtcNow; gesture.Key(0x31, true, now); gesture.Key(0x35, true, now);
     Check(!gesture.Ready(now.AddSeconds(1)) && gesture.Ready(now.AddSeconds(2)), "Exit requires a held chord, not coin or start alone");
     gesture.Key(0x35, false, now.AddSeconds(2)); Check(!gesture.Ready(now.AddSeconds(4)), "Releasing chord cancels exit");

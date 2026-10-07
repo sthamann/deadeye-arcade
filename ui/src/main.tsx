@@ -35,8 +35,10 @@ import {
   type Game,
   type State,
   type Input,
+  type GunSignal,
 } from "./types";
 import "./style.css";
+import { GunStudio, GunHeader } from "./GunStudio";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
 
@@ -98,6 +100,7 @@ function App() {
     y: number;
     player: number;
   } | null>(null);
+  const [gunSignal, setGunSignal] = useState<GunSignal | null>(null);
   const [lastInput, setLastInput] = useState<Input | null>(null);
   const [testStep, setTestStep] = useState(0);
   const [testErrors, setTestErrors] = useState<number[]>([]);
@@ -196,10 +199,20 @@ function App() {
         setSession(payload.status === "running");
         if (payload.status === "ended") setJustEnded(true);
       }
+      if (type === "gun-input") setGunSignal(payload);
+      if (type === "menu-action") {
+        const keys: Record<string,string> = {start:"Enter",coin:"Escape",up:"ArrowUp",down:"ArrowDown",left:"ArrowLeft",right:"ArrowRight",secondary:"Escape"};
+        if(keys[payload.action]) document.dispatchEvent(new KeyboardEvent("keydown", {key:keys[payload.action],bubbles:true}));
+      }
       if (type === "input") {
         if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
+        if (input.kind === "keyboard" && input.down) {
+          const keys: Record<string,string> = {start:"Enter",coin:"Escape",up:"ArrowUp",down:"ArrowDown",left:"ArrowLeft",right:"ArrowRight",shoot:"Enter",reload:"Escape"};
+          const action = (payload as {action?:string}).action;
+          if (action && keys[action]) document.dispatchEvent(new KeyboardEvent("keydown", {key:keys[action],bubbles:true}));
+        }
         if (
           input.kind === "mouse" &&
           input.x !== undefined &&
@@ -263,6 +276,7 @@ function App() {
         w: "ArrowLeft",
         x: "ArrowRight",
       };
+      if (event.isTrusted && state.native && !state.remoteSession) { event.preventDefault(); return; }
       let k = event.key;
       if (state.native) k = map[k.toLowerCase()] ?? k;
       if (k === "Escape" || (state.native && k === "5")) {
@@ -351,7 +365,7 @@ function App() {
     allGames.find((g) => g.id === selected) ?? games[0] ?? allGames[0];
   const connected = (player: number) => {
     const binding = state.bindings.find((b) => b.player === player);
-    return binding && state.devices.some((d) => d.id === binding.mouseId);
+    return binding && state.devices.some((d) => d.id.toLowerCase() === binding.mouseId.toLowerCase());
   };
   const connectedCount = state.bindings.filter((b) =>
     connected(b.player),
@@ -449,13 +463,7 @@ function App() {
             {nav.find((n) => n[0] === page)?.[1].toUpperCase()}
           </div>
           <div className="top-status">
-            <button className="device-pill" onClick={() => setPage("guns")}>
-              <Usb size={15} />
-              {connectedCount
-                ? `${connectedCount} Gun${connectedCount > 1 ? "s" : ""} verbunden`
-                : "Guns einrichten"}
-              <ChevronRight size={13} />
-            </button>
+            <GunHeader state={state} open={() => setPage("guns")} />
             <span className="version-chip">EARLY ACCESS</span>
           </div>
         </header>
@@ -767,234 +775,7 @@ function App() {
               )}
             </>
           )}
-          {page === "guns" && (
-            <>
-              <div className="page-heading">
-                <div className="eyebrow">DEIN SETUP</div>
-                <h1>
-                  Gute Kontrolle.
-                  <br />
-                  Ab dem ersten Schuss.
-                </h1>
-                <p>
-                  Jede Gun bekommt ihren eigenen Spieler. Anschluss, Eingaben
-                  und Zieltest werden getrennt geprüft.
-                </p>
-              </div>
-              <div className="gun-grid">
-                {[1, 2].map((player) => {
-                  const binding = state.bindings.find(
-                    (b) => b.player === player,
-                  );
-                  const online = connected(player);
-                  return (
-                    <section className="gun-panel" key={player}>
-                      <div className="gun-card-header">
-                        <div className="player-icon">
-                          <Crosshair size={28} />
-                        </div>
-                        <div>
-                          <span className="eyebrow">SPIELER {player}</span>
-                          <h2>
-                            {binding ? "Deine Lightgun" : "Gun hinzufügen"}
-                          </h2>
-                        </div>
-                        <span
-                          className={
-                            online ? "connection-tag online" : "connection-tag"
-                          }
-                        >
-                          {online
-                            ? "Angeschlossen"
-                            : binding
-                              ? "Getrennt"
-                              : "Nicht zugeordnet"}
-                        </span>
-                      </div>
-                      <div className="gun-illustration" aria-hidden="true">
-                        <div className="gun-barrel" />
-                        <div className="gun-slide" />
-                        <div className="gun-grip" />
-                        <div className="gun-trigger" />
-                        <div className="gun-leds">● ● ● ● ●</div>
-                      </div>
-                      <div className="check-row">
-                        <span>
-                          <Usb size={17} /> USB-Eingang
-                        </span>
-                        <b>{online ? "Vorhanden" : "Offen"}</b>
-                      </div>
-                      <div className="check-row">
-                        <span>
-                          <Keyboard size={17} /> Tasten zugeordnet
-                        </span>
-                        <b>{binding?.keyboardId ? "Ja" : "Offen"}</b>
-                      </div>
-                      <div className="check-row">
-                        <span>
-                          <Target size={17} /> Zieltest dieser Sitzung
-                        </span>
-                        <b>
-                          {testResults[player] && online
-                            ? `${testResults[player].at} · max. ${testResults[player].max} px`
-                            : "Noch offen"}
-                        </b>
-                      </div>
-                      <div className="check-row">
-                        <span>
-                          <Volume2 size={17} /> Recoil & Pedal
-                        </span>
-                        <b>Spieltest nötig</b>
-                      </div>
-                      <div className="gun-actions">
-                        <button
-                          className="primary"
-                          onClick={() => send("bind", { player })}
-                        >
-                          {binding ? "Neu zuordnen" : "Gun zuordnen"}
-                          <Plus size={17} />
-                        </button>
-                        <button
-                          className="secondary"
-                          disabled={state.native && !online}
-                          onClick={() => test(player)}
-                        >
-                          <Target size={17} /> Zieltest
-                        </button>
-                      </div>
-                      {binding && (
-                        <details className="device-details">
-                          <summary>RS3-Port und Geräteinformationen</summary>
-                          <p>
-                            Optional: den COM-Port dieser Gun auswählen. Die App
-                            prüft zuerst die RS3-ID und fordert nur Mausmodus
-                            und Bildformat an. Einzelimpulse lassen sich am lokalen Bildschirm testen.
-                          </p>
-                          <label>
-                            Gun-COM-Port
-                            <select
-                              aria-label={`COM-Port Spieler ${player}`}
-                              value={binding.serialPort ?? ""}
-                              onChange={(e) =>
-                                send("set-port", {
-                                  player,
-                                  port: e.target.value,
-                                })
-                              }
-                            >
-                              <option value="">Nicht zugeordnet</option>
-                              {state.ports.map((port) => (
-                                <option key={port}>{port}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <div className="inline-actions">
-                            <button
-                              className="secondary"
-                              onClick={() => send("test-serial", { player })}
-                            >
-                              Verbindung prüfen
-                            </button>
-                            <button
-                              className="secondary"
-                              onClick={() => send("mouse-mode", { player })}
-                            >
-                              Mausmodus setzen
-                            </button>
-                          </div>
-                          <div className="inline-actions feedback-actions">{[["recoil", "Rückstoß testen"], ["rumble", "Vibration testen"], ["combined", "Kombiniert testen"]].map(([effect, title]) => <button key={effect} className="secondary" disabled={!!busy || !online || !binding.serialPort || !!state.remoteSession} onClick={() => send("test-feedback", {player, effect})}>{title}</button>)}</div>
-                          <p>Gun in der Hand halten und die vorgesehene 24-V-Versorgung verwenden. Ein Klick sendet einen einzelnen Impuls; die Kraft ist kein frei regelbarer Softwarewert. Unter Remote Desktop sind diese Tests gesperrt.</p>
-                          <p className="technical">{binding.mouseId}</p>
-                          <button
-                            className="text-button danger"
-                            onClick={() => send("unbind", { player })}
-                          >
-                            Zuordnung entfernen
-                          </button>
-                        </details>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-              <div className="setup-note">
-                <ShieldCheck size={22} />
-                <div>
-                  <strong>Hersteller-Kalibrierung</strong>
-                  <p>
-                    Wähle das vorhandene Retro-Shooter-Kalibrierprogramm einmal
-                    aus. Danach kannst du es direkt von hier starten und nach
-                    dem Schließen zurückkehren.
-                  </p>
-                  <div className="inline-actions">
-                    <button
-                      className="secondary"
-                      onClick={() => send("set-calibration")}
-                    >
-                      Programm auswählen
-                    </button>
-                    <button
-                      className="primary"
-                      disabled={!state.calibrationTool || !!state.remoteSession}
-                      onClick={() => send("run-calibration")}
-                    >
-                      Kalibrierung starten
-                    </button>
-                  </div>
-                  {state.calibrationTool && <p>{state.calibrationTool}</p>}
-                  <strong>Erkannt ist noch nicht vollständig geprüft.</strong>
-                  <p>
-                    Der Zieltest prüft die Eingabe an fünf Zielen. Er ersetzt
-                    keine Firmwarekalibrierung. Einzelimpulse für Recoil und Rumble prüfst du am lokalen Bildschirm; Spielefeedback und Pedal brauchen den Spieltest.
-                  </p>
-                </div>
-              </div>
-              <div className="section-heading">
-                <h2>Angeschlossene Eingänge</h2>
-                <button
-                  className="secondary compact"
-                  onClick={() => send("refresh")}
-                >
-                  <RefreshCw size={16} /> Neu erkennen
-                </button>
-              </div>
-              <div className="device-list">
-                {state.devices.length ? (
-                  state.devices.map((d) => (
-                    <div key={d.id}>
-                      <Usb size={18} />
-                      <span>
-                        {d.name}
-                        <small>
-                          {d.kind === "mouse"
-                            ? "Maus / Zieleingang"
-                            : d.kind === "keyboard"
-                              ? "Tasteneingang"
-                              : "Controller / HID"}
-                          {d.retroShooter ? " · Retro-Shooter-Familie" : ""}
-                        </small>
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p>
-                    {state.native
-                      ? "Keine Eingänge gemeldet. Gun anschließen und neu erkennen."
-                      : "In der Browser-Vorschau wird keine Hardware erkannt."}
-                  </p>
-                )}
-              </div>
-              {lastInput && (
-                <div className="input-live">
-                  Letztes Signal: Spieler{" "}
-                  {lastInput.player || "nicht zugeordnet"} · {lastInput.kind}{" "}
-                  {lastInput.key !== undefined
-                    ? `· Taste ${lastInput.key}`
-                    : ""}
-                </div>
-              )}
-            </>
-          )}
+          {page === "guns" && <GunStudio state={state} signal={gunSignal} send={send} test={test} busy={!!busy} results={testResults} />}
           {page === "import" && (
             <>
               <div className="page-heading">
