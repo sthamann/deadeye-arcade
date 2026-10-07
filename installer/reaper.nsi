@@ -99,7 +99,7 @@ Section "Reaper Arcade"
   SetRegView 64
   SetOutPath "$INSTDIR"
   SetOverwrite on
-  File /r "${PAYLOAD}/*"
+  File /r "${PAYLOAD}\*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\ReaperArcade\Installer" "Directory" "$INSTDIR"
   WriteRegStr HKCU "Software\ReaperArcade\Installer" "Version" "${VERSION}"

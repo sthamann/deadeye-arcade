@@ -16,6 +16,6 @@ $lines=@($files | ForEach-Object { $relative=$_.FullName.Substring($payload.Leng
 $lines+=@(Get-ChildItem $payload -Directory -Recurse | Sort-Object { $_.FullName.Length } -Descending | ForEach-Object { 'RMDir "$INSTDIR\'+$_.FullName.Substring($payload.Length+1)+'"' })
 [IO.File]::WriteAllLines($manifest,$lines,[Text.UTF8Encoding]::new($false))
 $output=Join-Path $root "release/Reaper-Arcade-$Version-Setup-x64.exe"
-& $Compiler "/DVERSION=$Version" "/DPAYLOAD=$payload" "/DOUTPUT=$output" "/DBOOTSTRAPPER=$bootstrap" "/DUNINSTALL_FILES=$manifest" (Join-Path $root 'installer/reaper.nsi')
+& $Compiler '/INPUTCHARSET' 'UTF8' "/DVERSION=$Version" "/DPAYLOAD=$payload" "/DOUTPUT=$output" "/DBOOTSTRAPPER=$bootstrap" "/DUNINSTALL_FILES=$manifest" (Join-Path $root 'installer/reaper.nsi')
 if($LASTEXITCODE -ne 0){throw 'Installer build failed'}
 Get-ChildItem (Join-Path $root "release/Reaper-Arcade-$Version-*") -File | ForEach-Object { ((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()+'  '+$_.Name) } | Set-Content (Join-Path $root "release/SHA256SUMS-$Version.txt") -Encoding ascii
