@@ -21,6 +21,6 @@ try {
     if(Test-Path $staging) { Remove-Item $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
     Copy-Item release/windows-x64 -Destination (Join-Path $staging 'Reaper-Arcade') -Recurse
-    Compress-Archive -Path (Join-Path $staging 'Reaper-Arcade') -DestinationPath release/Reaper-Arcade-0.3.0-Windows-x64.zip -Force
+    Compress-Archive -Path (Join-Path $staging 'Reaper-Arcade') -DestinationPath release/Reaper-Arcade-0.3.1-Windows-x64.zip -Force
 }
 finally { Pop-Location }

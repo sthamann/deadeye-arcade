@@ -10,6 +10,8 @@ public sealed class GameSession
     private readonly Dictionary<int, DateTime> owned = [];
     private volatile bool stop;
     private readonly object sync = new();
+    private Task? ending;
+    private readonly List<(nint Handle, int Show)> overlayWindows = [];
     public bool Active { get; private set; }
     public event Action<string>? Changed;
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -19,6 +21,28 @@ public sealed class GameSession
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern bool Process32First(nint snapshot, ref ProcessEntry entry);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern bool Process32Next(nint snapshot, ref ProcessEntry entry);
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(nint handle);
+    [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hwnd, int command);
+    [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
+    [DllImport("user32.dll")] private static extern bool IsZoomed(nint hwnd);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
+    public void HideForOverlay()
+    {
+        overlayWindows.Clear();
+        KeyValuePair<int, DateTime>[] list; lock (sync) list = owned.ToArray();
+        foreach (var pair in list)
+            try
+            {
+                using var p = Process.GetProcessById(pair.Key);
+                if (p.HasExited || p.StartTime != pair.Value || p.MainWindowHandle == 0 || IsIconic(p.MainWindowHandle)) continue;
+                var handle = p.MainWindowHandle; overlayWindows.Add((handle, IsZoomed(handle) ? 3 : 9)); ShowWindowAsync(handle, 6);
+            }
+            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+    }
+    public void RestoreFromOverlay()
+    {
+        if (Active) foreach (var window in overlayWindows) { ShowWindowAsync(window.Handle, window.Show); SetForegroundWindow(window.Handle); }
+        overlayWindows.Clear();
+    }
     private static List<(int Id, int Parent)> Snapshot()
     {
         List<(int, int)> rows = []; var handle = CreateToolhelp32Snapshot(2, 0); if (handle == -1) return rows;
@@ -86,7 +110,7 @@ public sealed class GameSession
             if (!string.IsNullOrWhiteSpace(path)) target = Path.GetFullPath(path, game.WorkingDirectory);
         }
         HashSet<int> existing = Snapshot().Select(p => p.Id).ToHashSet();
-        var started = DateTime.Now; owned.Clear(); stop = false;
+        var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayWindows.Clear();
         using var process = Process.Start(info) ?? throw new IOException("Das Spiel konnte nicht gestartet werden.");
         lock (sync) owned[process.Id] = process.StartTime;
         Active = true; Changed?.Invoke("running");
@@ -138,7 +162,8 @@ public sealed class GameSession
             // The owning wrapper releases this session's helpers before returning to the menu.
         }
     }
-    public async Task End()
+    public Task End() => ending ??= EndOwned();
+    private async Task EndOwned()
     {
         if (!Active) return;
         KeyValuePair<int, DateTime>[] list; lock (sync) list = owned.ToArray();

@@ -34,6 +34,11 @@ public sealed class ArcadeWindow : Window
     private string? learningAction;
     private readonly DispatcherTimer gunTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
     private readonly GameSession session = new();
+    private readonly Dictionary<int, TriggerHold> triggerHolds = [];
+    private InGameOverlay? overlay;
+    private GameEntry? activeGame;
+    private int overlayOpener;
+    private bool overlayAction;
     private EmergencyExit? emergencyExit;
     private DependencyReport? dependencies;
     private readonly LibraryStore store;
@@ -73,22 +78,27 @@ public sealed class ArcadeWindow : Window
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
-        raw.Packet += Input; raw.DevicesChanged += () => { if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); } };
+        raw.Packet += Input; raw.DevicesChanged += () => { foreach (var hold in triggerHolds.Values) hold.Reset(); if (overlay is not null) overlay.Arm(); if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); } };
         gunTimer.Tick += async (_, _) => { gunTimer.Stop(); if (!busy && !session.Active) await DiscoverGuns(); else { gunTimer.Start(); } };
         session.Changed += status => Dispatcher.Invoke(() =>
         {
             emergencyExit?.Dispose(); emergencyExit = null;
             if (status == "running")
             {
-                try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); }))); }
+                try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); })), () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); }))); }
                 catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
                 WindowState = WindowState.Minimized;
             }
-            else { WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
+            else { CloseOverlay(false); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
             Send("session", new { status });
         });
         timer.Tick += async (_, _) =>
         {
+            if (session.Active && overlay is null && !overlayAction && activeGame is not null)
+            {
+                var held = triggerHolds.FirstOrDefault(p => p.Value.Ready(Environment.TickCount64));
+                if (held.Value is not null) { held.Value.Consume(); OpenOverlay(held.Key); }
+            }
             if (!gestures.Values.Any(g => g.Ready(DateTimeOffset.UtcNow))) return;
             foreach (var g in gestures.Values) g.Consume();
             if (session.Active) { Log("exit: gun to menu"); await session.End(); }
@@ -109,7 +119,7 @@ public sealed class ArcadeWindow : Window
             }
             closing = true; ready = false; Log("exit: desktop");
         };
-        Closed += (_, _) => { timer.Stop(); gunTimer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
+        Closed += (_, _) => { CloseOverlay(false); timer.Stop(); gunTimer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
     private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); } return 0; }
     private async Task Initialize()
@@ -169,7 +179,7 @@ public sealed class ArcadeWindow : Window
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
-            version = "0.3.0",
+            version = "0.3.1",
             remoteSession,
             installations,
             dependencies = DependencyView(),
@@ -222,6 +232,16 @@ public sealed class ArcadeWindow : Window
             {
                 var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player);
                 string action = map.GetValueOrDefault(signal.Token, "none");
+                if (session.Active && action == "shoot")
+                {
+                    if (!triggerHolds.TryGetValue(binding.Player, out var hold)) triggerHolds[binding.Player] = hold = new();
+                    hold.Button(packet.DeviceId + "|" + signal.Token, signal.Down, Environment.TickCount64);
+                    if (!signal.Down && !hold.Pressed && overlay is not null && binding.Player == overlayOpener) overlay.Arm();
+                }
+                if (overlay is not null && signal.Down)
+                {
+                    if (action == "shoot") overlay.Shoot(PacketPoint(packet)); else overlay.Navigate(action);
+                }
                 if (binding.PhysicalId is not null)
                 {
                     bool firstSignal = !gunSignals.ContainsKey(binding.PhysicalId); gunSignals[binding.PhysicalId] = DateTimeOffset.UtcNow;
@@ -264,6 +284,41 @@ public sealed class ArcadeWindow : Window
             Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), buttons = menuButtons });
         }
         else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down, action = binding is null ? null : (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player)).GetValueOrDefault("key:" + packet.Key, "none") });
+    }
+    private void OpenOverlay(int player)
+    {
+        if (!session.Active || activeGame is null || overlay is not null) return;
+        overlayOpener = player;
+        foreach (var hold in triggerHolds.Values.Where(h => h.Pressed)) hold.Consume();
+        var controls = OverlayControls.Read(activeGame, store.DirectoryPath, state.Bindings);
+        session.HideForOverlay();
+        overlay = new InGameOverlay(activeGame, controls, state.Bindings, action => _ = OverlayCommand(action));
+        overlay.Closed += (_, _) => { if (overlay is not null) { overlay = null; session.RestoreFromOverlay(); } };
+        overlay.Show(); Log("overlay: opened P" + player);
+    }
+    private void CloseOverlay(bool resume)
+    {
+        var window = overlay; overlay = null; window?.Close();
+        if (resume) session.RestoreFromOverlay();
+    }
+    private async Task OverlayCommand(string action)
+    {
+        if (overlayAction || !session.Active) return;
+        if (action == "resume") { CloseOverlay(true); Log("overlay: resume"); return; }
+        if (action is not ("end" or "restart")) return;
+        overlayAction = true; var game = activeGame;
+        try
+        {
+            Log("overlay: " + action); await session.End();
+            while (session.Active || launching) await Task.Delay(50);
+            if (action == "restart" && game is not null && !closing && !closeRequested)
+            {
+                overlayAction = false;
+                await Launch(state.Games.FirstOrDefault(g => g.Id == game.Id) ?? game);
+            }
+        }
+        catch (Exception error) { Log("overlay error: " + error.Message); Send("error", new { message = error.Message }); }
+        finally { overlayAction = false; }
     }
     private static Point PacketPoint(RawPacket packet)
     {
@@ -340,6 +395,7 @@ public sealed class ArcadeWindow : Window
         if (picker.Active) throw new InvalidOperationException("Bitte zuerst die Dateiauswahl schließen.");
         if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); return; }
         if (type == "end-game") { await session.End(); return; }
+        if (type == "show-overlay") { OpenOverlay(0); overlay?.Arm(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
         if (session.Active && type != "fullscreen") throw new InvalidOperationException("Bitte zuerst das laufende Spiel beenden.");
         if (type == "cancel-learn") { learningPlayer = null; learningAction = null; SendState(); return; }
@@ -635,6 +691,7 @@ public sealed class ArcadeWindow : Window
             foreach (var binding in state.Bindings.Where(b => b.SystemId == "rs3" && b.SerialPort is not null && guns.Any(g => g.Id == b.PhysicalId || g.MouseId == b.MouseId)))
             { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect })); changed.Add(binding); }
             foreach (var gesture in gestures.Values) gesture.Reset();
+            foreach (var hold in triggerHolds.Values) hold.Reset(); activeGame = game;
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);
             await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))));
         }
@@ -642,7 +699,7 @@ public sealed class ArcadeWindow : Window
         {
             foreach (var binding in changed)
             { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = "Menümodus konnte nicht wiederhergestellt werden: " + e.Message }); } }
-            busy = false; launching = false;
+            busy = false; launching = false; activeGame = null;
             if (closeRequested) Close(); else SendState();
         }
     }

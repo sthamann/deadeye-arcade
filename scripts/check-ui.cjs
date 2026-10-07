@@ -123,6 +123,10 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
   assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='import-collection')),'Native handoff import is connected');
   console.log('Collection UI passed: 183 games, 25 priorities, 9 Wii games, missing-file filter, real MP4 playback and pause on dialog/session/view change.');
  }
+ await native.evaluate(()=>window.fixture.emit('session',{status:'running'}));
+ await native.getByRole('button',{name:'Spielmenü öffnen',exact:true}).dispatchEvent('click');
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='show-overlay')),'Running session offers the native game overlay command');
+ await native.evaluate(()=>window.fixture.emit('session',{status:'ended'}));
  assert.equal(errors.length,0,errors.join('\n'));
  console.log('UI passed: empty-library honesty, eight preview entries, selection/filter/search, target test, browser-native boundary, raw-input navigation, player isolation, binding command, four pages at five widths.');
  await browser.close();

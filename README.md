@@ -2,7 +2,7 @@
 
 Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: große Vollbildoberfläche, getrennte Gun-Eingänge und Import vorhandener TeknoParrot-/MAME-Spiele.
 
-**[Windows-Version 0.3.0 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.0/Reaper-Arcade-0.3.0-Windows-x64.zip)** · [Entwicklungsrelease und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.0)
+**[Windows-Version 0.3.1 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.1/Reaper-Arcade-0.3.1-Windows-x64.zip)** · [Entwicklungsrelease und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.1)
 
 ![Cinema-Oberfläche mit ausdrücklich gewählter Beispielbibliothek](oberflaeche.png)
 
@@ -20,6 +20,10 @@ Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhalt
 
 Details, unterstützte Pfade und Grenzen: [Gun Studio](docs/gun-studio.md).
 
+## Spielmenü in 0.3.1
+
+Abzug mindestens zehn Sekunden halten, loslassen und eine große Aktion wählen: Weiter spielen, Neu starten oder Spiel beenden. Das native Vollbildmenü zeigt die P1/P2-Belegung aus MAME-, TeknoParrot-, Dolphin-/Wii- und RetroArch-Konfigurationen sowie die gespeicherte Gun-Belegung. Unbekannte Spielzuordnungen und mögliche Profil-Overrides werden erklärt. F10 ist eine zusätzliche Tastaturalternative; F12 bleibt der direkte Ausstieg. Das Spiel wird dabei nicht automatisch pausiert. [Bedienung und Grenzen](docs/in-game-overlay.md).
+
 ## Erweiterungen in 0.3
 
 - Import der `spiele.json`-Übergabe mit alternativen Startwegen, Abhängigkeiten, Prioritäten und Spielerangaben. Fehlende Dateien sperren den Start; eine erneute Prüfung kann abgeschlossene Kopien freigeben.
@@ -35,7 +39,7 @@ Version 0.3 wurde auf dem Lightgun-PC installiert: 183 Titel importiert und 639 
 
 ## Direkt auf dem Windows-PC starten
 
-1. Das Paket **Reaper-Arcade-0.3.0-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
+1. Das Paket **Reaper-Arcade-0.3.1-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
 2. **ReaperArcade.exe** öffnen. Eine separate .NET-Installation ist nicht nötig.
 3. Unter **Meine Guns** das Lightgun Studio öffnen. Eine erkannte RS3 wird über ihre COM-Spieler-ID automatisch P1 oder P2 zugeordnet und für Maus-/Tastatureingaben eingerichtet. Weitere Systeme auswählen und deren Herstellerprogramm vorbereiten lassen. Tasten mit dem Live-Test prüfen und bei Bedarf durch Anklicken einer Aktion neu belegen.
 4. Den Zieltest durchführen. Er prüft fünf Ziele; er schreibt keine Kalibrierung in die Firmware.

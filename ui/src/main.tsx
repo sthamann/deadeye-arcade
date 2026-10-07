@@ -1054,7 +1054,7 @@ function App() {
                   <p>
                     Auf der zugeordneten Gun Start + Münze für etwa zwei
                     Sekunden halten. Spieler 1: Tasten 1 + 5, Spieler 2: 2 + 6.
-                    Im Spiel führt das zurück ins Menü. Dort beide Tasten loslassen und erneut halten, um die App zu schließen. Der Knopf „App schließen · Windows“ bleibt auch bei Dialogen und laufenden Prüfungen sichtbar. Mit einer Tastatur beendet auch F12 die eigene Spielsitzung.
+                    Im Spiel führt das zurück ins Menü. Abzug mindestens 10 Sekunden halten öffnet das Spielmenü mit Neustart, Beenden und Tastenübersicht. Danach den Abzug loslassen. Dort beide Start-/Münztasten loslassen und erneut halten, um die App zu schließen. Der Knopf „App schließen · Windows“ bleibt auch bei Dialogen und laufenden Prüfungen sichtbar. Mit einer Tastatur: F10 Spielmenü, F12 Spiel beenden.
                   </p>
                 </div>
               </div>
@@ -1204,8 +1204,9 @@ function App() {
                 <div className="exit-reminder">
                   <Keyboard size={19} />
                   <span>
-                    Start + Münze etwa 2 Sekunden halten, um das Spiel zu
-                    beenden. Mit einer Tastatur: F12.
+                    Abzug mindestens 10 Sekunden halten: Spielmenü mit Neustart,
+                    Beenden und Tastenübersicht. Danach loslassen. Start + Münze etwa
+                    2 Sekunden: direkt beenden. Tastatur: F10 Menü · F12 beenden.
                   </span>
                 </div>
                 <button
@@ -1376,6 +1377,9 @@ function App() {
         <div className="session-banner">
           <Gamepad2 size={20} />
           <span>Ein Spiel läuft.</span>
+          <button className="secondary" onClick={() => send("show-overlay")}>
+            Spielmenü öffnen
+          </button>
           <button className="secondary" onClick={() => send("end-game")}>
             Spiel beenden
           </button>
