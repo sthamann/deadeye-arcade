@@ -68,6 +68,8 @@ public sealed class GameSession
     {
         if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         _ = LaunchRules.Prepare(game);
+        var players = bindings.ToArray();
+        MultiplayerSetup.Configure(game, players);
         var helpers = new List<Process>();
         try
         {
@@ -80,7 +82,7 @@ public sealed class GameSession
                 foreach (var argument in helper.Arguments) info.ArgumentList.Add(argument);
                 helpers.Add(Process.Start(info) ?? throw new IOException(I18n.T("Helfer konnte nicht gestartet werden.")));
             }
-            await RunGame(game, dataDirectory, bindings);
+            await RunGame(game, dataDirectory, players);
         }
         finally
         {

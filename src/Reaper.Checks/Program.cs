@@ -23,6 +23,30 @@ string root = Path.Combine(args.FirstOrDefault() ?? Path.GetTempPath(), "reaper-
 Directory.CreateDirectory(root);
 try
 {
+    string multiRoot=Path.Combine(root,"multiplayer");Directory.CreateDirectory(multiRoot);
+    string helperExe=Path.Combine(multiRoot,"DemulShooterX64.exe");File.WriteAllText(helperExe,"");
+    string multiConfig=Path.Combine(multiRoot,"config.ini");File.WriteAllText(multiConfig,";user custom config\r\nP1DeviceName = old-one\r\nP2DeviceName = old-two\r\nP2DeviceName = duplicate\r\nOutputEnabled = True\r\n");
+    var multiGame=new GameEntry("multi","Operation Wolf Returns","PC",helperExe,[],multiRoot,"custom",multiRoot,Helpers:[new(helperExe,["-target=windows","-rom=opwolfr"],multiRoot)]);
+    GunBinding p1=new(1,@"\\?\HID#VID_0483&PID_5750&MI_00&COL01#p1",SystemId:"rs3");
+    GunBinding p2=new(2,@"\\?\HID#VID_0483&PID_5751&MI_00&COL01#p2",SystemId:"rs3");
+    MultiplayerSetup.Configure(multiGame,[p1,p2]);
+    Check(File.ReadAllText(multiConfig).Contains(p1.MouseId)&&File.ReadAllText(multiConfig).Contains(p2.MouseId)&&File.ReadAllText(multiConfig).Contains("OutputEnabled = True"),"Live independent P1/P2 IDs replace foreign helper assignments and preserve custom settings");
+    Check(File.ReadAllText(multiConfig+".before-deadeye-multiplayer").Contains("old-two"),"Original helper configuration remains recoverable");
+    MultiplayerSetup.Configure(multiGame,[p1]);
+    Check(File.ReadAllText(multiConfig).Contains("P2DeviceName = DEADEYE_DISCONNECTED_P2")&&!File.ReadAllText(multiConfig).Contains(p2.MouseId),"Unplugged P2 cannot inherit an unrelated gun assignment");
+    Check(File.ReadAllText(multiConfig).Contains("P3DeviceName = DEADEYE_DISCONNECTED_P3")&&File.ReadAllText(multiConfig).Contains("P4DeviceName = DEADEYE_DISCONNECTED_P4"),"Unused channels cannot bind to nameless RDP mouse input");
+    File.WriteAllText(Path.Combine(multiRoot,"EMULATOR.INI"),"[Input]\nUseRawInput=1\n[Renderer]\nDrawCross=1\nBilinear=1\n");
+    var multiplayerModelGame=multiGame with { Helpers=[new(helperExe,["-target=model2","-rom=hotd"],multiRoot)] };
+    MultiplayerSetup.Configure(multiplayerModelGame,[p1,p2]);
+    Check(DolphinSetup.Value(File.ReadAllText(Path.Combine(multiRoot,"EMULATOR.INI")),"Input","UseRawInput")=="0"&&DolphinSetup.Value(File.ReadAllText(Path.Combine(multiRoot,"EMULATOR.INI")),"Renderer","DrawCross")=="0"&&File.ReadAllText(Path.Combine(multiRoot,"EMULATOR.INI")).Contains("Bilinear=1"),"Model2 helper prevents conflicting native input without changing renderer preferences");
+    Throws(()=>MultiplayerSetup.Configure(multiGame,[p1,p2 with {MouseId=p1.MouseId}]),"One mouse cannot masquerade as two independent players");
+    File.WriteAllText(Path.Combine(multiRoot,"BlueEstate_Fix.dll"),"");
+    var blueGame=multiGame with {Title="Blue Estate",Helpers=null};
+    MultiplayerSetup.Configure(blueGame,[p1,p2]);
+    Check(DolphinSetup.Value(File.ReadAllText(Path.Combine(multiRoot,"LightGun_Patch.ini")),"LightGuns","Gun2")=="VID_0483&PID_5751","Blue Estate receives the real distinct P2 VID/PID");
+    Throws(()=>MultiplayerSetup.Configure(blueGame,[p1,p2 with {MouseId=p1.MouseId+"other"}]),"Blue Estate rejects distinct paths with the same VID/PID");
+    var hotd2=multiGame with {Title="THE HOUSE OF THE DEAD 2: Remake",Helpers=null};
+    Check(GameCompatibility.Read(hotd2,1)!.Notes.Any(n=>n.Contains("MultiLightgunPlugin"))&&!GameCompatibility.Read(hotd2,1)!.Notes.Any(n=>n.Contains("-rom=hotdra")),"HOTD 2 Remake never inherits the incompatible HOTD 1 helper recipe");
     string tp = Path.Combine(root, "TeknoParrot"); Directory.CreateDirectory(Path.Combine(tp, "UserProfiles")); Directory.CreateDirectory(Path.Combine(tp, "GameProfiles"));
     File.WriteAllText(Path.Combine(tp, "TeknoParrotUi.exe"), ""); File.WriteAllText(Path.Combine(tp, "game & 1.exe"), "");
     File.WriteAllText(Path.Combine(tp, "GameProfiles", "HOTDSD.xml"), "<GameProfile/>");

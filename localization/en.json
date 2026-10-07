@@ -693,5 +693,19 @@
   "Bitte .NET Framework 3.5 im Windows-Dialog installieren.": "Please install .NET Framework 3.5 in the Windows dialog.",
   "Microsoft-Signaturprüfung hat zu lange gedauert. Bitte erneut versuchen.": "Microsoft signature verification timed out. Please try again.",
   "Original-Hardware": "Original hardware",
-  "Erscheinungsjahr": "Release year"
+  "Erscheinungsjahr": "Release year",
+  "P1 und P2 benötigen unterschiedliche Gun-Geräte.": "P1 and P2 need separate gun devices.",
+  "Dieser Blue-Estate-Patch benötigt unterschiedliche VID/PID für P1 und P2.": "This Blue Estate patch requires distinct VID/PID values for P1 and P2.",
+  "Zwei-Gun-Patch im Startordner · Geräteprüfung offen": "Two-gun patch in launch directory · device test pending",
+  "Blue Estate benötigt den Patch für die passende 32-Bit-Spielversion, Raw Mode und Vollbild. P1/P2 werden beim Start aus den angeschlossenen Guns zugeordnet.": "Blue Estate needs the patch matching its 32-bit game build, Raw Mode and fullscreen. Connected guns are assigned to P1/P2 at launch.",
+  "Der Patch verwendet VID/PID. Beide Guns benötigen unterschiedliche Kennungen; bei gleichen Kennungen wird der Start abgebrochen. Fokuswechsel und Hotplug während des Spiels werden vom Patch nicht unterstützt.": "The patch uses VID/PID. Both guns need distinct identifiers; duplicate identifiers block launch. Focus changes and hotplug during play are unsupported by the patch.",
+  "MultiLightgunPlugin installiert · Gun-Zuweisung prüfen": "MultiLightgunPlugin installed · check gun assignment",
+  "MultiLightgunPlugin fehlt im Startordner": "MultiLightgunPlugin missing from launch directory",
+  "HOTD 2 Remake verwendet seinen eigenen MultiLightgunPlugin. Beide Guns am Zuweisungsbildschirm mit ihrem Abzug anmelden. Keinen HOTD-1-Patch und kein hotdra darüberlegen.": "HOTD 2 Remake uses its own MultiLightgunPlugin. Assign each gun using its trigger on the assignment screen. Do not layer the HOTD 1 patch or hotdra over it.",
+  "Nicht-VR-Version benötigt den OperationWolf-DemulShooter-Plugin und DemulShooterX64 -target=windows -rom=opwolfr. Abzug, Nachladen und Waffenwechsel sind getrennt; P2-Granate wird im Plugin eingestellt.": "The non-VR version needs the OperationWolf DemulShooter plugin and DemulShooterX64 -target=windows -rom=opwolfr. Trigger, reload and weapon selection are separate; set P2 grenade in the plugin.",
+  "Model 2 · DemulShooter für getrennte Guns": "Model 2 · DemulShooter for independent guns",
+  "Model 2 · Zwei-Gun-Helfer fehlt": "Model 2 · two-gun helper missing",
+  "Model 2 1.1a benötigt DemulShooter mit passendem ROM-Namen. Native RawInput-Eingabe und native Fadenkreuze werden für diesen Startweg deaktiviert. SERVICE-Kalibrierung am echten Bildschirm durchführen.": "Model 2 1.1a requires DemulShooter with the matching ROM name. Native RawInput and native crosshairs are disabled for this launch path. Perform SERVICE calibration at the physical screen.",
+  "Windows-Klassiker · DemulShooter für getrennte Guns": "Classic Windows game · DemulShooter for independent guns",
+  "Beide Spieler im Spiel bzw. Arcade-Launcher auf Keyboard einstellen. START: 1/2; Coin: 5. Die 32-Bit-Spielversion muss vom Helfer unterstützt werden.": "Set both players to Keyboard in the game or arcade launcher. START: 1/2; Coin: 5. The helper must support the 32-bit game build."
 }

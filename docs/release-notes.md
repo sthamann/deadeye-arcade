@@ -1,10 +1,11 @@
-Deadeye Arcade 0.3.8 adds richer game information and safer media enrichment.
+Deadeye Arcade 0.3.9 improves independent multiplayer device configuration.
 
-- Show short English descriptions, edition-specific release years and original hardware in the featured game area and Game Details.
-- Identify demos and unreleased prototypes explicitly instead of inventing a commercial release year.
-- Apply local enrichment manifests only after exact game identity and every replacement media file have been checked. Launch commands, player controls, favorites and verification status are preserved.
-- Keep enriched information when re-importing a collection and store source references alongside each game.
-- Audit actual local cover, preview-video, screenshot and logo files with `--audit-media`.
-- Reset a failed preview when selecting a different video. Media remains private to the user's library and is not bundled with the app.
+- Assign installed DemulShooter helpers from the actual connected P1/P2 guns before every launch.
+- Isolate unassigned helper channels with nonempty identifiers so nameless Remote Desktop mice cannot control missing players.
+- Reject duplicate player slots or two player assignments pointing at the same mouse.
+- Merge helper settings with backups while retaining unrelated options.
+- Disable conflicting native Model 2 RawInput and crosshairs when using its DemulShooter launch path.
+- Show separate requirements for HOTD Remake, HOTD 2 Remake, Operation Wolf Returns, classic Windows HOTD games and Model 2.
+- Assign Blue Estate VID/PID values only for an already installed patch; reject duplicate VID/PID identities. The patch must be compatible with the 32-bit game build and requires Raw Mode and fullscreen.
 
-Core, UI and Windows verification are documented in docs/verification-0.3.8.md. Autostart remains disabled by default.
+Third-party games, patches and game media are not bundled. Installed files, successful launch and physical two-gun gameplay are separate checks. English remains the first-run default, German is available, and autostart remains off by default.

@@ -10,7 +10,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.8](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.8/Deadeye-Arcade-0.3.8-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.8)
+**[Download Windows Setup 0.3.9](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.9/Deadeye-Arcade-0.3.9-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.9)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -43,11 +43,13 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-**0.3.8** adds English game descriptions, edition-specific release years, original hardware and validated local media enrichment. It also includes the calibration and game-specific setup below. Windows
-launch, overlay and return-to-library checks are recorded in
-[the verification notes](docs/verification-0.3.8.md); physical aiming and
-independent two-gun gameplay remain separate checks.
+**0.3.9** adds live, independent device assignment for installed DemulShooter helpers,
+conflict prevention for Model 2 inputs, and game-specific multiplayer requirements.
+Game information and validated local media enrichment are included.
+[Verification notes](docs/verification-0.3.9.md) distinguish software checks from
+physical aiming and independent two-gun gameplay.
 
+- **Multiplayer helper setup:** writes the actual connected gun IDs before launching installed DemulShooter helpers. Unassigned channels cannot pick up nameless Remote Desktop mice. Blue Estate uses distinct VID/PID assignments for an already installed, matching patch; HOTD 2 Remake has its own plugin requirements.
 - **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
 - **Game information:** short English descriptions, release years, original hardware, and explicit demo or unreleased-prototype labels. Enrichment checks exact game identity and all replacement files before saving; imports retain enriched information.
 - **A fullscreen game library:** search, favorites, platform filters, game details,

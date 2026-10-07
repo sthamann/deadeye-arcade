@@ -70,7 +70,25 @@ and simultaneous actions, before the game is marked tested.
 | Supermodel / The Lost World | Rebuilds independent RawInput mouse and keyboard numbers from the live device list at each launch. Unconnected players receive no phantom joystick mapping. Physical P2 gameplay remains to test. |
 | Silent Hill Arcade in TeknoParrot | Uses the existing TeknoParrot profile and its separate RawInput devices. The standalone No-Cursor/DemulShooter patch is a different launch path and must not be layered over it blindly. [Guide](https://www.sindenwiki.org/wiki/Silent_Hill_Arcade). |
 | The House of the Dead Remake | Requires an ArcadePlugin matching the game build. Multiplayer also needs its multiplayer input mode and DemulShooterX64 with `-target=windows -rom=hotdra`. Existing files alone do not confirm plugin mode or two-gun readiness. [Plugin source](https://github.com/argonlefou/HotdRemake_ArcadePlugin), [game guide](https://www.sindenwiki.org/wiki/The_House_of_the_Dead_Remake). |
-| Blue Estate | Enable Raw Mode. The original PC game handles one mouse gun. Independent two-gun play requires an additional unofficial patch which the linked guide does not distribute; automatic installation is not claimed. [Guide](https://www.sindenwiki.org/wiki/Blue_Estate). |
+| Blue Estate | Requires a matching unofficial 32-bit patch in the executable's directory, Raw Mode and fullscreen. Deadeye updates the VID/PID assignments for an installed patch and rejects duplicate identities. Patch installation requires source and game-build review; it is not distributed with Deadeye. Focus changes and hotplug are unsupported by the patch. [Guide](https://www.sindenwiki.org/wiki/Blue_Estate). |
+| HOTD 2 Remake | Uses its own `MultiLightgunPlugin.dll`, with player assignment at its trigger-pairing screen. Do not apply the HOTD 1 `hotdra` recipe. |
+| Operation Wolf Returns (non-VR) | Use the matching OperationWolf plugin from the official DemulShooter release and `DemulShooterX64 -target=windows -rom=opwolfr`. Disable obsolete competing plugins with a backup. [Helper guide](https://github.com/argonlefou/DemulShooter/wiki/Windows-games). |
+| Model 2 1.1a | Use `DemulShooter.exe -target=model2 -rom=<set>`. Deadeye disables native `UseRawInput` and `DrawCross` for this helper path. Physical SERVICE calibration is still needed. [Guide](https://github.com/argonlefou/DemulShooter/wiki/Model2). |
+| HOTD 2/3 classic Windows versions | Both players must use Keyboard controls. Use `hod2pc` / `hod3pc` with the 32-bit helper. Arcade Mod launchers must point at the real game executable. [Guide](https://github.com/argonlefou/DemulShooter/wiki/Windows-games). |
 
 Game Details shows these requirements together with whether a second gun is
 currently detected. A real game test remains separate from configuration status.
+
+## Installed multiplayer helpers
+
+Before launching a configured DemulShooter helper, Deadeye merges P1/P2 RawInput
+IDs from the live device list into its `config.ini`. Unassigned P1–P4 channels
+receive unmatched nonempty identifiers: empty names can match a nameless RDP
+mouse in the helper. The original INI is backed up once and unrelated settings
+are retained. This configures an installed integration; it does not download
+arbitrary patches or infer that the game build supports the hook.
+
+Two local players, alternating players and linked cabinets are different game
+modes. A multiplayer label does not automatically mean simultaneous independent
+lightguns. In particular, Dolphin P2 and linked-cabinet games need their own
+verified integration rather than a generic two-mouse patch.
