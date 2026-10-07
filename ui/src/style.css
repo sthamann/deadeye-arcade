@@ -1316,6 +1316,28 @@ main {
 .modal .primary {
   margin-top: 20px;
 }
+.launch-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.launch-information {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 10px;
+}
+.launch-information > p {
+  font-size: 14px;
+}
+.launch-modal .launch-confirm {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.launch-modal .modal-close {
+  z-index: 1;
+  background: #1b2535;
+}
 .modal details {
   font-size: 13px;
   color: #c0cee1;

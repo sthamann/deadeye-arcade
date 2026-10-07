@@ -1533,7 +1533,7 @@ function App() {
       {modal && modal.type !== "test" && (
         <div className="modal-backdrop">
           <section
-            className="modal"
+            className={`modal${modal.type === "launch" ? " launch-modal" : ""}`}
             inert={!!picker || !!keyboard}
             role="dialog"
             aria-modal="true"
@@ -1592,48 +1592,50 @@ function App() {
               </>
             ) : modal.type === "launch" ? (
               <>
-                <span className="eyebrow">
-                  {modal.game.platform.toUpperCase()}
-                  {" " + t("\u00B7 ERSTER START")}
-                </span>
-                <h2>{modal.game.title}</h2>
-                {modal.game.description && <p className="game-description" lang="en">{modal.game.description}</p>}
-                {(modal.game.releaseYear || modal.game.releaseInfo || modal.game.hardware) && <dl className="game-facts">
-                  {(modal.game.releaseYear || modal.game.releaseInfo) && <div><dt>{t("Erscheinungsjahr")}</dt><dd>{[modal.game.releaseYear, modal.game.releaseInfo].filter(Boolean).join(" · ")}</dd></div>}
-                  {modal.game.hardware && <div><dt>{t("Original-Hardware")}</dt><dd>{modal.game.hardware}</dd></div>}
-                </dl>}
-                <p>
-                  {t(
-                    "Die App startet dein gespeichertes Profil. Ob Zielen, Tasten, Pedal und zwei Spieler im Spiel funktionieren, pr\u00FCfen wir auf deinem PC.",
-                  )}
-                </p>
-                <div className="launch-checks">
-                  <span>
-                    <Check size={16} />
-                    {" " + t("Vorhandenen Starter verwenden")}
+                <div className="launch-information">
+                  <span className="eyebrow">
+                    {modal.game.platform.toUpperCase()}
+                    {" " + t("\u00B7 ERSTER START")}
                   </span>
-                  <span>
-                    <Check size={16} />
-                    {" " +
-                      t(
-                        "RS3-Bildformat setzen, wenn ein COM-Port zugeordnet ist",
-                      )}
-                  </span>
-                  <span>
-                    <Check size={16} />
-                    {" " + t("Nach Spielende ins Men\u00FC zur\u00FCckkehren")}
-                  </span>
-                </div>
-                <div className="exit-reminder">
-                  <Keyboard size={19} />
-                  <span>
+                  <h2>{modal.game.title}</h2>
+                  {modal.game.description && <p className="game-description" lang="en">{modal.game.description}</p>}
+                  {(modal.game.releaseYear || modal.game.releaseInfo || modal.game.hardware) && <dl className="game-facts">
+                    {(modal.game.releaseYear || modal.game.releaseInfo) && <div><dt>{t("Erscheinungsjahr")}</dt><dd>{[modal.game.releaseYear, modal.game.releaseInfo].filter(Boolean).join(" · ")}</dd></div>}
+                    {modal.game.hardware && <div><dt>{t("Original-Hardware")}</dt><dd>{modal.game.hardware}</dd></div>}
+                  </dl>}
+                  <p>
                     {t(
-                      "Abzug mindestens 10 Sekunden halten: Spielmen\u00FC mit Neustart, Beenden und Tasten\u00FCbersicht. Danach loslassen. Start + M\u00FCnze etwa 2 Sekunden: direkt beenden. Tastatur: F10 Men\u00FC \u00B7 F12 beenden.",
+                      "Die App startet dein gespeichertes Profil. Ob Zielen, Tasten, Pedal und zwei Spieler im Spiel funktionieren, pr\u00FCfen wir auf deinem PC.",
                     )}
-                  </span>
+                  </p>
+                  <div className="launch-checks">
+                    <span>
+                      <Check size={16} />
+                      {" " + t("Vorhandenen Starter verwenden")}
+                    </span>
+                    <span>
+                      <Check size={16} />
+                      {" " +
+                        t(
+                          "RS3-Bildformat setzen, wenn ein COM-Port zugeordnet ist",
+                        )}
+                    </span>
+                    <span>
+                      <Check size={16} />
+                      {" " + t("Nach Spielende ins Men\u00FC zur\u00FCckkehren")}
+                    </span>
+                  </div>
+                  <div className="exit-reminder">
+                    <Keyboard size={19} />
+                    <span>
+                      {t(
+                        "Abzug mindestens 10 Sekunden halten: Spielmen\u00FC mit Neustart, Beenden und Tasten\u00FCbersicht. Danach loslassen. Start + M\u00FCnze etwa 2 Sekunden: direkt beenden. Tastatur: F10 Men\u00FC \u00B7 F12 beenden.",
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <button
-                  className="primary"
+                  className="primary launch-confirm"
                   onClick={() => {
                     send("launch", { id: modal.game.id });
                     setModal(null);
