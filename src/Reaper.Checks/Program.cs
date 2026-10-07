@@ -295,6 +295,23 @@ try
         Check(actual.Games.Count(g => g.Priority == 1) == rows.Count(r => r.TryGetProperty("priority", out var n) && n.GetInt32() == 1), "Collection fixture preserves priority selection");
         File.WriteAllText(Path.Combine(args[0], "collection-import-check.json"), System.Text.Json.JsonSerializer.Serialize(actual, JsonDefaults.Options));
     }
+    var enriched = LibraryState.Empty;
+    enriched.Games.Add(scarlet with { Favorite = true, Status = "tested", Description = "Old description" });
+    var metadata = new GameEnrichment(scarlet.Id, scarlet.Title, scarlet.Platform, "Fight undead creatures in a cinematic arcade rail shooter.", 2018,
+        "SEGA ALLS", ["https://segaarcade.com/games/house-of-the-dead-scarlet-dawn-theatre"]);
+    LibraryEnrichment.Apply(enriched, new([metadata]));
+    Check(enriched.Games[0].Description == metadata.Description && enriched.Games[0].ReleaseYear == 2018 && enriched.Games[0].Hardware == "SEGA ALLS", "Game information reaches the real library model");
+    Check(enriched.Games[0].Arguments.SequenceEqual(scarlet.Arguments) && enriched.Games[0].Favorite && enriched.Games[0].Status == "tested", "Enrichment preserves launches, favourites and actual verification status");
+    var enrichedStore = new LibraryStore(Path.Combine(root, "enriched")); enrichedStore.Save(enriched);
+    Check(enrichedStore.Load().Games[0].MetadataSources!.Single() == metadata.MetadataSources![0], "Information and provenance survive a cold library reload");
+    LibraryStore.Merge(enriched, [scarlet]);
+    Check(enriched.Games[0].Description == metadata.Description && enriched.Games[0].ReleaseYear == 2018 && enriched.Games[0].Hardware == "SEGA ALLS", "Reimporting an old-format game preserves enriched information");
+    var before = enriched.Games[0];
+    Throws(() => LibraryEnrichment.Apply(enriched, new([metadata with { Description = "Must not partially apply" }, metadata with { Id = "wrong" }])), "Wrong game identity rejects the complete enrichment batch");
+    Check(enriched.Games[0] == before, "A rejected batch does not partially mutate the library");
+    Throws(() => LibraryEnrichment.Apply(enriched, new([metadata with { ReleaseYear = 9999 }])), "Impossible release year is rejected");
+    Throws(() => LibraryEnrichment.Apply(enriched, new([metadata with { Cover = Path.Combine(root, "missing.jpg") }])), "Missing new artwork cannot silently enter the library");
+    Throws(() => LibraryEnrichment.Apply(enriched, new([metadata with { MetadataSources = ["file:///private/source"] }])), "Private paths are not accepted as public provenance links");
     Console.WriteLine($"\n{checks} meaningful core checks passed.");
 }
 finally { Directory.Delete(root, true); }

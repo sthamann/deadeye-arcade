@@ -9,7 +9,8 @@ public record GameEntry(string Id, string Title, string Platform, string Executa
     bool Favorite = false, string Aspect = "16:9", DateTimeOffset? LastPlayed = null,
     string? PreviewVideo = null, string? Screenshot = null, string? Logo = null,
     string[]? RequiredFiles = null, string[]? SetupIssues = null, int Priority = 0,
-    string? Players = null, string? SetupNotes = null, HelperLaunch[]? Helpers = null);
+    string? Players = null, string? SetupNotes = null, HelperLaunch[]? Helpers = null,
+    string? Description = null, int? ReleaseYear = null, string? Hardware = null, string[]? MetadataSources = null, string? ReleaseInfo = null);
 public record HelperLaunch(string Executable, string[] Arguments, string WorkingDirectory);
 public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null, string SystemId = "rs3", string? PhysicalId = null, Dictionary<string, string>? ButtonMap = null, GunFeedback? Feedback = null, bool SoftwareConfigured = false, Dictionary<string,string>? ControlMap = null);
 public record InputDevice(string Id, string Name, string Kind, bool RetroShooter, string? PhysicalId = null);
@@ -76,6 +77,11 @@ public sealed class LibraryStore(string directory)
                     Logo = game.Logo ?? old.Logo,
                     LastPlayed = old.LastPlayed,
                     Aspect = old.Aspect,
+                    Description = game.Description ?? old.Description,
+                    ReleaseYear = game.ReleaseYear ?? old.ReleaseYear,
+                    Hardware = game.Hardware ?? old.Hardware,
+                    MetadataSources = game.MetadataSources ?? old.MetadataSources,
+                    ReleaseInfo = game.ReleaseInfo ?? old.ReleaseInfo,
                     Status = game.Status == "needs-setup" ? "needs-setup" : sameLaunch && old.Status != "needs-setup" ? old.Status : "unverified"
                 };
             }

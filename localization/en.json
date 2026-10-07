@@ -691,5 +691,7 @@
   "Ungültiger Eintrag im Dolphin-Profilpaket.": "Invalid Dolphin profile package entry.",
   "Lizenz des Dolphin-Profilpakets fehlt.": "Dolphin profile license is missing.",
   "Bitte .NET Framework 3.5 im Windows-Dialog installieren.": "Please install .NET Framework 3.5 in the Windows dialog.",
-  "Microsoft-Signaturprüfung hat zu lange gedauert. Bitte erneut versuchen.": "Microsoft signature verification timed out. Please try again."
+  "Microsoft-Signaturprüfung hat zu lange gedauert. Bitte erneut versuchen.": "Microsoft signature verification timed out. Please try again.",
+  "Original-Hardware": "Original hardware",
+  "Erscheinungsjahr": "Release year"
 }

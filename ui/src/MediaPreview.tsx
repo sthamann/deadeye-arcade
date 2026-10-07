@@ -10,13 +10,14 @@ export function MediaPreview({
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [game.id, game.previewVideo]);
   useEffect(() => {
     const player = video.current;
     if (!player) return;
     if (active) void player.play().catch(() => {});
     else player.pause();
     return () => player.pause();
-  }, [active, game.previewVideo]);
+  }, [active, game.previewVideo, failed]);
   const still = game.screenshot || game.cover;
   return (
     <>

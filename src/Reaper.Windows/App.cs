@@ -34,6 +34,17 @@ public static class App
                     File.WriteAllText(Path.Combine(data, "dependencies.json"), JsonSerializer.Serialize(RuntimeInstaller.Scan(state.Games), JsonDefaults.Options));
                     return;
                 }
+                if ((args.Length == 2 && args[0] == "--enrich-library") || (args.Length == 1 && args[0] == "--audit-media"))
+                {
+                    if (args[0] == "--enrich-library")
+                    {
+                        var manifest = JsonSerializer.Deserialize<EnrichmentManifest>(File.ReadAllText(args[1]), JsonDefaults.Options)
+                            ?? throw new InvalidDataException("Invalid enrichment manifest");
+                        LibraryEnrichment.Apply(state, manifest); store.Save(state);
+                    }
+                    File.WriteAllText(Path.Combine(data, "media-audit.json"), JsonSerializer.Serialize(LibraryEnrichment.Audit(state), JsonDefaults.Options));
+                    return;
+                }
                 if (args.Length == 2 && args[0] == "--import-collection") LibraryStore.Merge(state, CollectionImporter.Read(args[1]).Games);
                 else if (args.Length != 1 || args[0] != "--validate-library") throw new ArgumentException(I18n.T("Unbekannter Einrichtungsaufruf."));
                 for (int i = 0; i < state.Games.Count; i++) { LaunchRules.RepairTeknoParrotPath(state.Games[i]); state.Games[i] = LaunchRules.Validate(state.Games[i]); }

@@ -16,6 +16,11 @@ export type Game = {
   previewVideo?: string | null;
   screenshot?: string | null;
   logo?: string | null;
+  description?: string | null;
+  releaseYear?: number | null;
+  releaseInfo?: string | null;
+  hardware?: string | null;
+  metadataSources?: string[] | null;
   setupIssues?: string[];
   requiredFiles?: string[];
   priority?: number;

@@ -10,7 +10,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.5](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.5/Deadeye-Arcade-0.3.5-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.5)
+**[Download Windows Setup 0.3.8](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.8/Deadeye-Arcade-0.3.8-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.8)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -43,12 +43,13 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-**0.3.7** includes the calibration and game-specific setup below. Windows
+**0.3.8** adds English game descriptions, edition-specific release years, original hardware and validated local media enrichment. It also includes the calibration and game-specific setup below. Windows
 launch, overlay and return-to-library checks are recorded in
-[the verification notes](docs/verification-0.3.7.md); physical aiming and
+[the verification notes](docs/verification-0.3.8.md); physical aiming and
 independent two-gun gameplay remain separate checks.
 
 - **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
+- **Game information:** short English descriptions, release years, original hardware, and explicit demo or unreleased-prototype labels. Enrichment checks exact game identity and all replacement files before saving; imports retain enriched information.
 - **A fullscreen game library:** search, favorites, platform filters, game details,
   local covers, muted preview videos, screenshots and logos.
 - **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper

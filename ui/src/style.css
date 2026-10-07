@@ -2288,3 +2288,10 @@ main {
 .gun-scroll small{max-width:110px;padding:0 8px;color:#acbdd3}
 .arcade-app main{padding-bottom:175px}
 @media(max-width:600px){.gun-scroll{bottom:86px;width:calc(100% - 24px);justify-content:center}.gun-scroll small{display:none}.gun-scroll button{min-width:62px}.gun-scroll span{font-size:12px}}
+
+.game-description { color: var(--muted); line-height: 1.65; }
+.game-facts { display:flex; flex-wrap:wrap; gap:16px 32px; margin:20px 0; }
+.game-facts dt { font-size:12px; opacity:.65; margin-bottom:5px; }
+.game-facts dd { margin:0; font-weight:600; }
+.hero-meta { flex-wrap:wrap; }
+.hardware-tag { max-width:100%; }

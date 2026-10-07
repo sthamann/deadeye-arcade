@@ -659,13 +659,16 @@ function App() {
                       </div>
                       <h1>{featured.title}</h1>
                       <p>
-                        {featured.platform === "MAME"
+                        {featured.description || (featured.platform === "MAME"
                           ? t("Die Klassiker. Dein Ziel. Deine Arcade.")
                           : t(
                               "Gro\u00DFe Arcade-Action. Direkt in deinem Spielzimmer.",
-                            )}
+                            ))}
                       </p>
                       <div className="hero-meta">
+                        {featured.releaseYear && <span>{featured.releaseYear}</span>}
+                        {featured.releaseInfo && <span>{featured.releaseInfo}</span>}
+                        {featured.hardware && <span className="hardware-tag" title={t("Original-Hardware")}>{featured.hardware}</span>}
                         <span>
                           <Monitor size={15} /> {featured.aspect}
                         </span>
@@ -874,7 +877,7 @@ function App() {
                         </div>
                         <div className="game-caption">
                           <strong>{game.title}</strong>
-                          <span>{game.platform}</span>
+                          <span>{game.releaseYear ? `${game.releaseYear} · ` : ""}{game.platform}</span>
                         </div>
                       </button>
                     ))}
@@ -1594,6 +1597,11 @@ function App() {
                   {" " + t("\u00B7 ERSTER START")}
                 </span>
                 <h2>{modal.game.title}</h2>
+                {modal.game.description && <p className="game-description" lang="en">{modal.game.description}</p>}
+                {(modal.game.releaseYear || modal.game.releaseInfo || modal.game.hardware) && <dl className="game-facts">
+                  {(modal.game.releaseYear || modal.game.releaseInfo) && <div><dt>{t("Erscheinungsjahr")}</dt><dd>{[modal.game.releaseYear, modal.game.releaseInfo].filter(Boolean).join(" · ")}</dd></div>}
+                  {modal.game.hardware && <div><dt>{t("Original-Hardware")}</dt><dd>{modal.game.hardware}</dd></div>}
+                </dl>}
                 <p>
                   {t(
                     "Die App startet dein gespeichertes Profil. Ob Zielen, Tasten, Pedal und zwei Spieler im Spiel funktionieren, pr\u00FCfen wir auf deinem PC.",
@@ -1642,6 +1650,11 @@ function App() {
                   {badge(modal.game).toUpperCase()}
                 </span>
                 <h2>{modal.game.title}</h2>
+                {modal.game.description && <p className="game-description" lang="en">{modal.game.description}</p>}
+                {(modal.game.releaseYear || modal.game.releaseInfo || modal.game.hardware) && <dl className="game-facts">
+                  {(modal.game.releaseYear || modal.game.releaseInfo) && <div><dt>{t("Erscheinungsjahr")}</dt><dd>{[modal.game.releaseYear, modal.game.releaseInfo].filter(Boolean).join(" · ")}</dd></div>}
+                  {modal.game.hardware && <div><dt>{t("Original-Hardware")}</dt><dd>{modal.game.hardware}</dd></div>}
+                </dl>}
                 <div className="detail-actions">
                   <button
                     className="primary"
