@@ -11,3 +11,11 @@ Checked on 7 October 2026.
 Versions 0.3.4 and earlier need a one-time manual Setup update because they reject download URLs under the renamed repository. The new client uses the new endpoint; no download-address or checksum checks were relaxed.
 
 The physical-gun and unresolved emulator limits in [0.3.4 verification](verification-0.3.4.md) still apply. This release changes branding and documentation; it does not establish additional game or hardware compatibility.
+
+## Published installer and Windows upgrade
+
+The [Windows release workflow](https://github.com/sthamann/deadeye-arcade/actions/runs/37615562327) completed successfully and published Setup, portable ZIP and checksums. The public Setup was downloaded on Windows and its SHA-256 matched GitHub's asset digest and the checksum file: `9f19c5d9b75d20c14800a049626a9b0e8b5df4ddc7843bec05c7da6afa9be035`.
+
+Setup exited with code 0. The installed binary reports product `Deadeye Arcade`, version `0.3.5+3a079d2`; the existing installer registration reports 0.3.5. Before/after comparison confirmed unchanged library entries and gun bindings, English/fullscreen preferences and disabled autostart. The new Deadeye desktop shortcut exists.
+
+The public GitHub README was opened in a browser: every new screenshot and animated GIF loaded successfully. The old repository URL redirects to the new repository. The full-resolution UI MP4 uses H.264 at 1680 × 1050.
