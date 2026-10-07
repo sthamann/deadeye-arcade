@@ -43,11 +43,12 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-**0.3.6** includes the calibration and game-specific setup below. Windows
+**0.3.7** includes the calibration and game-specific setup below. Windows
 launch, overlay and return-to-library checks are recorded in
-[the verification notes](docs/verification-0.3.6.md); physical aiming and
+[the verification notes](docs/verification-0.3.7.md); physical aiming and
 independent two-gun gameplay remain separate checks.
 
+- **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
 - **A fullscreen game library:** search, favorites, platform filters, game details,
   local covers, muted preview videos, screenshots and logos.
 - **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper

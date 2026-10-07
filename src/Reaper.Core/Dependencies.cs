@@ -1,4 +1,5 @@
 using System.Reflection.PortableExecutable;
+using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -6,7 +7,7 @@ using System.Xml.Linq;
 namespace Reaper.Core;
 
 public record NativeImport(string Name, bool Delayed);
-public record NativeImage(string Architecture, NativeImport[] Imports);
+public record NativeImage(string Architecture, NativeImport[] Imports, string? ManagedRuntimeVersion = null);
 public record RuntimePackage(string Id, string Name, string Url, string Documentation);
 public record DependencyFinding(string GameId, string Game, string Binary, string Architecture, string Dll,
     string? PackageId, bool Missing, bool Required);
@@ -27,7 +28,7 @@ public static class NativeImports
         var imports = new List<NativeImport>();
         ReadTable(header.ImportTableDirectory, 20, 12, false);
         ReadTable(header.DelayImportTableDirectory, 32, 4, true);
-        return new(arch, imports.Distinct().ToArray());
+        return new(arch, imports.Distinct().ToArray(), pe.HasMetadata ? pe.GetMetadataReader().MetadataVersion : null);
         void ReadTable(DirectoryEntry table, int stride, int nameOffset, bool delayed)
         {
             if (table.RelativeVirtualAddress == 0 || table.Size == 0) return;
@@ -64,6 +65,7 @@ public static class RuntimeCatalog
     };
     public static RuntimePackage? Get(string id)
     {
+        if (id == "netfx35") return new(id, ".NET Framework 3.5 (2.0 / 3.0)", "https://download.microsoft.com/download/298af580-974e-4001-a07d-bb200d7c5792/DotNet35Setup.exe", "https://learn.microsoft.com/en-us/dotnet/framework/install/dotnet-35-windows-11");
         if (id == "directx") return new(id, I18n.T("DirectX Zusatzbibliotheken"), "https://download.microsoft.com/download/1/7/1/1718CCC4-6315-4D8E-9543-8E28A4E18C4C/dxwebsetup.exe", "https://www.microsoft.com/en-us/download/details.aspx?id=35");
         if (Regex.IsMatch(id, @"^dotnet(8|9|10)-(x86|x64)$"))
         {
@@ -113,7 +115,7 @@ public static class DependencyScanner
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or BadImageFormatException or ArgumentOutOfRangeException or OverflowException)
                 { uncheckedFiles.Add(game.Title + ": " + Path.GetFileName(file) + I18n.T(" nicht lesbar")); return; }
                 inspected.Add(file);
-                InspectManaged(file, image.Architecture);
+                InspectManaged(file, image, inheritedOptional);
                 foreach (var import in image.Imports)
                 {
                     string? package = RuntimeCatalog.For(import.Name, image.Architecture);
@@ -127,8 +129,28 @@ public static class DependencyScanner
                     else if (File.Exists(local)) uncheckedFiles.Add(game.Title + ": " + import.Name + I18n.T(" hat ein falsches oder nicht lesbares Dateiformat"));
                 }
             }
-            void InspectManaged(string file, string architecture)
+            void InspectManaged(string file, NativeImage image, bool optional)
             {
+                string architecture = image.Architecture;
+                // CLR 2 executables need NetFx3. CLR 2 DLLs can also run in a CLR 4 host.
+                if (managedInstalled is not null && Path.GetExtension(file).Equals(".exe", StringComparison.OrdinalIgnoreCase)
+                    && image.ManagedRuntimeVersion?.StartsWith("v2.", StringComparison.Ordinal) == true)
+                {
+                    bool targetsClr4 = false;
+                    string startupConfig = file + ".config";
+                    try
+                    {
+                        if (File.Exists(startupConfig))
+                        {
+                            var runtime = XDocument.Load(startupConfig).Root?.Element("startup")?.Elements("supportedRuntime").FirstOrDefault();
+                            targetsClr4 = runtime?.Attribute("version")?.Value.StartsWith("v4.", StringComparison.Ordinal) == true;
+                        }
+                    }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+                    { uncheckedFiles.Add(game.Title + I18n.T(": .NET-Konfiguration nicht lesbar")); }
+                    if (!targetsClr4) findings.Add(new(game.Id, game.Title, file, architecture, ".NET Framework 3.5 (CLR 2)", "netfx35",
+                        !managedInstalled(architecture, "Microsoft.NETFramework", new Version(3, 5)), !optional));
+                }
                 string config = Path.ChangeExtension(file, ".runtimeconfig.json");
                 if (!File.Exists(config) || managedInstalled is null) return;
                 try

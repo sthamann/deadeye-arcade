@@ -248,6 +248,16 @@ try
     File.WriteAllText(Path.ChangeExtension(native, ".runtimeconfig.json"), "{\"runtimeOptions\":{\"framework\":{\"name\":\"Microsoft.WindowsDesktop.App\",\"version\":\"8.0.2\"}}}");
     Check(DependencyScanner.Scan([depGame], root, (_, _, _) => false).MissingPackages.Contains("dotnet8-x86"), "Managed runtime configuration selects the correct .NET generation and architecture");
     Check(!DependencyScanner.Scan([depGame], root, (_, _, _) => true).MissingPackages.Contains("dotnet8-x86"), "Managed runtime rescan observes an installed compatible framework");
+    string legacy = Path.Combine(depDir, "legacy-helper.exe");
+    WriteManaged(legacy, "v2.0.50727");
+    var legacyGame = depGame with { Helpers = [new(legacy, [], depDir)] };
+    Check(DependencyScanner.Scan([legacyGame], root, (_, _, _) => false).MissingPackages.Contains("netfx35"), "CLR 2 helper is detected without a modern runtimeconfig file");
+    Check(!DependencyScanner.Scan([legacyGame], root, (_, _, _) => true).MissingPackages.Contains("netfx35"), "Classic framework rescan observes installation");
+    File.WriteAllText(legacy + ".config", "<configuration><startup><supportedRuntime version=\"v4.0\"/></startup></configuration>");
+    Check(!DependencyScanner.Scan([legacyGame], root, (_, _, _) => false).MissingPackages.Contains("netfx35"), "CLR 4 startup override avoids unnecessary CLR 2 installation");
+    File.Delete(legacy + ".config"); WriteManaged(legacy, "v4.0.30319");
+    Check(!DependencyScanner.Scan([legacyGame], root, (_, _, _) => false).MissingPackages.Contains("netfx35"), "CLR 4 executables do not require NetFx3");
+    Check(RuntimeCatalog.Get("netfx35")?.Url.StartsWith("https://download.microsoft.com/") == true, "Classic framework catalog uses the official Microsoft installer");
     string optionalRoot = Path.Combine(depDir, "optional.exe"), requiredRoot = Path.Combine(depDir, "required.exe");
     WriteNative(optionalRoot, false, delayed: "shared.dll"); WriteNative(requiredRoot, false, "shared.dll");
     WriteNative(Path.Combine(depDir, "shared.dll"), false, "msvcr120.dll");
@@ -288,6 +298,17 @@ try
     Console.WriteLine($"\n{checks} meaningful core checks passed.");
 }
 finally { Directory.Delete(root, true); }
+
+void WriteManaged(string path, string version)
+{
+    var metadata = new System.Reflection.Metadata.Ecma335.MetadataBuilder();
+    metadata.AddModule(0, metadata.GetOrAddString("fixture"), metadata.GetOrAddGuid(Guid.NewGuid()), default, default);
+    var pe = new System.Reflection.PortableExecutable.ManagedPEBuilder(
+        new System.Reflection.PortableExecutable.PEHeaderBuilder(),
+        new System.Reflection.Metadata.Ecma335.MetadataRootBuilder(metadata, version),
+        new System.Reflection.Metadata.BlobBuilder());
+    var blob = new System.Reflection.Metadata.BlobBuilder(); pe.Serialize(blob); File.WriteAllBytes(path, blob.ToArray());
+}
 
 void WriteNative(string path, bool x64, string? imported = null, string? delayed = null)
 {

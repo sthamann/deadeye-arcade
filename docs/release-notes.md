@@ -1,12 +1,9 @@
-Deadeye Arcade 0.3.6 adds integrated RS3 calibration and game-specific input setup.
+Deadeye Arcade 0.3.7 improves automatic dependency setup for older game helpers.
 
-- Prepare the verified manufacturer calibration module automatically, then run a selected-player four-target sequence at the physical screen. Cancel with the grip button, Escape or the visible control; run the separate aim test afterward.
-- Install reviewed USA Dolphin profiles by the actual disc ID, preserving unrelated settings and the upstream GPL-3.0 license. RS3 P1 mappings include the additional Dead Space Extraction actions.
-- Resolve Supermodel RawInput mouse and keyboard device numbers on each launch and keep player inputs separate.
-- Display per-title two-player, plugin and patch requirements in Game Details, and read active Dolphin title controls in the in-game menu.
-- Keep preparation available under Remote Desktop while blocking physical screen calibration there.
-- Clear the preparation indicator when a game starts or returns, including failed launches.
+- Detect .NET Framework 3.5 requirements directly from CLR 2 executable metadata, including configured launch helpers without runtimeconfig files.
+- Respect explicit CLR 4 startup overrides and avoid treating CLR 2 DLLs inside newer hosts as standalone programs.
+- Offer the built-in Microsoft feature installer on Windows through build 27999; use the official standalone Microsoft installer on Windows 11 build 28000 and later.
+- Verify framework registration and architecture-specific runtime files when checking installation.
+- Stop an owned signature-verification process when its two-minute timeout expires, so a stalled validation does not leave it running in the background.
 
-Independent Dolphin P2 setup, native calibration accuracy and physical game actions still need hardware verification. Blue Estate's external two-gun patch is not automatically installed. Games, emulators and manufacturer utilities are not bundled. Autostart remains an explicit setting and is off by default.
-
-Windows installation, Dolphin launch, active-profile overlay and return-to-library checks have been completed; see docs/verification-0.3.6.md for their scope and the remaining hardware checks.
+129 core checks passed and the Windows build completed without warnings or errors. See docs/verification-0.3.7.md for Windows checks and remaining physical gun / P2 limitations. Autostart remains disabled by default; games and third-party tools are not bundled.

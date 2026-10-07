@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Microsoft.Win32;
 using Reaper.Core;
 
 namespace Reaper.Windows;
@@ -11,6 +12,13 @@ public static class RuntimeInstaller
         Environment.GetFolderPath(Environment.SpecialFolder.Windows), ManagedInstalled);
     private static bool ManagedInstalled(string architecture, string framework, Version required)
     {
+        if (framework == "Microsoft.NETFramework")
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v3.5");
+            string clr = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET",
+                architecture == "x64" ? "Framework64" : "Framework", "v2.0.50727", "mscorwks.dll");
+            return key?.GetValue("Install") is int installed && installed == 1 && File.Exists(clr);
+        }
         string folder = Environment.GetFolderPath(architecture == "x86" ? Environment.SpecialFolder.ProgramFilesX86 : Environment.SpecialFolder.ProgramFiles);
         string shared = Path.Combine(folder, "dotnet", "shared", framework);
         if (!Directory.Exists(shared)) return false;
@@ -18,6 +26,16 @@ public static class RuntimeInstaller
     }
     public static async Task<int> Install(RuntimePackage package, string dataDirectory, Action<string> progress, Action? showInstaller = null)
     {
+        if (package.Id == "netfx35" && Environment.OSVersion.Version.Build < 28000)
+        {
+            progress(I18n.T("Bitte .NET Framework 3.5 im Windows-Dialog installieren."));
+            showInstaller?.Invoke();
+            using var feature = Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "fondue.exe"),
+                "/enable-feature:NetFx3 /hide-ux:rebootrequest") { UseShellExecute = true })
+                ?? throw new IOException(I18n.T("Der Installer startet nicht."));
+            await feature.WaitForExitAsync();
+            return feature.ExitCode;
+        }
         string directory = Path.Combine(dataDirectory, "installers"); Directory.CreateDirectory(directory);
         string file = Path.Combine(directory, package.Id + "-" + Guid.NewGuid().ToString("N") + ".exe");
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
@@ -34,7 +52,7 @@ public static class RuntimeInstaller
             await using var output = File.Create(file); await using var input = await response.Content.ReadAsStreamAsync();
             byte[] buffer = new byte[81920]; long bytes = 0; int read;
             while ((read = await input.ReadAsync(buffer)) > 0)
-            { bytes += read; if (bytes > 100_000_000) throw new IOException(I18n.T("Der Installer ist unerwartet groß.")); await output.WriteAsync(buffer.AsMemory(0, read)); }
+            { bytes += read; if (bytes > (package.Id == "netfx35" ? 150_000_000 : 100_000_000)) throw new IOException(I18n.T("Der Installer ist unerwartet groß.")); await output.WriteAsync(buffer.AsMemory(0, read)); }
             break;
         }
         progress(I18n.T("Microsoft-Signatur wird geprüft …"));
@@ -43,7 +61,15 @@ public static class RuntimeInstaller
         var verify = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
         foreach (string arg in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script)) }) verify.ArgumentList.Add(arg);
         using (var process = Process.Start(verify) ?? throw new IOException(I18n.T("Signaturprüfung startet nicht.")))
-        { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(2)); if (process.ExitCode != 0) throw new IOException(I18n.T("Die gültige Microsoft-Signatur konnte nicht bestätigt werden. Installation abgebrochen.")); }
+        {
+            try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromMinutes(2)); }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                throw new IOException(I18n.T("Microsoft-Signaturprüfung hat zu lange gedauert. Bitte erneut versuchen."));
+            }
+            if (process.ExitCode != 0) throw new IOException(I18n.T("Die gültige Microsoft-Signatur konnte nicht bestätigt werden. Installation abgebrochen."));
+        }
         progress(package.Name + I18n.T(": Bitte den Microsoft-Installer abschließen. Lizenz und Windows-Abfrage erscheinen dort."));
         // Interactive vendor UI keeps acceptance of the license with the user.
         showInstaller?.Invoke();

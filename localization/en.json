@@ -689,5 +689,7 @@
   "Angeschlossene P1/P2-Guns werden dem passenden Profil zugeordnet. Spielunterstützung, Ingame-Start und tatsächliche Treffer bleiben separat zu testen.": "Connected P1/P2 guns are assigned to the selected profile. Game support, joining the game and actual hits still need separate testing.",
   "Dolphin-Profilpaket konnte nicht bestätigt werden.": "Dolphin accuracy package verification failed.",
   "Ungültiger Eintrag im Dolphin-Profilpaket.": "Invalid Dolphin profile package entry.",
-  "Lizenz des Dolphin-Profilpakets fehlt.": "Dolphin profile license is missing."
+  "Lizenz des Dolphin-Profilpakets fehlt.": "Dolphin profile license is missing.",
+  "Bitte .NET Framework 3.5 im Windows-Dialog installieren.": "Please install .NET Framework 3.5 in the Windows dialog.",
+  "Microsoft-Signaturprüfung hat zu lange gedauert. Bitte erneut versuchen.": "Microsoft signature verification timed out. Please try again."
 }
