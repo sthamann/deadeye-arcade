@@ -37,11 +37,11 @@ Bei einem neu erkannten Fremdherstellergerät wird der zugehörige Softwareweg e
 
 ## Tatsächlich geprüft am 7. Oktober 2026
 
-Die neue Version wurde auf dem Lightgun-PC installiert und gestartet. Eine angeschlossene RS3 wurde als ein physisches USB-Gerät mit drei Eingabeschnittstellen und COM3 erkannt, ohne gemeldeten Treiberfehler. Die serielle Antwort bestätigte P1. Maus-/Tastatur-ID, Standardbelegung, Feedback-Testauswahl und Einrichtungsstatus wurden automatisch gespeichert und aus einem neuen App-Prozess wieder gelesen. Die Oberfläche zeigte P1 grün mit RS3-Modell und Softwarestatus, P2 rot. Das Schließen über den nativen Windows-Knopf wurde auch während des aktiven Tastenlernens durchgeführt.
+Die Windows-Version wurde in einer Testumgebung installiert und gestartet. Eine angeschlossene RS3 wurde als ein physisches USB-Gerät mit drei Eingabeschnittstellen und einem COM-Port erkannt, ohne gemeldeten Treiberfehler. Die serielle Antwort bestätigte P1. Maus-/Tastatur-ID, Standardbelegung, Feedback-Testauswahl und Einrichtungsstatus wurden automatisch gespeichert und aus einem neuen App-Prozess wieder gelesen. Die Oberfläche zeigte P1 grün mit RS3-Modell und Softwarestatus, P2 rot. Das Schließen über den nativen Windows-Knopf wurde auch während des aktiven Tastenlernens durchgeführt.
 
 58 Kernprüfungen bestehen, darunter Konfigurationsbefehle ohne Rückstoß beim Setup, Belegungsvalidierung, MAME-Ausgabe und gespeicherte Einstellungen. Browserprüfungen prüfen gedrückte/losgelassene Tasten mit ausdrücklich synthetischen Nachrichten, Lernanfragen, Feedback-Auswahl und die Oberfläche auf fünf Bildschirmbreiten. Sie bestätigen keinen realen Tastendruck der Gun.
 
-Noch offen: echte Gun-Tastendrücke, Zielgenauigkeit, mechanischer Rückstoß, zwei gleichzeitig angeschlossene Guns und die drei weiteren Hersteller am realen Gerät. Die Remote-Sitzung blendete die RS3 aus Raw Input aus; die direkte Windows-Schnittstellenabfrage erkannte sie korrekt. Die laufende Spielekopie wird nicht als abgeschlossene Migration bezeichnet. Autostart bleibt deaktiviert.
+Noch offen: echte Gun-Tastendrücke, Zielgenauigkeit, mechanischer Rückstoß, zwei gleichzeitig angeschlossene Guns und die drei weiteren Hersteller am realen Gerät. Die Remote-Sitzung blendete die RS3 aus Raw Input aus; die direkte Windows-Schnittstellenabfrage erkannte sie korrekt. Autostart bleibt deaktiviert.
 
 ## Quellen
 

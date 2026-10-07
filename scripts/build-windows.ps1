@@ -10,6 +10,7 @@ try {
     dotnet publish src/Reaper.Windows -c Release -r win-x64 --self-contained true -o release/windows-x64
     if ($LASTEXITCODE -ne 0) { throw 'Windows-Build fehlgeschlagen.' }
     Copy-Item README.md release/windows-x64/README.md -Force
+    Copy-Item README.md release/windows-x64/START-HIER.md -Force
     Copy-Item LICENSE release/windows-x64/REAPER-LICENSE.txt -Force
     Copy-Item THIRD-PARTY.md release/windows-x64/THIRD-PARTY.md -Force
     New-Item -ItemType Directory -Path release/windows-x64/licenses -Force | Out-Null

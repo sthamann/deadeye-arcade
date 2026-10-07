@@ -17,13 +17,13 @@ public documentation and changes the application license to MIT.
 
 ## Installed Windows app
 
-The packaged 0.3.2 application was installed on the target Windows PC and tested
-through Remote Desktop with the existing 183-entry library.
+The packaged 0.3.2 application was installed in a Windows test environment and tested
+through Remote Desktop with an existing library.
 
 1. The existing library had no language preference. The updated app opened in English.
 2. Settings switched the frontend and the fixed native exit button immediately to German.
 3. After closing and reopening the process, the app remained in German. The saved
-   language was `de`, all 183 entries remained, autostart was false and saved gun
+   language was `de`, library entries remained, autostart was false and saved gun
    bindings matched the pre-update backup.
 4. The German on-screen keyboard used QWERTZ and exposed German special characters.
 5. CarnEvil launched through its MAME profile. F10 opened the native German game menu,
@@ -50,5 +50,5 @@ or successful gameplay. Static PNG captures are included alongside the GIFs.
 
 Physical gun button input, aiming, calibration, the ten-second trigger gesture and
 recoil feel require testing at the actual screen. Remote F10/menu tests verify the
-native menu path, not the physical trigger. The 183 imported titles are not 183
-verified playable games. Existing per-title setup and migration status remain valid.
+native menu path, not the physical trigger. Import and file checks do not establish
+playability; each title needs a separate gameplay test.

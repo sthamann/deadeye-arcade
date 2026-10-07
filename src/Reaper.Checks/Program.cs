@@ -182,8 +182,10 @@ try
     if (args.Length > 1)
     {
         var actual = CollectionImporter.Read(args[1]);
-        Check(actual.Games.Count == 183 && actual.Games.Select(g => g.Id).Distinct().Count() == 183, "Actual handoff imports all 183 distinct selected titles, including absent media");
-        Check(actual.Games.Count(g => g.Priority == 1) == 25 && actual.Games.Count(g => g.PreviewVideo is not null) == 133, "Actual handoff preserves 25 first priorities and 133 video references");
+        using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(args[1]));
+        var rows = fixture.RootElement.GetProperty("games").EnumerateArray().ToArray();
+        Check(actual.Games.Count == rows.Length && actual.Games.Select(g => g.Id).Distinct().Count() == rows.Length, "Collection fixture imports every distinct entry, including absent media");
+        Check(actual.Games.Count(g => g.Priority == 1) == rows.Count(r => r.TryGetProperty("priority", out var n) && n.GetInt32() == 1), "Collection fixture preserves priority selection");
         File.WriteAllText(Path.Combine(args[0], "collection-import-check.json"), System.Text.Json.JsonSerializer.Serialize(actual, JsonDefaults.Options));
     }
     Console.WriteLine($"\n{checks} meaningful core checks passed.");

@@ -112,11 +112,6 @@ In **Find Games → Import collection handoff**, select `spiele.json`. Existing
 favorites, covers and gun bindings are retained. **Validate library** checks launch
 files and TeknoParrot GamePath independently of gameplay confirmation.
 
-For a prepared collection, [`scripts/install-collection.ps1`](scripts/install-collection.ps1)
-backs up an existing frontend/library, copies media, imports the library and creates
-shortcuts. It requires completed migration journals unless `-AllowPendingMigration`
-is explicitly used. It does not start competing copy jobs or enable autostart.
-
 With the app closed, these commands use the intended Windows game user's library:
 
 ```powershell
@@ -141,18 +136,17 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
   player-isolated aim tests, picker and on-screen keyboard.
 - **Windows language checks:** English default with an existing library, immediate
   switching, cold restart in both languages, localized native exit button and
-  CarnEvil/MAME in-game menu. All 183 entries and saved gun bindings remained intact;
+  CarnEvil/MAME in-game menu. Library entries and saved gun bindings remained intact;
   autostart stayed off. [0.3.2 verification](docs/verification-0.3.2.md).
 - **Windows game-session checks:** CarnEvil/MAME menu open, resume, restart and exit
-  back to the frontend. Earlier target-PC launches reached the title/menu screens
+  back to the frontend. Earlier Windows checks reached the title/menu screens
   of Dead Space Extraction/Dolphin and Blue Estate.
 - **Physical gun validation remains pending:** USB/COM detection is distinct from
   button, aim, calibration and recoil verification. Not every imported title has
   been launched or tested.
 
-The configured target collection contains 183 selected titles, including 71
-TeknoParrot titles. That is an imported collection, **not a bundled game pack or a
-claim of 183 tested games**. Copy completion and per-title setup are tracked separately.
+Imported entries and file availability do not establish playability. Test each
+title with its configured emulator and gun before confirming it as playable.
 
 ## Build and contribute
 

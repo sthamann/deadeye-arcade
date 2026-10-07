@@ -13,7 +13,7 @@ Für beide Spieler erscheinen Modell, Spielprofilbelegung und die separat gekenn
 
 Andere Systeme erhalten keine erfundenen Spielbelegungen. Die Anzeige erklärt dann, dass nur die gespeicherte Gun-/Menübelegung vorliegt. Keine Emulator-Konfiguration wird für die Anzeige verändert.
 
-Das Spielmenü ist ein eigenes natives Windows-Fenster. Beim Öffnen werden nur Fenster der von Reaper erkannten eigenen Spielprozesse minimiert; „Weiter spielen“ stellt sie wieder her. Das macht auch den Wechsel aus exklusivem Vollbild möglich. **Es ist keine Spielpause:** Timer, Ton und gegebenenfalls Hintergrund-Eingaben des Spiels können weiterlaufen. Ein Neustart beendet zuerst die eigene Sitzung und ihre Helfer vollständig, stellt den Menümodus wieder her und startet danach denselben Bibliothekseintrag erneut. Andere Anwendungen und die Spielekopie werden nicht beendet.
+Das Spielmenü ist ein eigenes natives Windows-Fenster. Beim Öffnen werden nur Fenster der von Reaper erkannten eigenen Spielprozesse minimiert; „Weiter spielen“ stellt sie wieder her. Das macht auch den Wechsel aus exklusivem Vollbild möglich. **Es ist keine Spielpause:** Timer, Ton und gegebenenfalls Hintergrund-Eingaben des Spiels können weiterlaufen. Ein Neustart beendet zuerst die eigene Sitzung und ihre Helfer vollständig, stellt den Menümodus wieder her und startet danach denselben Bibliothekseintrag erneut. Andere Anwendungen werden nicht beendet.
 
 Die Zehn-Sekunden-Schwelle, vorzeitiges Loslassen, Wiederholungen, erneutes Scharfschalten und Spielertrennung sind durch Kernprüfungen abgedeckt. Der Auslöser über die echte Gun bleibt ein lokaler Hardwaretest, weil Remote Desktop ihre Eingaben auf dem getesteten PC ausblendet.
 
