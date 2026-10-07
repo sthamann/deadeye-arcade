@@ -51,6 +51,12 @@ try
     var gesture = new ExitGesture(); var now = DateTimeOffset.UtcNow; gesture.Key(0x31, true, now); gesture.Key(0x35, true, now);
     Check(!gesture.Ready(now.AddSeconds(1)) && gesture.Ready(now.AddSeconds(2)), "Exit requires a held chord, not coin or start alone");
     gesture.Key(0x35, false, now.AddSeconds(2)); Check(!gesture.Ready(now.AddSeconds(4)), "Releasing chord cancels exit");
+    gesture.Key(0x35, true, now.AddSeconds(4)); gesture.Consume();
+    gesture.Key(0x31, true, now.AddSeconds(5)); gesture.Key(0x35, true, now.AddSeconds(5));
+    Check(!gesture.Ready(now.AddSeconds(8)), "Held/repeated exit keys cannot also close the menu after ending a game");
+    gesture.Key(0x31, false, now.AddSeconds(8)); gesture.Key(0x35, false, now.AddSeconds(8));
+    gesture.Key(0x31, true, now.AddSeconds(9)); gesture.Key(0x35, true, now.AddSeconds(9));
+    Check(gesture.Ready(now.AddSeconds(11)), "Releasing both keys rearms the gun exit for closing the app");
     using var http = new HttpClient(new FixtureHttp());
     var cover = await new CoverService(http, Path.Combine(root, "covers")).Download("Point Blank", "fixture", CancellationToken.None);
     Check(cover is not null && File.Exists(cover), "Cover service downloads an exact match and saves local artwork");
@@ -96,6 +102,30 @@ try
     Check(MediaPaths.Url(scarlet.Executable, mediaRoot, "media.reaper.local") is null && MediaPaths.Url(Path.Combine(root, "outside.png"), mediaRoot, "media.reaper.local") is null, "Media URL refuses executables and paths outside its folder");
     string link = Path.Combine(mediaRoot, "escape.png"); File.CreateSymbolicLink(link, image);
     Check(MediaPaths.Url(link, mediaRoot, "media.reaper.local") is null, "Media URL refuses symbolic links");
+    Check(RuntimeCatalog.For("MSVCR100.dll", "x86") == "vc2010-x86" && RuntimeCatalog.For("MSVCR100.dll", "x64") == "vc2010-x64", "Legacy VC dependency matches program architecture, not Windows architecture");
+    Check(RuntimeCatalog.For("xinput1_3.dll", "x86") == "directx" && RuntimeCatalog.For("xinput1_4.dll", "x64") is null, "DirectX legacy libraries are distinguished from OS components");
+    Check(RuntimeCatalog.Get("arbitrary-url") is null && RuntimeCatalog.Get("vc2010-arm64") is null, "Installer catalog refuses arbitrary or unsupported package identities");
+    string depDir = Path.Combine(root, "deps"); Directory.CreateDirectory(depDir);
+    string native = Path.Combine(depDir, "game.exe");
+    WriteNative(native, false, "msvcr100.dll", "xinput1_3.dll");
+    var parsed = NativeImports.Read(native);
+    Check(parsed.Architecture == "x86" && parsed.Imports.Any(i => i.Name == "msvcr100.dll" && !i.Delayed) && parsed.Imports.Any(i => i.Name == "xinput1_3.dll" && i.Delayed), "PE parser reads ordinary and delay imports without executing code");
+    var depGame = GameImporter.Pc(native, "Dependency fixture");
+    var absent = DependencyScanner.Scan([depGame], Path.Combine(root, "windows"));
+    Check(absent.Findings.Single(f => f.Dll == "msvcr100.dll").Missing && absent.Findings.Single(f => f.Dll == "msvcr100.dll").Required && !absent.Findings.Single(f => f.Dll == "xinput1_3.dll").Required, "Scan identifies required missing VC and optional delayed DirectX separately");
+    WriteNative(Path.Combine(depDir, "msvcr100.dll"), true);
+    Check(DependencyScanner.Scan([depGame], root).Findings.Single(f => f.Dll == "msvcr100.dll").Missing, "Wrong-architecture local DLL cannot falsely satisfy a dependency");
+    WriteNative(Path.Combine(depDir, "msvcr100.dll"), false);
+    Check(!DependencyScanner.Scan([depGame], root).Findings.Single(f => f.Dll == "msvcr100.dll").Missing, "Recheck observes the installed compatible DLL");
+    File.WriteAllText(Path.ChangeExtension(native, ".runtimeconfig.json"), "{\"runtimeOptions\":{\"framework\":{\"name\":\"Microsoft.WindowsDesktop.App\",\"version\":\"8.0.2\"}}}");
+    Check(DependencyScanner.Scan([depGame], root, (_, _, _) => false).MissingPackages.Contains("dotnet8-x86"), "Managed runtime configuration selects the correct .NET generation and architecture");
+    Check(!DependencyScanner.Scan([depGame], root, (_, _, _) => true).MissingPackages.Contains("dotnet8-x86"), "Managed runtime rescan observes an installed compatible framework");
+    string optionalRoot = Path.Combine(depDir, "optional.exe"), requiredRoot = Path.Combine(depDir, "required.exe");
+    WriteNative(optionalRoot, false, delayed: "shared.dll"); WriteNative(requiredRoot, false, "shared.dll");
+    WriteNative(Path.Combine(depDir, "shared.dll"), false, "msvcr120.dll");
+    var joined = GameImporter.Pc(optionalRoot, "Required after optional") with { RequiredFiles = [requiredRoot] };
+    Check(DependencyScanner.Scan([joined], root).Findings.Any(f => f.Dll == "msvcr120.dll" && f.Missing && f.Required), "A required import reached after a delay import still blocks a broken launch");
+    Throws(() => NativeImports.Read(handoff), "Malformed executable is rejected without loading it");
     if (args.Length > 1)
     {
         var actual = CollectionImporter.Read(args[1]);
@@ -106,6 +136,22 @@ try
     Console.WriteLine($"\n{checks} meaningful core checks passed.");
 }
 finally { Directory.Delete(root, true); }
+
+void WriteNative(string path, bool x64, string? imported = null, string? delayed = null)
+{
+    byte[] bytes = new byte[1024]; using var memory = new MemoryStream(bytes); using var writer = new BinaryWriter(memory);
+    void U16(int offset, ushort value) { memory.Position = offset; writer.Write(value); }
+    void U32(int offset, uint value) { memory.Position = offset; writer.Write(value); }
+    U16(0, 0x5a4d); U32(0x3c, 0x80); U32(0x80, 0x4550); U16(0x84, x64 ? (ushort)0x8664 : (ushort)0x14c); U16(0x86, 1);
+    int opt = 0x98, optSize = x64 ? 240 : 224; U16(0x94, (ushort)optSize); U16(0x96, 0x102); U16(opt, x64 ? (ushort)0x20b : (ushort)0x10b);
+    U32(opt + 32, 0x1000); U32(opt + 36, 0x200); U32(opt + 56, 0x2000); U32(opt + 60, 0x200); U16(opt + 68, 3);
+    int directory = opt + (x64 ? 112 : 96); U32(directory - 4, 16);
+    int section = opt + optSize; memory.Position = section; writer.Write(Encoding.ASCII.GetBytes(".rdata\0\0"));
+    U32(section + 8, 0x200); U32(section + 12, 0x1000); U32(section + 16, 0x200); U32(section + 20, 0x200); U32(section + 36, 0x40000040);
+    if (imported is not null) { U32(directory + 8, 0x1000); U32(directory + 12, 40); U32(0x20c, 0x1080); memory.Position = 0x280; writer.Write(Encoding.ASCII.GetBytes(imported + "\0")); }
+    if (delayed is not null) { U32(directory + 13 * 8, 0x1040); U32(directory + 13 * 8 + 4, 64); U32(0x240, 1); U32(0x244, 0x10b0); memory.Position = 0x2b0; writer.Write(Encoding.ASCII.GetBytes(delayed + "\0")); }
+    File.WriteAllBytes(path, bytes);
+}
 
 sealed class FixtureHttp(bool ambiguous = false) : HttpMessageHandler
 {

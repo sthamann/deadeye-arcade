@@ -61,12 +61,15 @@ public sealed class ExitGesture
 {
     private readonly HashSet<int> down = [];
     private DateTimeOffset? since;
+    private bool consumed;
     public void Key(int code, bool pressed, DateTimeOffset now)
     {
         if (pressed) down.Add(code); else down.Remove(code);
+        if (consumed) { if (down.Count == 0) consumed = false; else return; }
         bool chord = down.Contains(0x31) && down.Contains(0x35) || down.Contains(0x32) && down.Contains(0x36);
         if (chord) since ??= now; else since = null;
     }
     public bool Ready(DateTimeOffset now) => since.HasValue && now - since.Value >= TimeSpan.FromSeconds(1.8);
-    public void Reset() { down.Clear(); since = null; }
+    public void Consume() { consumed = true; since = null; }
+    public void Reset() { down.Clear(); since = null; consumed = false; }
 }

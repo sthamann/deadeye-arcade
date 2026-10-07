@@ -18,6 +18,11 @@ public static class App
             try
             {
                 var store = new LibraryStore(data); var state = store.Load();
+                if (args.Length == 1 && args[0] == "--check-dependencies")
+                {
+                    File.WriteAllText(Path.Combine(data, "dependencies.json"), JsonSerializer.Serialize(RuntimeInstaller.Scan(state.Games), JsonDefaults.Options));
+                    return;
+                }
                 if (args.Length == 2 && args[0] == "--import-collection") LibraryStore.Merge(state, CollectionImporter.Read(args[1]).Games);
                 else if (args.Length != 1 || args[0] != "--validate-library") throw new ArgumentException("Unbekannter Einrichtungsaufruf.");
                 for (int i = 0; i < state.Games.Count; i++) state.Games[i] = LaunchRules.Validate(state.Games[i]);

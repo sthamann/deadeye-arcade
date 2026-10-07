@@ -182,6 +182,7 @@ function App() {
       }
       if (type === "error" || type === "notice") announce(payload.message);
       if (type === "busy") setBusy(payload.message);
+      if (type === "dependency-blocked") { setModal(null); setPage("settings"); announce(payload.message); }
       if (type === "import-result") {
         setModal({
           type: "report",
@@ -433,11 +434,11 @@ function App() {
             {state.native ? "Windows verbunden" : "Bedienvorschau"}
           </div>
           <span>Reaper Arcade · {state.version}</span>
-          <button className="exit-link" onClick={() => send("close")}>
-            <Power size={16} /> App schließen
-          </button>
         </div>
       </aside>
+      {!state.native && <button className="persistent-exit" onClick={() => send("close")}>
+        <Power size={20} /> App schließen · Windows
+      </button>}
       <div
         className="main-shell"
         inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
@@ -1176,6 +1177,24 @@ function App() {
                   </button>
                 </div>
                 <div className="setting-block">
+                  <div className="setting-title"><ShieldCheck size={20} /><strong>Spiele und Emulatoren: benötigte Laufzeiten</strong></div>
+                  <p>Reaper prüft automatisch beim Öffnen, nach dem Import und vor dem Spielstart. Fehlende Visual-C++-, DirectX- und .NET-8/9/10-Laufzeiten werden passenden Microsoft-Paketen zugeordnet.</p>
+                  <div className="inline-actions">
+                    <button className="secondary" disabled={!!busy} onClick={() => send("check-dependencies")}><RefreshCw size={18}/> Jetzt prüfen</button>
+                    <button className="primary" disabled={!!busy || !state.dependencies?.packages.some(p => p.missing)} onClick={() => send("install-dependencies")}><Download size={18}/> Fehlende Pakete installieren</button>
+                  </div>
+                  <p>Download und Signaturprüfung erfolgen automatisch. Im Microsoft-Installer bestätigst du die Lizenz und gegebenenfalls die Windows-Abfrage. Anschließend prüft Reaper erneut.</p>
+                  {state.dependencies && <>
+                    <p>{state.dependencies.checkedBinaries} Programme und lokale Bibliotheken geprüft · Stand {new Date(state.dependencies.time).toLocaleTimeString("de-DE")}</p>
+                    {state.dependencies.packages.map(p => <div className="setting-row" key={p.id}>
+                      <div><strong>{p.name}</strong><p>{p.games.slice(0, 4).join(" · ")}{p.games.length > 4 ? ` · und ${p.games.length - 4} weitere` : ""}</p>{p.missing && <p>Fehlt: {p.dlls.join(", ")}</p>}</div>
+                      <span className={"connection-tag " + (p.missing ? "" : "online")}>{p.missing ? "Installation nötig" : "Dateien vorhanden"}</span>
+                    </div>)}
+                    <p>Diese Prüfung erkennt bekannte Laufzeit-Dateien. Dynamisch geladene Komponenten, Treiber und einzelne Spielprofile benötigen zusätzlich einen Spieltest.</p>
+                    {state.dependencies.uncheckedCount > 0 && <details><summary>{state.dependencies.uncheckedCount} offene Dateizuordnungen anzeigen</summary><ul>{state.dependencies.uncheckedFiles.map((entry, i) => <li key={i}>{entry}</li>)}</ul></details>}
+                  </>}
+                </div>
+                <div className="setting-block">
                   <div className="setting-title">
                     <ImageIcon size={20} />
                     <strong>Automatische Spielecover</strong>
@@ -1250,11 +1269,11 @@ function App() {
               <div className="setup-note">
                 <Keyboard size={22} />
                 <div>
-                  <strong>Zurück aus dem Spiel</strong>
+                  <strong>Mit der Gun zurück zum Menü oder zu Windows</strong>
                   <p>
                     Auf der zugeordneten Gun Start + Münze für etwa zwei
                     Sekunden halten. Spieler 1: Tasten 1 + 5, Spieler 2: 2 + 6.
-                    Die App beobachtet die Kombination im Hintergrund. Mit einer Tastatur beendet auch F12 die eigene Spielsitzung.
+                    Im Spiel führt das zurück ins Menü. Dort beide Tasten loslassen und erneut halten, um die App zu schließen. Der Knopf „App schließen · Windows“ bleibt auch bei Dialogen und laufenden Prüfungen sichtbar. Mit einer Tastatur beendet auch F12 die eigene Spielsitzung.
                   </p>
                 </div>
               </div>
@@ -1405,7 +1424,7 @@ function App() {
                   <Keyboard size={19} />
                   <span>
                     Start + Münze etwa 2 Sekunden halten, um das Spiel zu
-                    beenden.
+                    beenden. Mit einer Tastatur: F12.
                   </span>
                 </div>
                 <button

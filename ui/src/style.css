@@ -2272,3 +2272,9 @@ main {
 .setup-issues { padding:16px; border:1px solid #9e6243; background:#2b211d; border-radius:10px; margin:18px 0; overflow-wrap:anywhere; }
 .players-note { font-size:13px; color:#aeb8c8; }
 .feedback-actions { margin-top:16px; }
+.persistent-exit {
+  position: fixed; right: 20px; bottom: 20px; z-index: 100;
+  min-width: 260px; min-height: 64px; padding: 16px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: #262d3a; border: 1px solid #687389; color: white;
+}

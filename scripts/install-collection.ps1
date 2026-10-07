@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory=$true)][string]$Package,
     [Parameter(Mandatory=$true)][string]$Handoff,
     [string]$Root='C:\Lightgun',
-    [switch]$StartAfter
+    [switch]$StartAfter,
+    [switch]$AllowPendingMigration
 )
 $ErrorActionPreference='Stop'
 if($Root -ne 'C:\Lightgun') { throw 'Diese Einrichtungsfassung verwendet C:\Lightgun als feste Medienwurzel.' }
@@ -11,15 +12,21 @@ if(-not (Test-Path -LiteralPath $Package)) { throw 'Windows-Paket fehlt.' }
 # Existing migration workers own game/configuration writes until their journals finish.
 $logs=Join-Path $Root 'Setup\Logs'
 $primary=Join-Path $logs 'copy-progress.json'
+$migrationPending=$false
 if(Test-Path -LiteralPath $primary) {
-    $copy=Get-Content -LiteralPath $primary -Raw | ConvertFrom-Json
-    if($copy.finished -lt $copy.total) { throw "Die Hauptkopie läuft noch: $($copy.finished) / $($copy.total). Bestehende Jobs weiterlaufen lassen." }
+    $copy=Get-Content -LiteralPath $primary -Raw -Encoding UTF8 | ConvertFrom-Json
+    if($copy.finished -lt $copy.total) {
+        $migrationPending=$true
+        if(-not $AllowPendingMigration) { throw "Die Hauptkopie läuft noch: $($copy.finished) / $($copy.total). Bestehende Jobs weiterlaufen lassen." }
+    }
     $nasPath=Join-Path $logs 'nas-progress.json'
-    if(-not (Test-Path -LiteralPath $nasPath)) { throw 'NAS-Abschluss noch nicht vorhanden.' }
-    $nas=Get-Content -LiteralPath $nasPath -Raw | ConvertFrom-Json
-    if($nas.phase -ne 'Finished') { throw 'Die vorhandene NAS-Prüfung läuft noch.' }
-    if(-not (Test-Path -LiteralPath (Join-Path $logs 'launcher-status.json'))) { throw 'Die bestehende Starter-Konfiguration ist noch nicht abgeschlossen.' }
+    $nas=if(Test-Path -LiteralPath $nasPath) { Get-Content -LiteralPath $nasPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
+    if($null -eq $nas -or $nas.phase -ne 'Finished' -or -not (Test-Path -LiteralPath (Join-Path $logs 'launcher-status.json'))) {
+        $migrationPending=$true
+        if(-not $AllowPendingMigration) { throw 'Die vorhandene NAS-Prüfung oder Starter-Konfiguration ist noch nicht abgeschlossen.' }
+    }
 }
+if($migrationPending) { Write-Warning 'Nur Frontend und Medien werden eingerichtet. Die Spielekopie bleibt bei ihren vorhandenen Jobs; Verfügbarkeit danach erneut prüfen.' }
 $data=Join-Path $env:LOCALAPPDATA 'ReaperArcade'
 $install=Join-Path $Root 'Frontend\ReaperArcade'
 $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -35,7 +42,7 @@ if(Test-Path -LiteralPath $install) { Move-Item -LiteralPath $install -Destinati
 New-Item -ItemType Directory -Path (Split-Path $install) -Force | Out-Null
 Move-Item -LiteralPath $packageRoot -Destination $install
 New-Item -ItemType Directory -Path $logs,(Join-Path $Root 'Media') -Force | Out-Null
-$media=Get-Content -LiteralPath (Join-Path $Handoff 'medien-kopierplan.json') -Raw | ConvertFrom-Json
+$media=Get-Content -LiteralPath (Join-Path $Handoff 'medien-kopierplan.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $mediaRows=New-Object Collections.Generic.List[object]
 $mediaBytes=0L
 foreach($entry in $media.files) {
@@ -68,10 +75,10 @@ foreach($directory in @([Environment]::GetFolderPath('Desktop'),(Join-Path ([Env
     $shortcut=$shell.CreateShortcut((Join-Path $directory 'Reaper Arcade.lnk'));$shortcut.TargetPath=$exe;$shortcut.WorkingDirectory=$install;$shortcut.Save()
 }
 Copy-Item -LiteralPath (Join-Path $data 'library-import-report.json') -Destination (Join-Path $logs 'reaper-games.json') -Force
-$report=Get-Content -LiteralPath (Join-Path $data 'library-import-report.json') -Raw | ConvertFrom-Json
+$report=Get-Content -LiteralPath (Join-Path $data 'library-import-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $report.rows | Select-Object @{n='Datum';e={$report.time}},id,title,platform,players,filesPresent,launchObserved,player1Verified,player2Verified,recoilVerified,returnVerified,status,@{n='OffenePunkte';e={$_.setupIssues -join ' | '}},setupNotes |
     Export-Csv -LiteralPath (Join-Path $logs 'reaper-games.csv') -Delimiter ';' -NoTypeInformation -Encoding UTF8
-$result=@{time=(Get-Date).ToString('o');computer=$env:COMPUTERNAME;user=$env:USERNAME;install=$install;backup=$backup;games=$report.games;filesAvailable=$report.available;mediaCopied=@($mediaRows.ToArray() | Where-Object {$_.status -eq 'Copied'}).Count;mediaBytes=$mediaBytes;hardwareVerified=$false;gameplayVerified=$false}
+$result=@{time=(Get-Date).ToString('o');computer=$env:COMPUTERNAME;user=$env:USERNAME;install=$install;backup=$backup;games=$report.games;filesAvailable=$report.available;mediaCopied=@($mediaRows.ToArray() | Where-Object {$_.status -eq 'Copied'}).Count;mediaBytes=$mediaBytes;migrationPending=$migrationPending;hardwareVerified=$false;gameplayVerified=$false}
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $logs 'reaper-install.json') -Encoding UTF8
 $result
 if($StartAfter) { Start-Process -FilePath $exe -WorkingDirectory $install }

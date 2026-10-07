@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -25,13 +26,23 @@ public sealed class ArcadeWindow : Window
     private List<Installation> installations = [];
     private readonly GunSerial serial = new();
     private readonly GameSession session = new();
+    private EmergencyExit? emergencyExit;
+    private DependencyReport? dependencies;
     private readonly LibraryStore store;
     private LibraryState state;
     private readonly Dictionary<string, ExitGesture> gestures = [];
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private int? bindPlayer;
     private string? bindMouse;
-    private bool ready, busy;
+    private bool ready, busy, closing, closeRequested, launching;
+    private readonly Button exitButton = new()
+    {
+        Content = "App schließen · Windows", MinWidth = 260, Height = 64,
+        FontSize = 17, HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20),
+        Background = new SolidColorBrush(Color.FromRgb(38, 45, 58)), Foreground = Brushes.White,
+        BorderBrush = new SolidColorBrush(Color.FromRgb(104, 115, 137)), Cursor = System.Windows.Input.Cursors.Hand
+    };
     private long lastMove;
     private HwndSource? source;
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(20) };
@@ -42,17 +53,54 @@ public sealed class ArcadeWindow : Window
     public ArcadeWindow()
     {
         picker = new ArcadePicker(Send);
-        Title = "Reaper Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21)); Content = web;
+        Title = "Reaper Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21));
+        // A native control remains usable independently of browser dialogs and loading states.
+        var layout = new Grid();
+        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        // Keep the control outside WebView2's HWND to avoid WPF airspace covering it.
+        Grid.SetRow(exitButton, 1); layout.Children.Add(web); layout.Children.Add(exitButton); Content = layout;
+        exitButton.Click += (_, _) => Close();
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
         raw.Packet += Input; raw.DevicesChanged += () => SendState();
-        session.Changed += status => Dispatcher.Invoke(() => { Send("session", new { status }); if (status == "running") WindowState = WindowState.Minimized; else { WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); } });
-        timer.Tick += async (_, _) => { if (session.Active && gestures.Values.Any(g => g.Ready(DateTimeOffset.UtcNow))) { foreach (var g in gestures.Values) g.Reset(); await session.End(); } };
+        session.Changed += status => Dispatcher.Invoke(() =>
+        {
+            emergencyExit?.Dispose(); emergencyExit = null;
+            if (status == "running")
+            {
+                try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); }))); }
+                catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
+                WindowState = WindowState.Minimized;
+            }
+            else { WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
+            Send("session", new { status });
+        });
+        timer.Tick += async (_, _) =>
+        {
+            if (!gestures.Values.Any(g => g.Ready(DateTimeOffset.UtcNow))) return;
+            foreach (var g in gestures.Values) g.Consume();
+            if (session.Active) { Log("exit: gun to menu"); await session.End(); }
+            else { Log("exit: gun to desktop"); Close(); }
+        };
         timer.Start();
-        Closing += (_, e) => { if (session.Active) { e.Cancel = true; _ = session.End(); Send("notice", new { message = "Das Spiel wird beendet. Danach kannst du die App schließen." }); } };
-        Closed += (_, _) => { timer.Stop(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); };
+        Closing += async (_, e) =>
+        {
+            if (session.Active)
+            {
+                e.Cancel = true;
+                if (closeRequested) return;
+                closeRequested = true; exitButton.Content = "Spiel wird beendet …";
+                await session.End();
+                while (session.Active) await Task.Delay(100);
+                if (!launching && !closing) Close();
+                return;
+            }
+            closing = true; ready = false; Log("exit: desktop");
+        };
+        Closed += (_, _) => { timer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
     private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); return 0; }
     private async Task Initialize()
@@ -109,6 +157,7 @@ public sealed class ArcadeWindow : Window
             version = "0.3.0",
             remoteSession,
             installations,
+            dependencies = DependencyView(),
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
             native = true
         });
@@ -138,7 +187,7 @@ public sealed class ArcadeWindow : Window
                 state.Bindings.Add(new(player, bindMouse, packet.DeviceId)); bindMouse = null; bindPlayer = null; Persist(); return;
             }
         }
-        if (session.Active && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
+        if (session.Active && emergencyExit is null && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
         var binding = state.Bindings.FirstOrDefault(b => b.MouseId == packet.DeviceId || b.KeyboardId == packet.DeviceId);
         if (packet.Kind == "keyboard" && binding is not null)
         {
@@ -161,6 +210,9 @@ public sealed class ArcadeWindow : Window
             }
             else { GetCursorPos(out var point); sx = point.X; sy = point.Y; }
             var client = web.PointFromScreen(new Point(sx, sy));
+            var exitPoint = exitButton.PointFromScreen(new Point(sx, sy));
+            if ((packet.Buttons & 1) != 0 && exitPoint.X >= 0 && exitPoint.Y >= 0 && exitPoint.X < exitButton.ActualWidth && exitPoint.Y < exitButton.ActualHeight)
+            { Close(); return; }
             Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), packet.Buttons });
         }
         else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down });
@@ -174,17 +226,44 @@ public sealed class ArcadeWindow : Window
         string Str(string name) => payload.GetProperty(name).GetString() ?? "";
         int Player() => payload.GetProperty("player").GetInt32() is var n && n is >= 1 and <= 2 ? n : throw new ArgumentException("Ungültiger Spieler.");
         GameEntry Game() => state.Games.FirstOrDefault(g => g.Id == Str("id")) ?? throw new ArgumentException("Das Spiel existiert nicht mehr.");
+        if (type == "close") { Close(); return; }
         if (type == "browse-path") { picker.Browse(Str("path")); return; }
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException("Bitte zuerst die Dateiauswahl schließen.");
-        if (type == "ready") { ready = true; SendState(); return; }
+        if (type == "ready") { ready = true; SendState(); await CheckDependencies(); return; }
         if (type == "end-game") { await session.End(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
         if (session.Active && type != "fullscreen") throw new InvalidOperationException("Bitte zuerst das laufende Spiel beenden.");
         if (busy) throw new InvalidOperationException("Die laufende Aktion wird noch abgeschlossen.");
         switch (type)
         {
+            case "check-dependencies": await CheckDependencies(); break;
+            case "install-dependencies":
+                {
+                    busy = true;
+                    try
+                    {
+                        dependencies = await Task.Run(() => RuntimeInstaller.Scan(state.Games.ToArray()));
+                        var packages = dependencies.MissingPackages.Select(RuntimeCatalog.Get).OfType<RuntimePackage>().ToArray();
+                        foreach (var package in packages)
+                        {
+                            int code;
+                            try
+                            {
+                                code = await RuntimeInstaller.Install(package, store.DirectoryPath,
+                                    text => Send("busy", new { message = text }),
+                                    () => { if (closing) throw new OperationCanceledException(); WindowState = WindowState.Minimized; });
+                            }
+                            finally { SetFullscreen(state.Settings.Fullscreen); Activate(); }
+                            Log($"runtime: {package.Id} installer exit {code}");
+                            if (code == 3010) Send("notice", new { message = "Die Laufzeit meldet einen nötigen Neustart. Bitte später selbst neu starten." });
+                            else if (code != 0) { Send("notice", new { message = $"{package.Name}: Installation abgebrochen oder fehlgeschlagen (Code {code})." }); break; }
+                        }
+                    }
+                    finally { busy = false; Send("busy", new { message = "" }); await CheckDependencies(); }
+                    break;
+                }
             case "scan-installations":
                 {
                     busy = true; Send("busy", new { message = "Bekannte Spieleordner werden durchsucht …" });
@@ -228,7 +307,7 @@ public sealed class ArcadeWindow : Window
             case "import-collection":
                 {
                     string? path = await picker.Open("spiele.json aus der Übergabe auswählen", false, [".json"]);
-                    if (path is not null) await Import(() => CollectionImporter.Read(path));
+                    if (path is not null) { await Import(() => CollectionImporter.Read(path)); await CheckDependencies(); }
                     break;
                 }
             case "test-feedback":
@@ -320,7 +399,6 @@ public sealed class ArcadeWindow : Window
             case "mark-tested":
                 { var game = Game(); state.Games[state.Games.IndexOf(game)] = game with { Status = "tested" }; Persist(); break; }
             case "launch": await Launch(Game()); break;
-            case "close": Close(); break;
             case "export-diagnostics":
                 {
                     var picker = new SaveFileDialog { Title = "Diagnose speichern", Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
@@ -340,6 +418,7 @@ public sealed class ArcadeWindow : Window
         }
         if ((type is "import-tekno" or "import-mame" or "add-pc") && state.Settings.CoverKey is not null)
             await Covers();
+        if (type is "import-tekno" or "import-mame" or "add-pc" or "validate-library") await CheckDependencies();
     }
     private async Task Import(Func<ImportResult> operation)
     { busy = true; Send("busy", new { message = "Spiele werden eingelesen …" }); try { ApplyImport(await Task.Run(operation)); } finally { busy = false; Send("busy", new { message = "" }); } }
@@ -363,9 +442,44 @@ public sealed class ArcadeWindow : Window
         }
         finally { busy = false; Send("busy", new { message = "" }); SendState(); }
     }
+    private object? DependencyView() => dependencies is null ? null : new
+    {
+        dependencies.Time, dependencies.Games, dependencies.CheckedBinaries,
+        packages = dependencies.Findings.Where(f => f.PackageId is not null).GroupBy(f => f.PackageId!).Select(group => new
+        {
+            id = group.Key, name = RuntimeCatalog.Get(group.Key)?.Name ?? group.Key,
+            missing = group.Any(f => f.Missing), games = group.Select(f => f.Game).Distinct(),
+            dlls = group.Where(f => f.Missing).Select(f => f.Dll).Distinct()
+        }),
+        uncheckedCount = dependencies.Unchecked.Length,
+        uncheckedFiles = dependencies.Unchecked.Take(50)
+    };
+    private async Task CheckDependencies()
+    {
+        busy = true; Send("busy", new { message = "Laufzeiten für Spiele und Emulatoren werden geprüft …" });
+        try
+        {
+            var games = state.Games.ToArray();
+            dependencies = await Task.Run(() => RuntimeInstaller.Scan(games));
+            System.IO.File.WriteAllText(Path.Combine(store.DirectoryPath, "dependencies.json"), JsonSerializer.Serialize(dependencies, JsonDefaults.Options));
+            SendState();
+        }
+        finally { busy = false; Send("busy", new { message = "" }); }
+    }
     private async Task Launch(GameEntry game)
     {
-        _ = LaunchRules.Prepare(game); busy = true; var changed = new List<GunBinding>();
+        _ = LaunchRules.Prepare(game);
+        busy = true;
+        DependencyReport launchDependencies;
+        try { launchDependencies = await Task.Run(() => RuntimeInstaller.Scan([game])); }
+        finally { busy = false; }
+        if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
+        {
+            await CheckDependencies();
+            Send("dependency-blocked", new { message = "Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten." });
+            return;
+        }
+        busy = true; launching = true; var changed = new List<GunBinding>();
         try
         {
             foreach (var binding in state.Bindings.Where(b => b.SerialPort is not null))
@@ -378,7 +492,8 @@ public sealed class ArcadeWindow : Window
         {
             foreach (var binding in changed)
             { try { await serial.Command(binding.SerialPort!, binding.Player, "ZS", "ZM", "ZW", "ZX"); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = "Menümodus konnte nicht wiederhergestellt werden: " + e.Message }); } }
-            busy = false; SendState();
+            busy = false; launching = false;
+            if (closeRequested) Close(); else SendState();
         }
     }
 }

@@ -49,6 +49,10 @@ export type State = {
   remoteSession?: boolean;
   calibrationTool?: string | null;
   installations: { kind: string; name: string; path: string }[];
+  dependencies?: null | {
+    time: string; games: number; checkedBinaries: number; uncheckedCount: number; uncheckedFiles: string[];
+    packages: {id: string; name: string; missing: boolean; games: string[]; dlls: string[]}[];
+  };
   native: boolean;
 };
 export type Input = {

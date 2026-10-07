@@ -72,6 +72,8 @@ public sealed class GameSession
         }
         if (game.Source == "mame")
         {
+            // MAME creates its own game window; its console must not cover it.
+            info.CreateNoWindow = true;
             string ctrl = Path.Combine(dataDirectory, "controllers"); Directory.CreateDirectory(ctrl);
             File.WriteAllText(Path.Combine(ctrl, "reaper.cfg"), LaunchRules.MameController(bindings));
             info.ArgumentList.Add("-ctrlrpath"); info.ArgumentList.Add(ctrl); info.ArgumentList.Add("-ctrlr"); info.ArgumentList.Add("reaper");

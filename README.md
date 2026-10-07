@@ -17,9 +17,11 @@ Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhalt
 - Große Systemauswahl sowie Filter für erste Priorität und vorhandene Startdateien.
 - Einzeltests für Rückstoß, Rumble und die Kombination am lokalen Bildschirm; keine stufenlose Kraftsteuerung.
 - Explizit konfigurierte Helfer starten mit der Spielsitzung und werden vor der Menürückkehr beendet. Dies allein ersetzt keine Konfiguration ihrer Spieloutputs.
-- F12 beendet die eigene Spielsitzung zusätzlich zur Gun-Kombination.
+- Automatische Prüfung der EXE- und DLL-Abhängigkeiten beim Öffnen, nach Importen und vor dem Spielstart. Fehlende Visual-C++-2010/2012/2013/14-, DirectX-Zusatz- und .NET-8/9/10-Laufzeiten lassen sich über offizielle Microsoft-Installer ergänzen; Architektur, Download-Adresse und Microsoft-Signatur werden geprüft. Lizenz und Windows-Freigabe bleiben im Herstellerdialog.
+- Ein großer nativer Knopf „App schließen · Windows“ bleibt außerhalb der scrollenden Browseroberfläche sichtbar, auch bei Dateiauswahl und laufender Suche. Start + Münze etwa zwei Sekunden halten beendet im Spiel die Sitzung und im Menü die App; vor dem zweiten Ausstieg beide Tasten loslassen.
+- F12 beendet die eigene Spielsitzung zusätzlich zur Gun-Kombination, auch per Remote Desktop. Die Tastenerkennung dafür ist ausschließlich während einer eigenen Spielsitzung aktiv.
 
-Der neue Stand ist lokal gebaut und softwareseitig geprüft. Die Installation und Spieleprüfung auf dem neuen Lightgun-PC stehen noch aus. Der Download oben bleibt die veröffentlichte Version 0.2.0.
+Version 0.3 wurde auf dem Lightgun-PC installiert: 183 Titel importiert und 639 Medien kopiert. Echte Vorschauvideos laufen in WebView2. Dead Space Extraction startet über Dolphin bis zum Titelbildschirm und CarnEvil über MAME bis zur echten Arcade-Bootsequenz und Blue Estate bis ins Hauptmenü; F12 beendet die eigene Spielsitzung und bringt das Vollbildmenü zurück. Die Spielekopie und weitere Emulatorprüfungen laufen noch. RS3-Guns sind noch nicht angeschlossen. Der Download oben bleibt die veröffentlichte Version 0.2.0; Details stehen in [verification-0.3.md](docs/verification-0.3.md).
 
 ## Direkt auf dem Windows-PC starten
 
@@ -64,7 +66,7 @@ Vorausgesetzt werden Windows x64 und die Microsoft Edge WebView2 Runtime. Falls 
 
 Spielauswahl, Dateiimport und seltene Texteingaben besitzen große Bedienelemente für die Gun. Der optionale Diagnoseexport verwendet noch einen Windows-Speicherdialog. Ein externes Herstellerwerkzeug behält seine eigene Bedienoberfläche.
 
-## Verifikation dieses Stands
+## Frühere Verifikation von 0.2
 
 Version 0.2 wurde am 3. Oktober 2026 auf einem Windows-Test-PC per Remote Desktop installiert und gestartet. WPF/WebView2, Cinema-Vollbild, Wechsel der Ansichten, Installationssuche, Dateiauswahl und Bildschirmtastatur liefen dort. Desktop- und Startmenü-Verknüpfung sind vorhanden. Der optionale Windows-Autostart wurde aktiviert und nach erneutem App-Start sowohl in der Bibliothek als auch im Benutzer-Run-Eintrag nachgewiesen. Anschließend wurde er in den Einstellungen wieder ausgeschaltet; ein Windows-Neustart wurde nicht durchgeführt. Bei einer neuen Bibliothek ist Autostart standardmäßig aus.
 
@@ -101,6 +103,14 @@ Der Quellcode ist öffentlich einsehbar; eine offene Lizenz für den eigenen Anw
 
 Unter **Spiele finden → Übergabepaket importieren** die `spiele.json` auswählen. Bereits gespeicherte Favoriten, Covers und Gun-Bindings bleiben erhalten. **Bibliothek prüfen** kontrolliert Abhängigkeiten und TeknoParrot-GamePath; der Spieltest bleibt davon getrennt. Medien aus dem Übergabeplan liegen unter `C:\Lightgun\Media` und werden ohne zusätzliche Kopie in den Benutzerordner bereitgestellt.
 
-`scripts/install-collection.ps1 -Package <Windows-ZIP> -Handoff <Übergabeordner> -StartAfter` sichert eine vorhandene Installation/Bibliothek, wartet auf abgeschlossene Migrationsjournale, kopiert Medien, importiert die Bibliothek und legt Verknüpfungen an. Es startet keine konkurrierenden Migrationsjobs und schaltet Autostart nicht ein. Fehlende Quellen bleiben im Bericht unter `C:\Lightgun\Setup\Logs`.
+`scripts/install-collection.ps1 -Package <Windows-ZIP> -Handoff <Übergabeordner> -StartAfter` sichert eine vorhandene Installation/Bibliothek, verlangt abgeschlossene Migrationsjournale, kopiert Medien, importiert die Bibliothek und legt Verknüpfungen an. Mit `-AllowPendingMigration` können Frontend und Medien bereits während der Spielekopie eingerichtet werden; der Bericht kennzeichnet den offenen Migrationsstand. Danach **Bibliothek prüfen** erneut ausführen. Das Skript startet keine konkurrierenden Migrationsjobs und schaltet Autostart nicht ein. Fehlende Quellen bleiben im Bericht unter `C:\Lightgun\Setup\Logs`.
 
 Einrichten ohne Oberfläche: `ReaperArcade.exe --import-collection <spiele.json>` beziehungsweise `--validate-library`, jeweils bei geschlossener App und unter dem vorgesehenen Windows-Spielbenutzer. Die Ergebnisse stehen in `%LOCALAPPDATA%\ReaperArcade\library-import-report.json`.
+
+## Fehlende Laufzeiten automatisch prüfen
+
+Unter **Einstellungen → Spiele und Emulatoren: benötigte Laufzeiten** zeigt die App fehlende Pakete und betroffene Spiele. **Fehlende Pakete installieren** lädt die passenden offiziellen Microsoft-Installer und prüft ihre Authenticode-Signatur. Reaper minimiert sich für den Installer und prüft nach dessen Ende erneut. Lizenz, Windows-Freigabe und ein gegebenenfalls angebotener Neustart erfolgen im Microsoft-Dialog. Ein durch bekannte fehlende Pflichtbibliotheken blockierter Spielstart führt direkt zu dieser Ansicht.
+
+Die Prüfung liest Windows-Programmdateien, lokale DLLs und vorhandene `.runtimeconfig.json`-Dateien. Sie unterscheidet x86 und x64 sowie zwingende und verzögert geladene Bibliotheken. Dynamisch nachgeladene Plugins, besondere DLL-Suchpfade, Treiber, ältere .NET-Framework-/Side-by-Side-Abhängigkeiten und herstellereigene Pakete werden damit nicht vollständig erfasst. Unaufgelöste Dateien bleiben sichtbar; unbekannte DLLs werden nicht von Downloadportalen nachgeladen. **Dateien vorhanden** bestätigt weder passende API-Versionen noch einen erfolgreichen Spielstart.
+
+Bei geschlossener App: `ReaperArcade.exe --check-dependencies`. Der Bericht wird unter `%LOCALAPPDATA%\ReaperArcade\dependencies.json` gespeichert.
