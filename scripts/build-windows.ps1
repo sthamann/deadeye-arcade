@@ -9,7 +9,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Kernprüfungen fehlgeschlagen.' }
     dotnet publish src/Reaper.Windows -c Release -r win-x64 --self-contained true -o release/windows-x64
     if ($LASTEXITCODE -ne 0) { throw 'Windows-Build fehlgeschlagen.' }
-    Copy-Item README.md release/windows-x64/START-HIER.md -Force
+    Copy-Item README.md release/windows-x64/README.md -Force
     Copy-Item LICENSE release/windows-x64/REAPER-LICENSE.txt -Force
     Copy-Item THIRD-PARTY.md release/windows-x64/THIRD-PARTY.md -Force
     New-Item -ItemType Directory -Path release/windows-x64/licenses -Force | Out-Null
@@ -21,6 +21,6 @@ try {
     if(Test-Path $staging) { Remove-Item $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
     Copy-Item release/windows-x64 -Destination (Join-Path $staging 'Reaper-Arcade') -Recurse
-    Compress-Archive -Path (Join-Path $staging 'Reaper-Arcade') -DestinationPath release/Reaper-Arcade-0.3.1-Windows-x64.zip -Force
+    Compress-Archive -Path (Join-Path $staging 'Reaper-Arcade') -DestinationPath release/Reaper-Arcade-0.3.2-Windows-x64.zip -Force
 }
 finally { Pop-Location }

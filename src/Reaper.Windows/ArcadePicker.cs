@@ -12,7 +12,7 @@ public sealed class ArcadePicker(Action<string, object> send)
     public bool Active => pending is not null;
     public Task<string?> Open(string heading, bool foldersOnly, string[]? accepted = null)
     {
-        if (Active) throw new InvalidOperationException("Die Dateiauswahl ist bereits geöffnet.");
+        if (Active) throw new InvalidOperationException(I18n.T("Die Dateiauswahl ist bereits geöffnet."));
         title = heading; folders = foldersOnly; extensions = accepted ?? [".exe"];
         pending = new(TaskCreationOptions.RunContinuationsAsynchronously);
         try { Browse(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)); }
@@ -36,7 +36,7 @@ public sealed class ArcadePicker(Action<string, object> send)
     {
         if (!Active) return;
         if (folders ? !Directory.Exists(path) : !File.Exists(path) || !extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
-            throw new ArgumentException("Bitte eine passende Datei oder einen vorhandenen Ordner auswählen.");
+            throw new ArgumentException(I18n.T("Bitte eine passende Datei oder einen vorhandenen Ordner auswählen."));
         var result = pending; pending = null; send("picker", new { closed = true }); result!.TrySetResult(Path.GetFullPath(path));
     }
     public void Cancel() { var result = pending; pending = null; send("picker", new { closed = true }); result?.TrySetResult(null); }

@@ -8,8 +8,8 @@ public static class LaunchRules
 {
     public static ProcessStartInfo Prepare(GameEntry game)
     {
-        if (game.Source == "demo") throw new InvalidOperationException("Vorschauspiele können nicht gestartet werden.");
-        if (game.Status == "needs-setup") throw new InvalidOperationException("Die Spieleinrichtung ist noch unvollständig.");
+        if (game.Source == "demo") throw new InvalidOperationException(I18n.T("Vorschauspiele können nicht gestartet werden."));
+        if (game.Status == "needs-setup") throw new InvalidOperationException(I18n.T("Die Spieleinrichtung ist noch unvollständig."));
         var issues = Issues(game);
         if (issues.Length > 0) throw new IOException(string.Join("\n", issues));
         var info = new ProcessStartInfo(game.Executable) { WorkingDirectory = game.WorkingDirectory, UseShellExecute = false };
@@ -19,16 +19,16 @@ public static class LaunchRules
     public static string[] Issues(GameEntry game)
     {
         var issues = new List<string>();
-        if (!File.Exists(game.Executable)) issues.Add("Starter fehlt: " + game.Executable);
-        if (!Directory.Exists(game.WorkingDirectory)) issues.Add("Arbeitsordner fehlt: " + game.WorkingDirectory);
+        if (!File.Exists(game.Executable)) issues.Add(I18n.T("Starter fehlt: ") + game.Executable);
+        if (!Directory.Exists(game.WorkingDirectory)) issues.Add(I18n.T("Arbeitsordner fehlt: ") + game.WorkingDirectory);
         foreach (var path in game.RequiredFiles ?? [])
-            if (!File.Exists(path) && !Directory.Exists(path)) issues.Add("Benötigte Datei fehlt: " + path);
+            if (!File.Exists(path) && !Directory.Exists(path)) issues.Add(I18n.T("Benötigte Datei fehlt: ") + path);
         foreach (var helper in game.Helpers ?? [])
         {
-            if (!File.Exists(helper.Executable)) issues.Add("Helfer fehlt: " + helper.Executable);
-            if (!Directory.Exists(helper.WorkingDirectory)) issues.Add("Helferordner fehlt: " + helper.WorkingDirectory);
+            if (!File.Exists(helper.Executable)) issues.Add(I18n.T("Helfer fehlt: ") + helper.Executable);
+            if (!Directory.Exists(helper.WorkingDirectory)) issues.Add(I18n.T("Helferordner fehlt: ") + helper.WorkingDirectory);
         }
-        if (game.Source == "mame" && !File.Exists(game.SourcePath)) issues.Add("ROM-Datei fehlt: " + game.SourcePath);
+        if (game.Source == "mame" && !File.Exists(game.SourcePath)) issues.Add(I18n.T("ROM-Datei fehlt: ") + game.SourcePath);
         if (game.Source == "teknoparrot")
         {
             try
@@ -36,10 +36,10 @@ public static class LaunchRules
                 var xml = XDocument.Load(game.SourcePath);
                 string? path = xml.Descendants().FirstOrDefault(e => e.Name.LocalName == "GamePath")?.Value;
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(Path.GetFullPath(path, game.WorkingDirectory)))
-                    issues.Add("TeknoParrot-GamePath fehlt oder zeigt nicht auf die vorhandene Spielanwendung.");
+                    issues.Add(I18n.T("TeknoParrot-GamePath fehlt oder zeigt nicht auf die vorhandene Spielanwendung."));
             }
             catch (Exception e) when (e is IOException or System.Xml.XmlException or ArgumentException)
-            { issues.Add("TeknoParrot-Profil nicht lesbar: " + e.Message); }
+            { issues.Add(I18n.T("TeknoParrot-Profil nicht lesbar: ") + e.Message); }
         }
         return issues.Distinct().ToArray();
     }

@@ -10,7 +10,7 @@ public static class App
     public static void Main(string[] args)
     {
         using var mutex = new Mutex(true, "Local\\ReaperArcade-v1", out bool first);
-        if (!first) { Environment.ExitCode = 1; if (args.Length == 0) MessageBox.Show("Reaper Arcade ist bereits geöffnet.", "Reaper Arcade"); return; }
+        if (!first) { Environment.ExitCode = 1; if (args.Length == 0) MessageBox.Show(I18n.T("Reaper Arcade ist bereits geöffnet."), "Reaper Arcade"); return; }
         if (args.Length > 0)
         {
             string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
@@ -35,7 +35,7 @@ public static class App
                     return;
                 }
                 if (args.Length == 2 && args[0] == "--import-collection") LibraryStore.Merge(state, CollectionImporter.Read(args[1]).Games);
-                else if (args.Length != 1 || args[0] != "--validate-library") throw new ArgumentException("Unbekannter Einrichtungsaufruf.");
+                else if (args.Length != 1 || args[0] != "--validate-library") throw new ArgumentException(I18n.T("Unbekannter Einrichtungsaufruf."));
                 for (int i = 0; i < state.Games.Count; i++) state.Games[i] = LaunchRules.Validate(state.Games[i]);
                 store.Save(state);
                 File.WriteAllText(Path.Combine(data, "library-import-report.json"), JsonSerializer.Serialize(new
@@ -51,6 +51,6 @@ public static class App
         var app = new Application();
         app.DispatcherUnhandledException += (_, e) => { MessageBox.Show(e.Exception.Message, "Reaper Arcade"); e.Handled = true; };
         try { app.Run(new ArcadeWindow()); }
-        catch (Exception e) { MessageBox.Show(e.Message, "Reaper Arcade konnte nicht starten"); }
+        catch (Exception e) { MessageBox.Show(e.Message, I18n.T("Reaper Arcade konnte nicht starten")); }
     }
 }

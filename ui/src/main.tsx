@@ -1,3 +1,11 @@
+import {
+  t,
+  message,
+  setLanguage,
+  normalizeLanguage,
+  getLanguage,
+  locale,
+} from "./i18n";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -41,13 +49,26 @@ import "./style.css";
 import { GunStudio, GunHeader } from "./GunStudio";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
-
 type Page = "play" | "guns" | "import" | "settings";
 type Modal =
-  | { type: "game"; game: Game }
-  | { type: "launch"; game: Game }
-  | { type: "test"; player: number }
-  | { type: "report"; count: number; warnings: string[]; validation?: boolean }
+  | {
+      type: "game";
+      game: Game;
+    }
+  | {
+      type: "launch";
+      game: Game;
+    }
+  | {
+      type: "test";
+      player: number;
+    }
+  | {
+      type: "report";
+      count: number;
+      warnings: string[];
+      validation?: boolean;
+    }
   | null;
 const icons = {
   play: Gamepad2,
@@ -55,11 +76,11 @@ const icons = {
   import: Library,
   settings: Settings,
 };
-const nav: [Page, string][] = [
-  ["play", "Spielen"],
-  ["guns", "Meine Guns"],
-  ["import", "Spiele finden"],
-  ["settings", "Einstellungen"],
+const nav = (): [Page, string][] => [
+  ["play", t("Spielen")],
+  ["guns", t("Meine Guns")],
+  ["import", t("Spiele finden")],
+  ["settings", t("Einstellungen")],
 ];
 const targets = [
   [0.5, 0.5],
@@ -78,9 +99,15 @@ const accents = [
   "#66c8c2",
   "#9cabf2",
 ];
-
 function App() {
-  const [state, setState] = useState<State>(empty);
+  const [state, setState] = useState<State>(() => {
+    const language = empty.native
+      ? "en"
+      : normalizeLanguage(localStorage.getItem("reaper-language"));
+    setLanguage(language);
+    return { ...empty, settings: { ...empty.settings, language } };
+  });
+  setLanguage(state.settings.language);
   const [picker, setPicker] = useState<PickerState | null>(null);
   const [keyboard, setKeyboard] = useState<"search" | "cover" | null>(null);
   const [page, setPage] = useState<Page>("play");
@@ -106,7 +133,13 @@ function App() {
   const [testErrors, setTestErrors] = useState<number[]>([]);
   const [testMisses, setTestMisses] = useState(0);
   const [testResults, setTestResults] = useState<
-    Record<number, { max: number; at: string }>
+    Record<
+      number,
+      {
+        max: number;
+        at: string;
+      }
+    >
   >({});
   const [justEnded, setJustEnded] = useState(false);
   const stateRef = useRef(state);
@@ -120,11 +153,24 @@ function App() {
     timer.current = setTimeout(() => setToast(""), 6500);
   };
   const send = (type: string, payload: unknown = {}) => {
+    if (type === "set-language") {
+      const language = normalizeLanguage(
+        (payload as { language?: unknown }).language,
+      );
+      setLanguage(language);
+      setState((s) => ({ ...s, settings: { ...s.settings, language } }));
+      if (!window.chrome?.webview) {
+        localStorage.setItem("reaper-language", language);
+        return;
+      }
+    }
     if (window.chrome?.webview)
       window.chrome.webview.postMessage({ type, payload });
     else
       announce(
-        "Diese Funktion arbeitet in der Windows-App mit deinem PC. Hier siehst du die Bedienvorschau.",
+        t(
+          "Diese Funktion arbeitet in der Windows-App mit deinem PC. Hier siehst du die Bedienvorschau.",
+        ),
       );
   };
   useEffect(() => {
@@ -166,7 +212,7 @@ function App() {
         ...old,
         [current.player]: {
           max: Math.round(Math.max(...next)),
-          at: new Date().toLocaleTimeString("de-DE", {
+          at: new Date().toLocaleTimeString(locale(), {
             hour: "2-digit",
             minute: "2-digit",
           }),
@@ -176,16 +222,32 @@ function App() {
   useEffect(() => {
     const bridge = window.chrome?.webview;
     if (!bridge) return;
-    const receive = (event: { data: { type: string; payload: any } }) => {
+    const receive = (event: {
+      data: {
+        type: string;
+        payload: any;
+      };
+    }) => {
       const { type, payload } = event.data;
       if (type === "picker") setPicker(payload.closed ? null : payload);
       if (type === "state") {
-        setState(payload);
+        setLanguage(payload.settings?.language);
+        setState({
+          ...payload,
+          settings: {
+            ...payload.settings,
+            language: normalizeLanguage(payload.settings?.language),
+          },
+        });
         setDemo(false);
       }
       if (type === "error" || type === "notice") announce(payload.message);
       if (type === "busy") setBusy(payload.message);
-      if (type === "dependency-blocked") { setModal(null); setPage("settings"); announce(payload.message); }
+      if (type === "dependency-blocked") {
+        setModal(null);
+        setPage("settings");
+        announce(payload.message);
+      }
       if (type === "import-result") {
         setModal({
           type: "report",
@@ -201,17 +263,50 @@ function App() {
       }
       if (type === "gun-input") setGunSignal(payload);
       if (type === "menu-action") {
-        const keys: Record<string,string> = {start:"Enter",coin:"Escape",up:"ArrowUp",down:"ArrowDown",left:"ArrowLeft",right:"ArrowRight",secondary:"Escape"};
-        if(keys[payload.action]) document.dispatchEvent(new KeyboardEvent("keydown", {key:keys[payload.action],bubbles:true}));
+        const keys: Record<string, string> = {
+          start: "Enter",
+          coin: "Escape",
+          up: "ArrowUp",
+          down: "ArrowDown",
+          left: "ArrowLeft",
+          right: "ArrowRight",
+          secondary: "Escape",
+        };
+        if (keys[payload.action])
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: keys[payload.action],
+              bubbles: true,
+            }),
+          );
       }
       if (type === "input") {
         if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
         if (input.kind === "keyboard" && input.down) {
-          const keys: Record<string,string> = {start:"Enter",coin:"Escape",up:"ArrowUp",down:"ArrowDown",left:"ArrowLeft",right:"ArrowRight",shoot:"Enter",reload:"Escape"};
-          const action = (payload as {action?:string}).action;
-          if (action && keys[action]) document.dispatchEvent(new KeyboardEvent("keydown", {key:keys[action],bubbles:true}));
+          const keys: Record<string, string> = {
+            start: "Enter",
+            coin: "Escape",
+            up: "ArrowUp",
+            down: "ArrowDown",
+            left: "ArrowLeft",
+            right: "ArrowRight",
+            shoot: "Enter",
+            reload: "Escape",
+          };
+          const action = (
+            payload as {
+              action?: string;
+            }
+          ).action;
+          if (action && keys[action])
+            document.dispatchEvent(
+              new KeyboardEvent("keydown", {
+                key: keys[action],
+                bubbles: true,
+              }),
+            );
         }
         if (
           input.kind === "mouse" &&
@@ -276,7 +371,10 @@ function App() {
         w: "ArrowLeft",
         x: "ArrowRight",
       };
-      if (event.isTrusted && state.native && !state.remoteSession) { event.preventDefault(); return; }
+      if (event.isTrusted && state.native && !state.remoteSession) {
+        event.preventDefault();
+        return;
+      }
       let k = event.key;
       if (state.native) k = map[k.toLowerCase()] ?? k;
       if (k === "Escape" || (state.native && k === "5")) {
@@ -354,7 +452,9 @@ function App() {
   const games = allGames.filter(
     (g) =>
       (filter !== "favorites" || g.favorite) &&
-      (filter !== "modern" || g.source === "teknoparrot" || g.platform === "TeknoParrot") &&
+      (filter !== "modern" ||
+        g.source === "teknoparrot" ||
+        g.platform === "TeknoParrot") &&
       (filter !== "priority" || g.priority === 1) &&
       (filter !== "available" || g.status !== "needs-setup") &&
       (platform === "all" || g.platform === platform) &&
@@ -365,7 +465,12 @@ function App() {
     allGames.find((g) => g.id === selected) ?? games[0] ?? allGames[0];
   const connected = (player: number) => {
     const binding = state.bindings.find((b) => b.player === player);
-    return binding && state.devices.some((d) => d.id.toLowerCase() === binding.mouseId.toLowerCase());
+    return (
+      binding &&
+      state.devices.some(
+        (d) => d.id.toLowerCase() === binding.mouseId.toLowerCase(),
+      )
+    );
   };
   const connectedCount = state.bindings.filter((b) =>
     connected(b.player),
@@ -373,13 +478,17 @@ function App() {
   const start = (g: Game) => {
     if (g.source === "demo") {
       announce(
-        "Beispielspiel — importiere deine Installation, um es wirklich zu starten.",
+        t(
+          "Beispielspiel \u2014 importiere deine Installation, um es wirklich zu starten.",
+        ),
       );
       return;
     }
     if (g.status === "needs-setup") {
       announce(
-        "Die Einrichtung ist noch unvollständig. In den Spieldetails findest du die fehlenden Dateien; danach Bibliothek erneut prüfen.",
+        t(
+          "Die Einrichtung ist noch unvollst\u00E4ndig. In den Spieldetails findest du die fehlenden Dateien; danach Bibliothek erneut pr\u00FCfen.",
+        ),
       );
       return;
     }
@@ -417,16 +526,17 @@ function App() {
         <button
           className="brand"
           onClick={() => setPage("play")}
-          aria-label="Reaper Arcade Start"
+          aria-label={t("Reaper Arcade Start")}
         >
           <Crosshair size={30} />
           <span>
-            REAPER<small>ARCADE</small>
+            {t("REAPER")}
+            <small>{t("ARCADE")}</small>
           </span>
         </button>
-        <div className="nav-label">DEINE ARCADE</div>
+        <div className="nav-label">{t("DEINE ARCADE")}</div>
         <nav>
-          {nav.map(([id, title]) => {
+          {nav().map(([id, title]) => {
             const Icon = icons[id];
             return (
               <button
@@ -445,34 +555,44 @@ function App() {
         <div className="sidebar-bottom">
           <div className="machine-label">
             <span className={connectedCount ? "dot good" : "dot"} />
-            {state.native ? "Windows verbunden" : "Bedienvorschau"}
+            {state.native ? t("Windows verbunden") : t("Bedienvorschau")}
           </div>
-          <span>Reaper Arcade · {state.version}</span>
+          <span>
+            {t("Reaper Arcade \u00B7") + " "}
+            {state.version}
+          </span>
         </div>
       </aside>
-      {!state.native && <button className="persistent-exit" onClick={() => send("close")}>
-        <Power size={20} /> App schließen · Windows
-      </button>}
+      {!state.native && (
+        <button className="persistent-exit" onClick={() => send("close")}>
+          <Power size={20} />
+          {" " + t("App schlie\u00DFen \u00B7 Windows")}
+        </button>
+      )}
       <div
         className="main-shell"
         inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
       >
         <header className="topbar">
           <div className="breadcrumb">
-            DEIN SPIELZIMMER <span>/</span>{" "}
-            {nav.find((n) => n[0] === page)?.[1].toUpperCase()}
+            {t("DEIN SPIELZIMMER") + " "}
+            <span>/</span>{" "}
+            {nav()
+              .find((n) => n[0] === page)?.[1]
+              .toUpperCase()}
           </div>
           <div className="top-status">
             <GunHeader state={state} open={() => setPage("guns")} />
-            <span className="version-chip">EARLY ACCESS</span>
+            <span className="version-chip">{t("EARLY ACCESS")}</span>
           </div>
         </header>
         {!state.native && (
           <div className="preview-strip">
             <Info size={16} />
             <span>
-              Bedienvorschau im Browser. Geräte, Dateiimport und Spielstart
-              arbeiten in der Windows-App.
+              {t(
+                "Bedienvorschau im Browser. Ger\u00E4te, Dateiimport und Spielstart arbeiten in der Windows-App.",
+              )}
             </span>
           </div>
         )}
@@ -480,7 +600,9 @@ function App() {
           <div className="preview-strip demo-strip">
             <ImageIcon size={16} />
             <span>
-              Beispielbibliothek · diese Spiele sind hier nicht installiert
+              {t(
+                "Beispielbibliothek \u00B7 diese Spiele sind hier nicht installiert",
+              )}
             </span>
             <button
               onClick={() => {
@@ -488,7 +610,8 @@ function App() {
                 setSelected(null);
               }}
             >
-              Vorschau verlassen <X size={14} />
+              {t("Vorschau verlassen") + " "}
+              <X size={14} />
             </button>
           </div>
         )}
@@ -496,8 +619,9 @@ function App() {
           <div className="preview-strip">
             <Monitor size={18} />
             <span>
-              Remote Desktop aktiv · Menüs mit Maus testen. Gun-Zuordnung und
-              Kalibrierung am echten Bildschirm prüfen.
+              {t(
+                "Remote Desktop aktiv \u00B7 Men\u00FCs mit Maus testen. Gun-Zuordnung und Kalibrierung am echten Bildschirm pr\u00FCfen.",
+              )}
             </span>
           </div>
         )}
@@ -524,15 +648,18 @@ function App() {
                       <h1>{featured.title}</h1>
                       <p>
                         {featured.platform === "MAME"
-                          ? "Die Klassiker. Dein Ziel. Deine Arcade."
-                          : "Große Arcade-Action. Direkt in deinem Spielzimmer."}
+                          ? t("Die Klassiker. Dein Ziel. Deine Arcade.")
+                          : t(
+                              "Gro\u00DFe Arcade-Action. Direkt in deinem Spielzimmer.",
+                            )}
                       </p>
                       <div className="hero-meta">
                         <span>
                           <Monitor size={15} /> {featured.aspect}
                         </span>
                         <span>
-                          <Crosshair size={15} /> Lightgun-Profil
+                          <Crosshair size={15} />
+                          {" " + t("Lightgun-Profil")}
                         </span>
                       </div>
                       <div className="hero-buttons">
@@ -543,8 +670,8 @@ function App() {
                         >
                           <Play size={20} fill="currentColor" />
                           {featured.source === "demo"
-                            ? "Startablauf ansehen"
-                            : "Spiel starten"}
+                            ? t("Startablauf ansehen")
+                            : t("Spiel starten")}
                         </button>
                         <button
                           className="secondary"
@@ -552,15 +679,38 @@ function App() {
                             setModal({ type: "game", game: featured })
                           }
                         >
-                          Spieldetails <ArrowRight size={17} />
+                          {t("Spieldetails") + " "}
+                          <ArrowRight size={17} />
                         </button>
-                        {featured.previewVideo && <button className="secondary" onClick={() => setPreviewEnabled(!previewEnabled)}>{previewEnabled ? "Vorschau pausieren" : "Vorschau abspielen"}</button>}
+                        {featured.previewVideo && (
+                          <button
+                            className="secondary"
+                            onClick={() => setPreviewEnabled(!previewEnabled)}
+                          >
+                            {previewEnabled
+                              ? t("Vorschau pausieren")
+                              : t("Vorschau abspielen")}
+                          </button>
+                        )}
                       </div>
-                      {featured.players && <p className="players-note">{featured.players} · Gun-Einrichtung separat prüfen</p>}
+                      {featured.players && (
+                        <p className="players-note">
+                          {featured.players}
+                          {" " +
+                            t("\u00B7 Gun-Einrichtung separat pr\u00FCfen")}
+                        </p>
+                      )}
                     </div>
                     <div className="hero-art">
-                      {featured.cover || featured.previewVideo || featured.screenshot || featured.logo ? (
-                        <MediaPreview key={featured.id + featured.previewVideo} game={featured} active={previewEnabled && !modal && !session && !busy} />
+                      {featured.cover ||
+                      featured.previewVideo ||
+                      featured.screenshot ||
+                      featured.logo ? (
+                        <MediaPreview
+                          key={featured.id + featured.previewVideo}
+                          game={featured}
+                          active={previewEnabled && !modal && !session && !busy}
+                        />
                       ) : (
                         <>
                           <div className="art-grid" />
@@ -568,7 +718,7 @@ function App() {
                           <div className="orbit orbit-two" />
                           <div className="art-cross" />
                           <div className="art-number">
-                            {featured.title.includes("Time Crisis")
+                            {featured.title.includes(t("Time Crisis"))
                               ? "05"
                               : featured.title.includes("Jurassic")
                                 ? "JP"
@@ -577,7 +727,7 @@ function App() {
                                   : "RS"}
                           </div>
                           <div className="art-caption">
-                            AIM FOR SOMETHING GREAT
+                            {t("AIM FOR SOMETHING GREAT")}
                           </div>
                         </>
                       )}
@@ -586,20 +736,23 @@ function App() {
                   <div className="library-toolbar">
                     <div>
                       <h2>
-                        Deine Spiele <span>{games.length}</span>
+                        {t("Deine Spiele") + " "}
+                        <span>{games.length}</span>
                       </h2>
                       <p>
                         {demo
-                          ? "So könnte deine Sammlung aussehen."
-                          : "Importiert. An einem Ort. Bereit für den nächsten Spieltest."}
+                          ? t("So k\u00F6nnte deine Sammlung aussehen.")
+                          : t(
+                              "Importiert. An einem Ort. Bereit f\u00FCr den n\u00E4chsten Spieltest.",
+                            )}
                       </p>
                     </div>
                     <div className="library-tools">
                       <label className="search-box">
                         <Search size={16} />
                         <input
-                          aria-label="Spiele suchen"
-                          placeholder="Spiel suchen"
+                          aria-label={t("Spiele suchen")}
+                          placeholder={t("Spiel suchen")}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                           onFocus={() => {
@@ -610,21 +763,42 @@ function App() {
                       <button
                         className="icon-button"
                         onClick={() => setPage("import")}
-                        aria-label="Spiele importieren"
+                        aria-label={t("Spiele importieren")}
                       >
                         <Plus size={21} />
                       </button>
                     </div>
                   </div>
-                  <label className="platform-filter">System auswählen <select aria-label="System filtern" value={platform} onChange={e => { setPlatform(e.target.value); setSelected(null); }}>{["all", ...Array.from(new Set(allGames.map(g => g.platform))).sort()].map(p => <option key={p} value={p}>{p === "all" ? "Alle Systeme" : p}</option>)}</select></label>
+                  <label className="platform-filter">
+                    {t("System ausw\u00E4hlen") + " "}
+                    <select
+                      aria-label={t("System filtern")}
+                      value={platform}
+                      onChange={(e) => {
+                        setPlatform(e.target.value);
+                        setSelected(null);
+                      }}
+                    >
+                      {[
+                        "all",
+                        ...Array.from(
+                          new Set(allGames.map((g) => g.platform)),
+                        ).sort(),
+                      ].map((p) => (
+                        <option key={p} value={p}>
+                          {p === "all" ? t("Alle Systeme") : p}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="filters">
                     {[
-                      ["all", "Alle Spiele"],
-                      ["modern", "Modern Arcade"],
-                      ["classic", "Klassiker"],
-                      ["favorites", "Favoriten"],
-                      ["priority", "Erste Auswahl"],
-                      ["available", "Dateien vorhanden"],
+                      ["all", t("Alle Spiele")],
+                      ["modern", t("Modern Arcade")],
+                      ["classic", t("Klassiker")],
+                      ["favorites", t("Favoriten")],
+                      ["priority", t("Erste Auswahl")],
+                      ["available", t("Dateien vorhanden")],
                     ].map(([id, title]) => (
                       <button
                         key={id}
@@ -643,7 +817,7 @@ function App() {
                           "game-tile " +
                           (featured.id === game.id ? "selected" : "")
                         }
-                        aria-label={game.title + " auswählen"}
+                        aria-label={game.title + t(" ausw\u00E4hlen")}
                         onClick={() => setSelected(game.id)}
                         style={
                           {
@@ -695,7 +869,7 @@ function App() {
                   </div>
                   {games.length === 0 && (
                     <div className="no-results">
-                      Keine Spiele in dieser Auswahl.
+                      {t("Keine Spiele in dieser Auswahl.")}
                     </div>
                   )}
                 </>
@@ -705,31 +879,37 @@ function App() {
                     <div className="orbit" />
                     <Crosshair size={105} />
                     <span>
-                      YOUR ARCADE
+                      {t("YOUR ARCADE")}
                       <br />
-                      STARTS HERE.
+                      {t("STARTS HERE.")}
                     </span>
                   </div>
                   <div className="welcome-content">
-                    <div className="eyebrow">WILLKOMMEN IN DEINER ARCADE</div>
+                    <div className="eyebrow">
+                      {t("WILLKOMMEN IN DEINER ARCADE")}
+                    </div>
                     <h1>
-                      Guns nehmen.
+                      {t("Guns nehmen.")}
                       <br />
-                      Spiele starten.
+                      {t("Spiele starten.")}
                     </h1>
                     <p>
-                      Wir verbinden deine Lightguns und bringen deine Spiele in
-                      eine gemeinsame Bibliothek.
+                      {t(
+                        "Wir verbinden deine Lightguns und bringen deine Spiele in eine gemeinsame Bibliothek.",
+                      )}
                     </p>
                     <div className="welcome-steps">
                       <span>
-                        <b>01</b> Guns zuordnen
+                        <b>01</b>
+                        {" " + t("Guns zuordnen")}
                       </span>
                       <span>
-                        <b>02</b> Spiele importieren
+                        <b>02</b>
+                        {" " + t("Spiele importieren")}
                       </span>
                       <span>
-                        <b>03</b> Loslegen
+                        <b>03</b>
+                        {" " + t("Loslegen")}
                       </span>
                     </div>
                     <div className="hero-buttons">
@@ -737,13 +917,15 @@ function App() {
                         className="primary"
                         onClick={() => setPage("guns")}
                       >
-                        <Crosshair size={19} /> Guns einrichten
+                        <Crosshair size={19} />
+                        {" " + t("Guns einrichten")}
                       </button>
                       <button
                         className="secondary"
                         onClick={() => setPage("import")}
                       >
-                        <Plus size={18} /> Spiele hinzufügen
+                        <Plus size={18} />
+                        {" " + t("Spiele hinzuf\u00FCgen")}
                       </button>
                     </div>
                     <button
@@ -753,7 +935,8 @@ function App() {
                         setSelected(null);
                       }}
                     >
-                      Mit Beispielspielen ansehen <ArrowRight size={15} />
+                      {t("Mit Beispielspielen ansehen") + " "}
+                      <ArrowRight size={15} />
                     </button>
                   </div>
                 </section>
@@ -762,12 +945,13 @@ function App() {
                 <div className="after-game">
                   <Check size={18} />
                   <span>
-                    Zurück in deiner Arcade. Wenn alles funktioniert hat, kannst
-                    du das Spiel in den Details als spielbar bestätigen.
+                    {t(
+                      "Zur\u00FCck in deiner Arcade. Wenn alles funktioniert hat, kannst du das Spiel in den Details als spielbar best\u00E4tigen.",
+                    )}
                   </span>
                   <button
                     onClick={() => setJustEnded(false)}
-                    aria-label="Hinweis schließen"
+                    aria-label={t("Hinweis schlie\u00DFen")}
                   >
                     <X size={16} />
                   </button>
@@ -775,19 +959,29 @@ function App() {
               )}
             </>
           )}
-          {page === "guns" && <GunStudio state={state} signal={gunSignal} send={send} test={test} busy={!!busy} results={testResults} />}
+          {page === "guns" && (
+            <GunStudio
+              state={state}
+              signal={gunSignal}
+              send={send}
+              test={test}
+              busy={!!busy}
+              results={testResults}
+            />
+          )}
           {page === "import" && (
             <>
               <div className="page-heading">
-                <div className="eyebrow">EINE GEMEINSAME BIBLIOTHEK</div>
+                <div className="eyebrow">{t("EINE GEMEINSAME BIBLIOTHEK")}</div>
                 <h1>
-                  Deine Spiele.
+                  {t("Deine Spiele.")}
                   <br />
-                  Ein Startpunkt.
+                  {t("Ein Startpunkt.")}
                 </h1>
                 <p>
-                  Wähle deine vorhandenen Installationen. Spieldateien bleiben
-                  an ihrem bisherigen Ort.
+                  {t(
+                    "W\u00E4hle deine vorhandenen Installationen. Spieldateien bleiben an ihrem bisherigen Ort.",
+                  )}
                 </p>
               </div>
               <div className="inline-actions">
@@ -797,16 +991,23 @@ function App() {
                   onClick={() => send("scan-installations")}
                 >
                   <Search size={20} />
-                  Installationen automatisch finden
+                  {t("Installationen automatisch finden")}
                 </button>
                 <button
                   className="secondary"
                   onClick={() => send("validate-library")}
                 >
                   <ShieldCheck size={18} />
-                  Bibliothek prüfen
+                  {t("Bibliothek pr\u00FCfen")}
                 </button>
-                <button className="secondary" disabled={!!busy} onClick={() => send("import-collection")}><FolderOpen size={18} /> Übergabepaket importieren</button>
+                <button
+                  className="secondary"
+                  disabled={!!busy}
+                  onClick={() => send("import-collection")}
+                >
+                  <FolderOpen size={18} />
+                  {" " + t("\u00DCbergabepaket importieren")}
+                </button>
               </div>
               {state.installations?.length > 0 && (
                 <div className="detected-list">
@@ -828,10 +1029,12 @@ function App() {
                             )
                           }
                         >
-                          Spiele importieren
+                          {t("Spiele importieren")}
                         </button>
                       ) : (
-                        <span>Programm gefunden · Spiele-Anbindung folgt</span>
+                        <span>
+                          {t("Programm gefunden \u00B7 Spiele-Anbindung folgt")}
+                        </span>
                       )}
                     </div>
                   ))}
@@ -840,27 +1043,33 @@ function App() {
               <div className="import-grid">
                 {action(
                   "TeknoParrot",
-                  "Vorhandene Lightgun-Spielprofile automatisch einlesen",
+                  t("Vorhandene Lightgun-Spielprofile automatisch einlesen"),
                   <Crosshair size={30} />,
                   () => send("import-tekno"),
                 )}
                 {action(
                   "MAME",
-                  "Lightgun-Titel aus dem Emulator-Katalog und deinen ROMs erkennen",
+                  t(
+                    "Lightgun-Titel aus dem Emulator-Katalog und deinen ROMs erkennen",
+                  ),
                   <Gamepad2 size={30} />,
                   () => send("import-mame"),
                 )}
                 {action(
-                  "Windows-Spiel",
-                  "Eine vorhandene Spielanwendung zur Bibliothek hinzufügen",
+                  t("Windows-Spiel"),
+                  t(
+                    "Eine vorhandene Spielanwendung zur Bibliothek hinzuf\u00FCgen",
+                  ),
                   <Monitor size={30} />,
                   () => send("add-pc"),
                 )}
                 {action(
-                  "Cover ergänzen",
+                  t("Cover erg\u00E4nzen"),
                   state.settings.hasCoverKey
-                    ? "Eindeutige Cover automatisch laden"
-                    : "Eigene Bilder verwenden oder API-Schlüssel hinterlegen",
+                    ? t("Eindeutige Cover automatisch laden")
+                    : t(
+                        "Eigene Bilder verwenden oder API-Schl\u00FCssel hinterlegen",
+                      ),
                   <ImageIcon size={30} />,
                   () =>
                     state.settings.hasCoverKey
@@ -869,13 +1078,13 @@ function App() {
                 )}
               </div>
               <div className="import-explainer">
-                <span className="eyebrow">WAS BEIM IMPORT PASSIERT</span>
+                <span className="eyebrow">{t("WAS BEIM IMPORT PASSIERT")}</span>
                 <div className="import-flow">
                   {[
-                    "Spiele finden",
-                    "Profil zuordnen",
-                    "Cover ergänzen",
-                    "Im Spiel prüfen",
+                    t("Spiele finden"),
+                    t("Profil zuordnen"),
+                    t("Cover erg\u00E4nzen"),
+                    t("Im Spiel pr\u00FCfen"),
                   ].map((title, i) => (
                     <div key={title}>
                       <b>0{i + 1}</b>
@@ -885,21 +1094,22 @@ function App() {
                   ))}
                 </div>
                 <p>
-                  TeknoParrot nutzt bereits angelegte UserProfiles. MAME liefert
-                  seine Lightgun-Liste selbst. Fehlende ROM-Bestandteile und
-                  Spieleinstellungen werden erst beim tatsächlichen Spieltest
-                  sichtbar.
+                  {t(
+                    "TeknoParrot nutzt bereits angelegte UserProfiles. MAME liefert seine Lightgun-Liste selbst. Fehlende ROM-Bestandteile und Spieleinstellungen werden erst beim tats\u00E4chlichen Spieltest sichtbar.",
+                  )}
                 </p>
               </div>
               <div className="coming-next">
-                <strong>Nächste Anbindungen</strong>
+                <strong>{t("N\u00E4chste Anbindungen")}</strong>
                 <span>
-                  DuckStation · PCSX2 · Dolphin · Flycast · Model 2 · Supermodel
-                  · Steam
+                  {t(
+                    "DuckStation \u00B7 PCSX2 \u00B7 Dolphin \u00B7 Flycast \u00B7 Model 2 \u00B7 Supermodel \u00B7 Steam",
+                  )}
                 </span>
                 <p>
-                  Diese Spiele-Anbindungen sind in Version 0.2 noch nicht
-                  implementiert.
+                  {t(
+                    "Eigene Importadapter für diese Systeme sind noch nicht implementiert. Vorhandene Startwege können über eine Sammlungsübergabe importiert werden.",
+                  )}
                 </p>
               </div>
             </>
@@ -907,18 +1117,56 @@ function App() {
           {page === "settings" && (
             <>
               <div className="page-heading">
-                <div className="eyebrow">DEIN ARCADE-PC</div>
+                <div className="eyebrow">{t("DEIN ARCADE-PC")}</div>
                 <h1>
-                  Einmal einstellen.
+                  {t("Einmal einstellen.")}
                   <br />
-                  Entspannt spielen.
+                  {t("Entspannt spielen.")}
                 </h1>
               </div>
               <section className="settings-panel">
+                <div className="setting-row language-setting">
+                  <div>
+                    <strong>{t("Sprache")}</strong>
+                    <p>{t("Für Oberfläche, Spielmenü und App-Meldungen.")}</p>
+                  </div>
+                  <div
+                    className="language-buttons"
+                    role="group"
+                    aria-label={t("Sprache")}
+                  >
+                    <button
+                      className={
+                        state.settings.language === "en"
+                          ? "primary"
+                          : "secondary"
+                      }
+                      aria-pressed={state.settings.language === "en"}
+                      onClick={() => send("set-language", { language: "en" })}
+                    >
+                      English
+                    </button>
+                    <button
+                      className={
+                        state.settings.language === "de"
+                          ? "primary"
+                          : "secondary"
+                      }
+                      aria-pressed={state.settings.language === "de"}
+                      onClick={() => send("set-language", { language: "de" })}
+                    >
+                      Deutsch
+                    </button>
+                  </div>
+                </div>
                 <div className="setting-row">
                   <div>
-                    <strong>Direkt im Vollbild starten</strong>
-                    <p>Große Oberfläche für deinen Bildschirm.</p>
+                    <strong>{t("Direkt im Vollbild starten")}</strong>
+                    <p>
+                      {t(
+                        "Gro\u00DFe Oberfl\u00E4che f\u00FCr deinen Bildschirm.",
+                      )}
+                    </p>
                   </div>
                   <button
                     className={
@@ -926,7 +1174,7 @@ function App() {
                     }
                     role="switch"
                     aria-checked={state.settings.fullscreen}
-                    aria-label="Vollbild"
+                    aria-label={t("Vollbild")}
                     onClick={() =>
                       send("fullscreen", {
                         enabled: !state.settings.fullscreen,
@@ -938,8 +1186,10 @@ function App() {
                 </div>
                 <div className="setting-row">
                   <div>
-                    <strong>Mit Windows starten</strong>
-                    <p>Öffnet die App nach deiner Windows-Anmeldung.</p>
+                    <strong>{t("Mit Windows starten")}</strong>
+                    <p>
+                      {t("\u00D6ffnet die App nach deiner Windows-Anmeldung.")}
+                    </p>
                   </div>
                   <button
                     className={
@@ -947,7 +1197,7 @@ function App() {
                     }
                     role="switch"
                     aria-checked={state.settings.startWithWindows}
-                    aria-label="Autostart mit Windows"
+                    aria-label={t("Autostart mit Windows")}
                     onClick={() =>
                       send("autostart", {
                         enabled: !state.settings.startWithWindows,
@@ -958,44 +1208,131 @@ function App() {
                   </button>
                 </div>
                 <div className="setting-block">
-                  <div className="setting-title"><ShieldCheck size={20} /><strong>Spiele und Emulatoren: benötigte Laufzeiten</strong></div>
-                  <p>Reaper prüft automatisch beim Öffnen, nach dem Import und vor dem Spielstart. Fehlende Visual-C++-, DirectX- und .NET-8/9/10-Laufzeiten werden passenden Microsoft-Paketen zugeordnet.</p>
-                  <div className="inline-actions">
-                    <button className="secondary" disabled={!!busy} onClick={() => send("check-dependencies")}><RefreshCw size={18}/> Jetzt prüfen</button>
-                    <button className="primary" disabled={!!busy || !state.dependencies?.packages.some(p => p.missing)} onClick={() => send("install-dependencies")}><Download size={18}/> Fehlende Pakete installieren</button>
+                  <div className="setting-title">
+                    <ShieldCheck size={20} />
+                    <strong>
+                      {t("Spiele und Emulatoren: ben\u00F6tigte Laufzeiten")}
+                    </strong>
                   </div>
-                  <p>Download und Signaturprüfung erfolgen automatisch. Im Microsoft-Installer bestätigst du die Lizenz und gegebenenfalls die Windows-Abfrage. Anschließend prüft Reaper erneut.</p>
-                  {state.dependencies && <>
-                    <p>{state.dependencies.checkedBinaries} Programme und lokale Bibliotheken geprüft · Stand {new Date(state.dependencies.time).toLocaleTimeString("de-DE")}</p>
-                    {state.dependencies.packages.map(p => <div className="setting-row" key={p.id}>
-                      <div><strong>{p.name}</strong><p>{p.games.slice(0, 4).join(" · ")}{p.games.length > 4 ? ` · und ${p.games.length - 4} weitere` : ""}</p>{p.missing && <p>Fehlt: {p.dlls.join(", ")}</p>}</div>
-                      <span className={"connection-tag " + (p.missing ? "" : "online")}>{p.missing ? "Installation nötig" : "Dateien vorhanden"}</span>
-                    </div>)}
-                    <p>Diese Prüfung erkennt bekannte Laufzeit-Dateien. Dynamisch geladene Komponenten, Treiber und einzelne Spielprofile benötigen zusätzlich einen Spieltest.</p>
-                    {state.dependencies.uncheckedCount > 0 && <details><summary>{state.dependencies.uncheckedCount} offene Dateizuordnungen anzeigen</summary><ul>{state.dependencies.uncheckedFiles.map((entry, i) => <li key={i}>{entry}</li>)}</ul></details>}
-                  </>}
+                  <p>
+                    {t(
+                      "Reaper pr\u00FCft automatisch beim \u00D6ffnen, nach dem Import und vor dem Spielstart. Fehlende Visual-C++-, DirectX- und .NET-8/9/10-Laufzeiten werden passenden Microsoft-Paketen zugeordnet.",
+                    )}
+                  </p>
+                  <div className="inline-actions">
+                    <button
+                      className="secondary"
+                      disabled={!!busy}
+                      onClick={() => send("check-dependencies")}
+                    >
+                      <RefreshCw size={18} />
+                      {" " + t("Jetzt pr\u00FCfen")}
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={
+                        !!busy ||
+                        !state.dependencies?.packages.some((p) => p.missing)
+                      }
+                      onClick={() => send("install-dependencies")}
+                    >
+                      <Download size={18} />
+                      {" " + t("Fehlende Pakete installieren")}
+                    </button>
+                  </div>
+                  <p>
+                    {t(
+                      "Download und Signaturpr\u00FCfung erfolgen automatisch. Im Microsoft-Installer best\u00E4tigst du die Lizenz und gegebenenfalls die Windows-Abfrage. Anschlie\u00DFend pr\u00FCft Reaper erneut.",
+                    )}
+                  </p>
+                  {state.dependencies && (
+                    <>
+                      <p>
+                        {state.dependencies.checkedBinaries}
+                        {" " +
+                          t(
+                            "Programme und lokale Bibliotheken gepr\u00FCft \u00B7 Stand",
+                          ) +
+                          " "}
+                        {new Date(state.dependencies.time).toLocaleTimeString(
+                          locale(),
+                        )}
+                      </p>
+                      {state.dependencies.packages.map((p) => (
+                        <div className="setting-row" key={p.id}>
+                          <div>
+                            <strong>{message(p.name)}</strong>
+                            <p>
+                              {p.games.slice(0, 4).join(" · ")}
+                              {p.games.length > 4
+                                ? t(
+                                    " \u00B7 und {0} weitere",
+                                    p.games.length - 4,
+                                  )
+                                : ""}
+                            </p>
+                            {p.missing && (
+                              <p>
+                                {t("Fehlt:") + " "}
+                                {p.dlls.join(", ")}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={
+                              "connection-tag " + (p.missing ? "" : "online")
+                            }
+                          >
+                            {p.missing
+                              ? t("Installation n\u00F6tig")
+                              : t("Dateien vorhanden")}
+                          </span>
+                        </div>
+                      ))}
+                      <p>
+                        {t(
+                          "Diese Pr\u00FCfung erkennt bekannte Laufzeit-Dateien. Dynamisch geladene Komponenten, Treiber und einzelne Spielprofile ben\u00F6tigen zus\u00E4tzlich einen Spieltest.",
+                        )}
+                      </p>
+                      {state.dependencies.uncheckedCount > 0 && (
+                        <details>
+                          <summary>
+                            {state.dependencies.uncheckedCount}
+                            {" " + t("offene Dateizuordnungen anzeigen")}
+                          </summary>
+                          <ul>
+                            {state.dependencies.uncheckedFiles.map(
+                              (entry, i) => (
+                                <li key={i}>{message(entry)}</li>
+                              ),
+                            )}
+                          </ul>
+                        </details>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="setting-block">
                   <div className="setting-title">
                     <ImageIcon size={20} />
-                    <strong>Automatische Spielecover</strong>
+                    <strong>{t("Automatische Spielecover")}</strong>
                     {state.settings.hasCoverKey && (
                       <span className="connection-tag online">
-                        Schlüssel gespeichert
+                        {t("Schl\u00FCssel gespeichert")}
                       </span>
                     )}
                   </div>
                   <p>
-                    Optionaler SteamGridDB-API-Schlüssel. Er wird unter deinem
-                    Windows-Benutzer verschlüsselt gespeichert. Alternativ
-                    kannst du jedem Spiel ein lokales Cover geben.
+                    {t(
+                      "Optionaler SteamGridDB-API-Schl\u00FCssel. Er wird unter deinem Windows-Benutzer verschl\u00FCsselt gespeichert. Alternativ kannst du jedem Spiel ein lokales Cover geben.",
+                    )}
                   </p>
                   <label className="key-entry">
                     <input
                       type="password"
                       autoComplete="off"
-                      placeholder="SteamGridDB-API-Schlüssel"
-                      aria-label="SteamGridDB API Schlüssel"
+                      placeholder={t("SteamGridDB-API-Schl\u00FCssel")}
+                      aria-label={t("SteamGridDB API Schl\u00FCssel")}
                       value={coverKey}
                       onChange={(e) => setCoverKey(e.target.value)}
                       onFocus={() => {
@@ -1009,7 +1346,7 @@ function App() {
                         setCoverKey("");
                       }}
                     >
-                      Speichern
+                      {t("Speichern")}
                     </button>
                   </label>
                   <div className="inline-actions">
@@ -1018,14 +1355,15 @@ function App() {
                       onClick={() => send("fetch-covers")}
                       disabled={!state.settings.hasCoverKey}
                     >
-                      <Download size={17} /> Fehlende Cover laden
+                      <Download size={17} />
+                      {" " + t("Fehlende Cover laden")}
                     </button>
                     {state.settings.hasCoverKey && (
                       <button
                         className="text-button"
                         onClick={() => send("set-cover-key", { key: "" })}
                       >
-                        Schlüssel entfernen
+                        {t("Schl\u00FCssel entfernen")}
                       </button>
                     )}
                   </div>
@@ -1033,28 +1371,34 @@ function App() {
                 <div className="setting-block">
                   <div className="setting-title">
                     <Info size={20} />
-                    <strong>Diagnose für den ersten Windows-Test</strong>
+                    <strong>
+                      {t("Diagnose f\u00FCr den ersten Windows-Test")}
+                    </strong>
                   </div>
                   <p>
-                    Speichert Gerätekennungen, Zuordnungen und Spielezustände.
-                    API-Schlüssel werden nicht exportiert.
+                    {t(
+                      "Speichert Ger\u00E4tekennungen, Zuordnungen und Spielezust\u00E4nde. API-Schl\u00FCssel werden nicht exportiert.",
+                    )}
                   </p>
                   <button
                     className="secondary"
                     onClick={() => send("export-diagnostics")}
                   >
-                    <Download size={17} /> Diagnose speichern
+                    <Download size={17} />
+                    {" " + t("Diagnose speichern")}
                   </button>
                 </div>
               </section>
               <div className="setup-note">
                 <Keyboard size={22} />
                 <div>
-                  <strong>Mit der Gun zurück zum Menü oder zu Windows</strong>
+                  <strong>
+                    {t("Mit der Gun zur\u00FCck zum Men\u00FC oder zu Windows")}
+                  </strong>
                   <p>
-                    Auf der zugeordneten Gun Start + Münze für etwa zwei
-                    Sekunden halten. Spieler 1: Tasten 1 + 5, Spieler 2: 2 + 6.
-                    Im Spiel führt das zurück ins Menü. Abzug mindestens 10 Sekunden halten öffnet das Spielmenü mit Neustart, Beenden und Tastenübersicht. Danach den Abzug loslassen. Dort beide Start-/Münztasten loslassen und erneut halten, um die App zu schließen. Der Knopf „App schließen · Windows“ bleibt auch bei Dialogen und laufenden Prüfungen sichtbar. Mit einer Tastatur: F10 Spielmenü, F12 Spiel beenden.
+                    {t(
+                      "Auf der zugeordneten Gun Start + M\u00FCnze f\u00FCr etwa zwei Sekunden halten. Spieler 1: Tasten 1 + 5, Spieler 2: 2 + 6. Im Spiel f\u00FChrt das zur\u00FCck ins Men\u00FC. Abzug mindestens 10 Sekunden halten \u00F6ffnet das Spielmen\u00FC mit Neustart, Beenden und Tasten\u00FCbersicht. Danach den Abzug loslassen. Dort beide Start-/M\u00FCnztasten loslassen und erneut halten, um die App zu schlie\u00DFen. Der Knopf \u201EApp schlie\u00DFen \u00B7 Windows\u201C bleibt auch bei Dialogen und laufenden Pr\u00FCfungen sichtbar. Mit einer Tastatur: F10 Spielmen\u00FC, F12 Spiel beenden.",
+                    )}
                   </p>
                 </div>
               </div>
@@ -1066,28 +1410,33 @@ function App() {
             <b>
               <Crosshair size={14} />
             </b>{" "}
-            Zielen & Abzug: auswählen
+            {t("Zielen & Abzug: ausw\u00E4hlen")}
           </span>
           <span>
-            <b>↔</b> Stick: navigieren
+            <b>↔</b>
+            {" " + t("Stick: navigieren")}
           </span>
           <span>
-            <b>↩</b> Zurück: eine Ebene zurück
+            <b>↩</b>
+            {" " + t("Zur\u00FCck: eine Ebene zur\u00FCck")}
           </span>
-          <span className="footer-right">MADE FOR YOUR GAME ROOM</span>
+          <span className="footer-right">{t("MADE FOR YOUR GAME ROOM")}</span>
         </footer>
       </div>
       {busy && (
         <div className="busy-bar" role="status">
           <RefreshCw size={17} />
-          {busy}
+          {message(busy)}
         </div>
       )}
       {toast && (
         <div className="toast" role="status">
           <Info size={19} />
-          <span>{toast}</span>
-          <button onClick={() => setToast("")} aria-label="Hinweis schließen">
+          <span>{message(toast)}</span>
+          <button
+            onClick={() => setToast("")}
+            aria-label={t("Hinweis schlie\u00DFen")}
+          >
             <X size={17} />
           </button>
         </div>
@@ -1099,7 +1448,10 @@ function App() {
           aria-hidden="true"
         >
           <Crosshair size={30} />
-          <span>P{aim.player}</span>
+          <span>
+            {t("P")}
+            {aim.player}
+          </span>
         </div>
       )}
       {state.bindingStage && (
@@ -1108,33 +1460,39 @@ function App() {
             className="modal bind-modal"
             role="dialog"
             aria-modal="true"
-            aria-label="Gun zuordnen"
+            aria-label={t("Gun zuordnen")}
           >
             <span className="eyebrow">
-              SPIELER {state.bindingStage.player} ZUORDNEN
+              {t("SPIELER") + " "}
+              {state.bindingStage.player}
+              {" " + t("ZUORDNEN")}
             </span>
             <Crosshair className="bind-icon" size={66} />
             <h2>
               {state.bindingStage.stage === "trigger"
-                ? "Drücke den Abzug."
-                : "Drücke jetzt Start."}
+                ? t("Dr\u00FCcke den Abzug.")
+                : t("Dr\u00FCcke jetzt Start.")}
             </h2>
             <p>
               {state.bindingStage.stage === "trigger"
-                ? "Nimm die Gun für diesen Spieler und schieße einmal. So erkennen wir ihren eigenen Zieleingang."
-                : "Drücke die Start-Taste an derselben Gun. Damit ordnen wir auch ihren Tasteneingang zu."}
+                ? t(
+                    "Nimm die Gun f\u00FCr diesen Spieler und schie\u00DFe einmal. So erkennen wir ihren eigenen Zieleingang.",
+                  )
+                : t(
+                    "Dr\u00FCcke die Start-Taste an derselben Gun. Damit ordnen wir auch ihren Tasteneingang zu.",
+                  )}
             </p>
             <div className="wizard-progress">
-              <span className="done">1 · Zieleingang</span>
+              <span className="done">{t("1 \u00B7 Zieleingang")}</span>
               <ChevronRight size={16} />
               <span
                 className={state.bindingStage.stage === "start" ? "done" : ""}
               >
-                2 · Tasten
+                {t("2 \u00B7 Tasten")}
               </span>
             </div>
             <button className="secondary" onClick={() => send("cancel-bind")}>
-              Abbrechen
+              {t("Abbrechen")}
             </button>
           </section>
         </div>
@@ -1147,66 +1505,93 @@ function App() {
             role="dialog"
             aria-modal="true"
             aria-label={
-              modal.type === "report" ? "Importergebnis" : modal.game.title
+              modal.type === "report" ? t("Importergebnis") : modal.game.title
             }
           >
             <button
               className="modal-close"
               onClick={() => setModal(null)}
-              aria-label="Dialog schließen"
+              aria-label={t("Dialog schlie\u00DFen")}
             >
               <X size={22} />
             </button>
             {modal.type === "report" ? (
               <>
-                <span className="eyebrow">{modal.validation ? "BIBLIOTHEK GEPRÜFT" : "IMPORT ABGESCHLOSSEN"}</span>
-                <h2>{modal.count} Spiele {modal.validation ? "mit vorhandenen Startdateien" : "eingelesen"}.</h2>
+                <span className="eyebrow">
+                  {modal.validation
+                    ? t("BIBLIOTHEK GEPR\u00DCFT")
+                    : t("IMPORT ABGESCHLOSSEN")}
+                </span>
+                <h2>
+                  {modal.count}
+                  {" " + t("Spiele") + " "}
+                  {modal.validation
+                    ? t("mit vorhandenen Startdateien")
+                    : t("eingelesen")}
+                  .
+                </h2>
                 <p>
-                  {modal.validation ? "Die Startdateien wurden geprüft. Zielen und Tasten bestätigst du nach einem echten Spieltest." : "Vorhandene Einträge wurden aktualisiert. Favoriten und eigene Cover bleiben erhalten."}
+                  {modal.validation
+                    ? t(
+                        "Die Startdateien wurden gepr\u00FCft. Zielen und Tasten best\u00E4tigst du nach einem echten Spieltest.",
+                      )
+                    : t(
+                        "Vorhandene Eintr\u00E4ge wurden aktualisiert. Favoriten und eigene Cover bleiben erhalten.",
+                      )}
                 </p>
                 {modal.warnings.length > 0 && (
                   <details>
-                    <summary>{modal.warnings.length} Hinweise ansehen</summary>
+                    <summary>
+                      {modal.warnings.length}
+                      {" " + t("Hinweise ansehen")}
+                    </summary>
                     <ul className="warning-list">
                       {modal.warnings.map((w, i) => (
-                        <li key={i}>{w}</li>
+                        <li key={i}>{message(w)}</li>
                       ))}
                     </ul>
                   </details>
                 )}
                 <button className="primary" onClick={() => setModal(null)}>
-                  Zur Bibliothek <ArrowRight size={18} />
+                  {t("Zur Bibliothek") + " "}
+                  <ArrowRight size={18} />
                 </button>
               </>
             ) : modal.type === "launch" ? (
               <>
                 <span className="eyebrow">
-                  {modal.game.platform.toUpperCase()} · ERSTER START
+                  {modal.game.platform.toUpperCase()}
+                  {" " + t("\u00B7 ERSTER START")}
                 </span>
                 <h2>{modal.game.title}</h2>
                 <p>
-                  Die App startet dein gespeichertes Profil. Ob Zielen, Tasten,
-                  Pedal und zwei Spieler im Spiel funktionieren, prüfen wir auf
-                  deinem PC.
+                  {t(
+                    "Die App startet dein gespeichertes Profil. Ob Zielen, Tasten, Pedal und zwei Spieler im Spiel funktionieren, pr\u00FCfen wir auf deinem PC.",
+                  )}
                 </p>
                 <div className="launch-checks">
                   <span>
-                    <Check size={16} /> Vorhandenen Starter verwenden
+                    <Check size={16} />
+                    {" " + t("Vorhandenen Starter verwenden")}
                   </span>
                   <span>
-                    <Check size={16} /> RS3-Bildformat setzen, wenn ein COM-Port
-                    zugeordnet ist
+                    <Check size={16} />
+                    {" " +
+                      t(
+                        "RS3-Bildformat setzen, wenn ein COM-Port zugeordnet ist",
+                      )}
                   </span>
                   <span>
-                    <Check size={16} /> Nach Spielende ins Menü zurückkehren
+                    <Check size={16} />
+                    {" " + t("Nach Spielende ins Men\u00FC zur\u00FCckkehren")}
                   </span>
                 </div>
                 <div className="exit-reminder">
                   <Keyboard size={19} />
                   <span>
-                    Abzug mindestens 10 Sekunden halten: Spielmenü mit Neustart,
-                    Beenden und Tastenübersicht. Danach loslassen. Start + Münze etwa
-                    2 Sekunden: direkt beenden. Tastatur: F10 Menü · F12 beenden.
+                    {t(
+                      "Abzug mindestens 10 Sekunden halten: Spielmen\u00FC mit Neustart, Beenden und Tasten\u00FCbersicht. Danach loslassen. Start + M\u00FCnze etwa 2 Sekunden: direkt beenden. Tastatur: F10 Men\u00FC \u00B7 F12 beenden.",
+                    )}
                   </span>
                 </div>
                 <button
@@ -1216,7 +1601,8 @@ function App() {
                     setModal(null);
                   }}
                 >
-                  <Play size={18} /> Jetzt starten
+                  <Play size={18} />
+                  {" " + t("Jetzt starten")}
                 </button>
               </>
             ) : (
@@ -1227,22 +1613,60 @@ function App() {
                 </span>
                 <h2>{modal.game.title}</h2>
                 <div className="detail-actions">
-                  <button className="primary" disabled={modal.game.status === "needs-setup"} onClick={() => start(modal.game)}>
-                    <Play size={18} /> Spiel starten
+                  <button
+                    className="primary"
+                    disabled={modal.game.status === "needs-setup"}
+                    onClick={() => start(modal.game)}
+                  >
+                    <Play size={18} />
+                    {" " + t("Spiel starten")}
                   </button>
                   <button
                     className="secondary"
                     onClick={() => send("favorite", { id: modal.game.id })}
                   >
-                    <Heart size={17} /> Favorit umschalten
+                    <Heart size={17} />
+                    {" " + t("Favorit umschalten")}
                   </button>
                 </div>
-                {(modal.game.setupIssues?.length ?? 0) > 0 && <div className="setup-issues"><strong>Vor dem Start fehlt noch:</strong><ul>{modal.game.setupIssues?.map(issue => <li key={issue}>{issue}</li>)}</ul></div>}
-                {modal.game.players && <p>Spieler laut Spiel: {modal.game.players}. Zwei eingerichtete Guns sind noch separat zu prüfen.</p>}
-                {modal.game.setupNotes && <details><summary>Einrichtung und Helfer</summary><p className="technical">{modal.game.setupNotes}</p></details>}
-                <details><summary>Gespeicherter Startweg</summary><p className="technical">{modal.game.executable}<br />{modal.game.arguments.join(" ")}<br />Arbeitsordner: {modal.game.workingDirectory}</p></details>
+                {(modal.game.setupIssues?.length ?? 0) > 0 && (
+                  <div className="setup-issues">
+                    <strong>{t("Vor dem Start fehlt noch:")}</strong>
+                    <ul>
+                      {modal.game.setupIssues?.map((issue) => (
+                        <li key={issue}>{message(issue)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {modal.game.players && (
+                  <p>
+                    {t("Spieler laut Spiel:") + " "}
+                    {modal.game.players}
+                    {t(
+                      ". Zwei eingerichtete Guns sind noch separat zu pr\u00FCfen.",
+                    )}
+                  </p>
+                )}
+                {modal.game.setupNotes && (
+                  <details>
+                    <summary>{t("Einrichtung und Helfer")}</summary>
+                    <p className="technical">{modal.game.setupNotes}</p>
+                  </details>
+                )}
+                <details>
+                  <summary>{t("Gespeicherter Startweg")}</summary>
+                  <p className="technical">
+                    {modal.game.executable}
+                    <br />
+                    {modal.game.arguments.join(" ")}
+                    <br />
+                    {t("Arbeitsordner:") + " "}
+                    {modal.game.workingDirectory}
+                  </p>
+                </details>
                 <div className="setting-row">
-                  <strong>Bildformat der Gun</strong>
+                  <strong>{t("Bildformat der Gun")}</strong>
                   <div className="segmented">
                     {["16:9", "4:3"].map((aspect) => (
                       <button
@@ -1266,7 +1690,8 @@ function App() {
                     className="secondary"
                     onClick={() => send("add-cover", { id: modal.game.id })}
                   >
-                    <ImageIcon size={17} /> Eigenes Cover wählen
+                    <ImageIcon size={17} />
+                    {" " + t("Eigenes Cover w\u00E4hlen")}
                   </button>
                   <button
                     className="secondary"
@@ -1276,12 +1701,14 @@ function App() {
                       setModal(null);
                     }}
                   >
-                    <Check size={17} /> Als spielbar bestätigen
+                    <Check size={17} />
+                    {" " + t("Als spielbar best\u00E4tigen")}
                   </button>
                 </div>
                 <p className="detail-note">
-                  „Spielbar bestätigt“ bedeutet, dass du das Spiel mit deinem
-                  Setup geprüft hast.
+                  {t(
+                    "\u201ESpielbar best\u00E4tigt\u201C bedeutet, dass du das Spiel mit deinem Setup gepr\u00FCft hast.",
+                  )}
                 </p>
                 <button
                   className="text-button danger"
@@ -1290,7 +1717,7 @@ function App() {
                     setModal(null);
                   }}
                 >
-                  Aus Bibliothek entfernen
+                  {t("Aus Bibliothek entfernen")}
                 </button>
               </>
             )}
@@ -1302,27 +1729,31 @@ function App() {
           className="target-test"
           role="dialog"
           aria-modal="true"
-          aria-label="Zieltest"
+          aria-label={t("Zieltest")}
         >
           <div className="target-test-header">
             <div>
               <span className="eyebrow">
-                SPIELER {modal.player} ·{" "}
-                {state.native ? "EINGABETEST" : "BEDIENPROBE"}
+                {t("SPIELER") + " "}
+                {modal.player} ·{" "}
+                {state.native ? t("EINGABETEST") : t("BEDIENPROBE")}
               </span>
               <h2>
                 {testStep < 5
-                  ? "Triff das leuchtende Ziel."
-                  : "Fünf Ziele getroffen."}
+                  ? t("Triff das leuchtende Ziel.")
+                  : t("F\u00FCnf Ziele getroffen.")}
               </h2>
               <p>
                 {state.native
-                  ? "Nur Eingaben der zugeordneten Gun werden gewertet."
-                  : "Vorschau mit Maus oder Touch — keine Geräteprüfung."}
+                  ? t("Nur Eingaben der zugeordneten Gun werden gewertet.")
+                  : t(
+                      "Vorschau mit Maus oder Touch \u2014 keine Ger\u00E4tepr\u00FCfung.",
+                    )}
               </p>
             </div>
             <button className="secondary" onClick={() => setModal(null)}>
-              <X size={18} /> Beenden
+              <X size={18} />
+              {" " + t("Beenden")}
             </button>
           </div>
           {testStep < 5 ? (
@@ -1332,7 +1763,7 @@ function App() {
                 left: targets[testStep][0] * 100 + "%",
                 top: targets[testStep][1] * 100 + "%",
               }}
-              aria-label={`Ziel ${testStep + 1}`}
+              aria-label={t("Ziel {0}", testStep + 1)}
               onClick={() => {
                 if (!state.native)
                   handleShot(
@@ -1350,38 +1781,44 @@ function App() {
               <Check size={65} />
               <h2>
                 {state.native
-                  ? "Eingabetest abgeschlossen."
-                  : "Bedienprobe abgeschlossen."}
+                  ? t("Eingabetest abgeschlossen.")
+                  : t("Bedienprobe abgeschlossen.")}
               </h2>
               <p>
-                Größte Abweichung der angenommenen Treffer:{" "}
-                {Math.round(Math.max(...testErrors, 0))} px
+                {t("Gr\u00F6\u00DFte Abweichung der angenommenen Treffer:")}{" "}
+                {Math.round(Math.max(...testErrors, 0))}
+                {" " + t("px")}
                 <br />
-                {testMisses} Schüsse außerhalb des Zielbereichs.
+                {testMisses}
+                {" " + t("Sch\u00FCsse au\u00DFerhalb des Zielbereichs.")}
               </p>
               <p>
-                Dieser Test bestätigt keine Firmwarekalibrierung und misst keine
-                Eingabelatenz.
+                {t(
+                  "Dieser Test best\u00E4tigt keine Firmwarekalibrierung und misst keine Eingabelatenz.",
+                )}
               </p>
               <button className="primary" onClick={() => setModal(null)}>
-                Zurück zu meinen Guns
+                {t("Zur\u00FCck zu meinen Guns")}
               </button>
             </div>
           )}
           <div className="target-progress" aria-live="polite">
-            {testStep} / 5 Ziele · {testMisses} Fehlschüsse
+            {testStep}
+            {" " + t("/ 5 Ziele \u00B7") + " "}
+            {testMisses}
+            {" " + t("Fehlsch\u00FCsse")}
           </div>
         </div>
       )}
       {session && (
         <div className="session-banner">
           <Gamepad2 size={20} />
-          <span>Ein Spiel läuft.</span>
+          <span>{t("Ein Spiel l\u00E4uft.")}</span>
           <button className="secondary" onClick={() => send("show-overlay")}>
-            Spielmenü öffnen
+            {t("Spielmen\u00FC \u00F6ffnen")}
           </button>
           <button className="secondary" onClick={() => send("end-game")}>
-            Spiel beenden
+            {t("Spiel beenden")}
           </button>
         </div>
       )}
@@ -1389,7 +1826,9 @@ function App() {
       {keyboard && (
         <ArcadeKeyboard
           title={
-            keyboard === "search" ? "Spiel suchen" : "Cover-Schlüssel eingeben"
+            keyboard === "search"
+              ? t("Spiel suchen")
+              : t("Cover-Schl\u00FCssel eingeben")
           }
           initial={keyboard === "search" ? search : coverKey}
           secret={keyboard === "cover"}

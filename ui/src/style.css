@@ -2278,3 +2278,6 @@ main {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   background: #262d3a; border: 1px solid #687389; color: white;
 }
+
+.language-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+.language-setting { gap: 24px; flex-wrap: wrap; }

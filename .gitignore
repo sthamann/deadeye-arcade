@@ -5,3 +5,6 @@ ui/dist/
 release/
 .DS_Store
 *.user
+
+# Local build, recording and migration scratch files
+/work/

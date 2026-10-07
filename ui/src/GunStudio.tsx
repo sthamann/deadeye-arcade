@@ -1,3 +1,4 @@
+import { t, message } from "./i18n";
 import { useEffect, useState } from "react";
 import {
   Check,
@@ -12,44 +13,43 @@ import {
 } from "lucide-react";
 import type { State, GunSignal } from "./types";
 import "./gun-studio.css";
-
-const models = [
+const models = () => [
   {
     id: "rs3",
-    name: "RS3 Reaper Pro",
-    connection: "USB · 4 IR-Punkte",
-    software: "Windows HID · kein Sondertreiber",
+    name: t("RS3 Reaper Pro"),
+    connection: t("USB \u00B7 4 IR-Punkte"),
+    software: t("Windows HID \u00B7 kein Sondertreiber"),
   },
   {
     id: "sinden",
-    name: "Sinden Lightgun",
-    connection: "USB · Kamera & Bildschirmrand",
-    software: "Sinden Software 2.08b",
+    name: t("Sinden Lightgun"),
+    connection: t("USB \u00B7 Kamera & Bildschirmrand"),
+    software: t("Sinden Software 2.08b"),
   },
   {
     id: "xgunner",
-    name: "X-Gunner Wireless",
-    connection: "2,4 GHz · USB-Empfänger",
-    software: "X-Gunner Config V260808",
+    name: t("X-Gunner Wireless"),
+    connection: t("2,4 GHz \u00B7 USB-Empf\u00E4nger"),
+    software: t("X-Gunner Config V260808"),
   },
   {
     id: "blamcon",
-    name: "Blamcon Vyper",
-    connection: "USB · IR-Tracking",
-    software: "Blamcon ARC über Steam",
+    name: t("Blamcon Vyper"),
+    connection: t("USB \u00B7 IR-Tracking"),
+    software: t("Blamcon ARC \u00FCber Steam"),
   },
 ];
-const actions: Record<string, string> = {
-  shoot: "Abzug / Schießen",
-  reload: "Nachladen / Zurück",
-  secondary: "Zweite Aktion",
-  start: "Start / Bestätigen",
-  coin: "Münze",
-  up: "Nach oben",
-  down: "Nach unten",
-  left: "Nach links",
-  right: "Nach rechts",
-};
+const actions = (): Record<string, string> => ({
+  shoot: t("Abzug / Schie\u00DFen"),
+  reload: t("Nachladen / Zur\u00FCck"),
+  secondary: t("Zweite Aktion"),
+  start: t("Start / Best\u00E4tigen"),
+  coin: t("M\u00FCnze"),
+  up: t("Nach oben"),
+  down: t("Nach unten"),
+  left: t("Nach links"),
+  right: t("Nach rechts"),
+});
 const points: Record<string, [number, number]> = {
   shoot: [254, 159],
   reload: [308, 121],
@@ -72,10 +72,16 @@ const defaultMap = (player: number): Record<string, string> => ({
   "key:87": "left",
   "key:88": "right",
 });
-function tokenLabel(t: string) {
-  return t.startsWith("mouse:")
-    ? `Maustaste ${t.slice(6)}`
-    : `Taste ${t.slice(4)}${+t.slice(4) >= 48 && +t.slice(4) <= 90 ? " · " + String.fromCharCode(+t.slice(4)) : ""}`;
+function tokenLabel(token: string) {
+  return token.startsWith("mouse:")
+    ? t("Maustaste {0}", token.slice(6))
+    : t(
+        "Taste {0}{1}",
+        token.slice(4),
+        +token.slice(4) >= 48 && +token.slice(4) <= 90
+          ? " · " + String.fromCharCode(+token.slice(4))
+          : "",
+      );
 }
 export function GunShape({
   model = "rs3",
@@ -94,7 +100,9 @@ export function GunShape({
       viewBox="0 0 560 270"
       role="img"
       aria-label={
-        mini ? "Lightgun-Silhouette" : "Schematische Lightgun mit Live-Tasten"
+        mini
+          ? t("Lightgun-Silhouette")
+          : t("Schematische Lightgun mit Live-Tasten")
       }
     >
       <defs>
@@ -105,7 +113,7 @@ export function GunShape({
         </linearGradient>
       </defs>
       <g
-        fill={`url(#metal-${model})`}
+        fill={t("url(#metal-{0})", model)}
         stroke="currentColor"
         strokeWidth={mini ? 5 : 2}
         strokeLinejoin="round"
@@ -154,13 +162,13 @@ export function GunShape({
             strokeDasharray="4 5"
           />
           <text x="108" y="224" fill="#a5b3c7" fontSize="11">
-            ABZUG
+            {t("ABZUG")}
           </text>
           <text x="437" y="46" fill="#a5b3c7" fontSize="11">
-            START / COIN
+            {t("START / COIN")}
           </text>
           <text x="104" y="38" fill="#a5b3c7" fontSize="11">
-            AKTIONEN
+            {t("AKTIONEN")}
           </text>
         </>
       )}
@@ -184,13 +192,17 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
     <button
       className="gun-header"
       onClick={open}
-      aria-label="Lightguns einrichten"
+      aria-label={t("Lightguns einrichten")}
     >
       <span className="gun-header-count">
         <b>
-          {count} {count === 1 ? "Gun" : "Guns"} erkannt
+          {count} {count === 1 ? "Gun" : "Guns"}
+          {" " + t("erkannt")}
         </b>
-        <small>{configured} softwareseitig eingerichtet</small>
+        <small>
+          {configured}
+          {" " + t("softwareseitig eingerichtet")}
+        </small>
       </span>
       {[1, 2].map((p) => {
         const binding = state.bindings.find((b) => b.player === p);
@@ -205,24 +217,27 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
             key={p}
             className={"header-player " + (okay ? "online" : "offline")}
           >
-            <b>P{p}</b>
+            <b>
+              {t("P")}
+              {p}
+            </b>
             <GunShape model={gun?.systemId ?? binding?.systemId} mini />
             <span>
               <strong>
                 {gun
-                  ? models.find((m) => m.id === gun.systemId)?.name
-                  : "Keine Gun"}
+                  ? models().find((m) => m.id === gun.systemId)?.name
+                  : t("Keine Gun")}
               </strong>
               <small>
                 {!gun
-                  ? "Nicht verbunden"
+                  ? t("Nicht verbunden")
                   : gun.systemId === "xgunner" && !state.gunSignals?.[gun.id]
-                    ? "Empfänger da · Gun prüfen"
+                    ? t("Empf\u00E4nger da \u00B7 Gun pr\u00FCfen")
                     : state.gunIssues?.[gun.id]
-                      ? "Einrichtung prüfen"
+                      ? t("Einrichtung pr\u00FCfen")
                       : binding?.softwareConfigured
-                        ? "Software bereit · Zieltest offen"
-                        : "Einrichtung offen"}
+                        ? t("Software bereit \u00B7 Zieltest offen")
+                        : t("Einrichtung offen")}
               </small>
             </span>
           </span>
@@ -244,7 +259,13 @@ export function GunStudio({
   send: (type: string, payload?: unknown) => void;
   test: (p: number) => void;
   busy: boolean;
-  results: Record<number, { max: number; at: string }>;
+  results: Record<
+    number,
+    {
+      max: number;
+      at: string;
+    }
+  >;
 }) {
   const [player, setPlayer] = useState(1);
   const binding = state.bindings.find((b) => b.player === player);
@@ -275,7 +296,7 @@ export function GunStudio({
     (g) => g.id === binding?.physicalId || g.mouseId === binding?.mouseId,
   );
   const online = !!gun;
-  const selected = models.find((m) => m.id === model)!;
+  const selected = models().find((m) => m.id === model)!;
   const map = binding?.buttonMap ?? defaultMap(player);
   const pressed = new Set(
     Object.keys(held)
@@ -297,9 +318,13 @@ export function GunStudio({
     <div className="gun-studio">
       <div className="studio-heading">
         <div>
-          <div className="eyebrow">LIGHTGUN STUDIO</div>
-          <h1>Deine Gun. Dein Setup.</h1>
-          <p>Einstecken, erkennen, Tasten ausprobieren – alles an einem Ort.</p>
+          <div className="eyebrow">{t("LIGHTGUN STUDIO")}</div>
+          <h1>{t("Deine Gun. Dein Setup.")}</h1>
+          <p>
+            {t(
+              "Einstecken, erkennen, Tasten ausprobieren \u2013 alles an einem Ort.",
+            )}
+          </p>
         </div>
         <button
           className="secondary"
@@ -307,11 +332,11 @@ export function GunStudio({
           onClick={() => send("refresh")}
         >
           <RefreshCw size={18} />
-          Neu erkennen
+          {t("Neu erkennen")}
         </button>
       </div>
       <div className="system-cards">
-        {models.map((m) => (
+        {models().map((m) => (
           <button
             key={m.id}
             className={"system-card " + (model === m.id ? "selected" : "")}
@@ -335,15 +360,16 @@ export function GunStudio({
                 className={player === p ? "selected" : ""}
                 onClick={() => setPlayer(p)}
               >
-                P{p}
+                {t("P")}
+                {p}
                 <small>
                   {state.bindings.some(
                     (b) =>
                       b.player === p &&
                       (state.guns ?? []).some((g) => g.id === b.physicalId),
                   )
-                    ? "Verbunden"
-                    : "Nicht verbunden"}
+                    ? t("Verbunden")
+                    : t("Nicht verbunden")}
                 </small>
               </button>
             ))}
@@ -356,14 +382,14 @@ export function GunStudio({
             <span className="status-led" />
             {sameModel
               ? `${gun?.name} · ${gun?.port ?? "USB"}`
-              : `${selected.name} · Kein zugeordnetes Gerät`}
+              : t("{0} \u00B7 Kein zugeordnetes Ger\u00E4t", selected.name)}
           </div>
         </div>
         <div className="studio-tabs">
           {[
-            ["buttons", "Tasten & Live-Eingabe"],
-            ["feedback", "Rückstoß & Vibration"],
-            ["setup", "Einrichtung & Prüfung"],
+            ["buttons", t("Tasten & Live-Eingabe")],
+            ["feedback", t("R\u00FCcksto\u00DF & Vibration")],
+            ["setup", t("Einrichtung & Pr\u00FCfung")],
           ].map(([id, name]) => (
             <button
               key={id}
@@ -379,13 +405,13 @@ export function GunStudio({
             <div className="gun-live-panel">
               <div className="live-heading">
                 <span className={"status-led " + (last ? "active" : "")} />
-                <b>LIVE INPUT</b>
+                <b>{t("LIVE INPUT")}</b>
                 <small>
                   {sameModel
                     ? gun?.liveInputAvailable
-                      ? "Direkter Gun-Eingang"
-                      : "USB erkannt · Eingabetest lokal"
-                    : "Wartet auf diese Gun"}
+                      ? t("Direkter Gun-Eingang")
+                      : t("USB erkannt \u00B7 Eingabetest lokal")
+                    : t("Wartet auf diese Gun")}
                 </small>
               </div>
               <GunShape
@@ -399,41 +425,44 @@ export function GunStudio({
                 <Crosshair size={18} />
                 <span>
                   {sameModel && last
-                    ? `Letzter Tastendruck: ${last}`
-                    : "Betätige eine Taste an deiner Gun."}
+                    ? t("Letzter Tastendruck: {0}", last)
+                    : t("Bet\u00E4tige eine Taste an deiner Gun.")}
                 </span>
               </div>
               <p className="studio-caption">
-                Schematische Ansicht. Die beleuchteten Punkte zeigen empfangene
-                Tastenaktionen; die genaue Lage kann je nach Modell abweichen.
+                {t(
+                  "Schematische Ansicht. Die beleuchteten Punkte zeigen empfangene Tastenaktionen; die genaue Lage kann je nach Modell abweichen.",
+                )}
               </p>
               <div className="live-stats">
                 <span>
                   <b>
                     {sameModel ? Object.values(seen).filter(Boolean).length : 0}
                   </b>
-                  Tasten gesehen
+                  {t("Tasten gesehen")}
                 </span>
                 <span>
                   <b>{sameModel ? (gun?.inputIds.length ?? 0) : 0}</b>
-                  USB-Eingänge / eine Gun
+                  {t("USB-Eing\u00E4nge / eine Gun")}
                 </span>
                 <span>
                   <b>
                     {sameModel && binding?.softwareConfigured
-                      ? "Bereit"
-                      : "Offen"}
+                      ? t("Bereit")
+                      : t("Offen")}
                   </b>
-                  Software-Einrichtung
+                  {t("Software-Einrichtung")}
                 </span>
               </div>
             </div>
             <div className="mapping-panel">
-              <h2>Was macht welcher Knopf?</h2>
+              <h2>{t("Was macht welcher Knopf?")}</h2>
               <p>
-                Aktion wählen, dann die gewünschte Taste an der Gun drücken.
+                {t(
+                  "Aktion w\u00E4hlen, dann die gew\u00FCnschte Taste an der Gun dr\u00FCcken.",
+                )}
               </p>
-              {Object.entries(actions).map(([action, title]) => {
+              {Object.entries(actions()).map(([action, title]) => {
                 const tokens = Object.keys(map).filter(
                   (k) => map[k] === action,
                 );
@@ -458,14 +487,15 @@ export function GunStudio({
                     <span>
                       <strong>{title}</strong>
                       <small>
-                        {tokens.map(tokenLabel).join(" / ") || "Nicht belegt"}
+                        {tokens.map(tokenLabel).join(" / ") ||
+                          t("Nicht belegt")}
                       </small>
                     </span>
                     <span className="mapping-change">
                       {state.learning?.action === action &&
                       state.learning.player === player
-                        ? "Taste drücken …"
-                        : "Belegen"}
+                        ? t("Taste dr\u00FCcken \u2026")
+                        : t("Belegen")}
                       <ArrowRight size={15} />
                     </span>
                   </button>
@@ -477,21 +507,20 @@ export function GunStudio({
                   onClick={() => send("cancel-learn")}
                 >
                   <X size={16} />
-                  Belegung abbrechen
+                  {t("Belegung abbrechen")}
                 </button>
               )}
               <p className="studio-caption">
-                Diese Belegung steuert das Reaper-Menü. MAME übernimmt die
-                unterstützten Spielaktionen beim Start; weitere Emulatoren
-                verwenden ihre eigenen Profile. Start + Coin halten bleibt der
-                unabhängige Notausgang.
+                {t(
+                  "Diese Belegung steuert das Reaper-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Start + Coin halten bleibt der unabh\u00E4ngige Notausgang.",
+                )}
               </p>
               <button
                 className="text-button"
                 disabled={!sameModel || busy}
                 onClick={() => send("reset-button-map", { player })}
               >
-                Standardbelegung wiederherstellen
+                {t("Standardbelegung wiederherstellen")}
               </button>
             </div>
           </div>
@@ -501,24 +530,28 @@ export function GunStudio({
             <div className="feedback-visual">
               <GunShape model={model} />
               <Zap size={32} />
-              <h2>Den Schuss spüren.</h2>
+              <h2>{t("Den Schuss sp\u00FCren.")}</h2>
               <p>
-                Ein einzelner Impuls zum Prüfen. Erst mit echten
-                Spieleereignissen wird daraus ein passendes Schussfeedback.
+                {t(
+                  "Ein einzelner Impuls zum Pr\u00FCfen. Erst mit echten Spieleereignissen wird daraus ein passendes Schussfeedback.",
+                )}
               </p>
             </div>
             <div className="feedback-settings">
-              <h2>{selected.name} · Feedback</h2>
+              <h2>
+                {selected.name}
+                {" " + t("\u00B7 Feedback")}
+              </h2>
               {model === "rs3" ? (
                 <>
                   <div className="feedback-switch">
                     <span>
-                      <strong>Rückstoß im Test</strong>
-                      <small>Einzelner Solenoid-Impuls (Z5)</small>
+                      <strong>{t("R\u00FCcksto\u00DF im Test")}</strong>
+                      <small>{t("Einzelner Solenoid-Impuls (Z5)")}</small>
                     </span>
                     <button
                       disabled={!canConfigure}
-                      aria-label="Rückstoß im Test aktivieren"
+                      aria-label={t("R\u00FCcksto\u00DF im Test aktivieren")}
                       aria-pressed={feedback.recoil}
                       className={"toggle " + (feedback.recoil ? "on" : "")}
                       onClick={() =>
@@ -530,12 +563,12 @@ export function GunStudio({
                   </div>
                   <div className="feedback-switch">
                     <span>
-                      <strong>Vibration im Test</strong>
-                      <small>Einzelner Rumble-Impuls (ZZ)</small>
+                      <strong>{t("Vibration im Test")}</strong>
+                      <small>{t("Einzelner Rumble-Impuls (ZZ)")}</small>
                     </span>
                     <button
                       disabled={!canConfigure}
-                      aria-label="Vibration im Test aktivieren"
+                      aria-label={t("Vibration im Test aktivieren")}
                       aria-pressed={feedback.rumble}
                       className={"toggle " + (feedback.rumble ? "on" : "")}
                       onClick={() =>
@@ -546,30 +579,37 @@ export function GunStudio({
                     </button>
                   </div>
                   <div className="dip-card">
-                    <b>Rückstoßkraft an der Gun</b>
+                    <b>{t("R\u00FCcksto\u00DFkraft an der Gun")}</b>
                     <p>
-                      <strong>SW4 OFF:</strong> normale Kraft ·{" "}
-                      <strong>ON:</strong> reduzierte Kraft
+                      <strong>{t("SW4 OFF:")}</strong>
+                      {" " + t("normale Kraft \u00B7")}{" "}
+                      <strong>{t("ON:")}</strong>
+                      {" " + t("reduzierte Kraft")}
                       <br />
-                      <strong>SW3 OFF:</strong> normale Frequenz ·{" "}
-                      <strong>ON:</strong> reduziert
+                      <strong>{t("SW3 OFF:")}</strong>
+                      {" " + t("normale Frequenz \u00B7")}{" "}
+                      <strong>{t("ON:")}</strong>
+                      {" " + t("reduziert")}
                       <br />
-                      <strong>SW5 OFF:</strong> ein Rückstoß pro Abzug
+                      <strong>{t("SW5 OFF:")}</strong>
+                      {" " + t("ein R\u00FCcksto\u00DF pro Abzug")}
                       <br />
-                      <strong>SW6 OFF:</strong> Vibration aktiv ·{" "}
-                      <strong>ON:</strong> aus
+                      <strong>{t("SW6 OFF:")}</strong>
+                      {" " + t("Vibration aktiv \u00B7")}{" "}
+                      <strong>{t("ON:")}</strong>
+                      {" " + t("aus")}
                     </p>
                     <small>
-                      Für mechanischen Rückstoß: vorgesehene 24-V-Versorgung
-                      anschließen. USB allein reicht dafür nicht. Die RS3 bietet
-                      keinen dokumentierten Software-Regler für die Kraft.
+                      {t(
+                        "F\u00FCr mechanischen R\u00FCcksto\u00DF: vorgesehene 24-V-Versorgung anschlie\u00DFen. USB allein reicht daf\u00FCr nicht. Die RS3 bietet keinen dokumentierten Software-Regler f\u00FCr die Kraft.",
+                      )}
                     </small>
                   </div>
                   <div className="feedback-tests">
                     {[
-                      ["recoil", "Rückstoß"],
-                      ["rumble", "Vibration"],
-                      ["combined", "Beides gekoppelt"],
+                      ["recoil", t("R\u00FCcksto\u00DF")],
+                      ["rumble", t("Vibration")],
+                      ["combined", t("Beides gekoppelt")],
                     ].map(([effect, title]) => (
                       <button
                         key={effect}
@@ -589,35 +629,43 @@ export function GunStudio({
                         }
                       >
                         <Zap size={16} />
-                        {title} testen
+                        {title}
+                        {" " + t("testen")}
                       </button>
                     ))}
                   </div>
                   <p className="studio-caption">
-                    Gun dabei in der Hand halten. Unter Remote Desktop sind
-                    Impulstests gesperrt. Test-Auswahl und DIP-Schalter schalten
-                    kein spielabhängiges Feedback automatisch frei.
+                    {t(
+                      "Gun dabei in der Hand halten. Unter Remote Desktop sind Impulstests gesperrt. Test-Auswahl und DIP-Schalter schalten kein spielabh\u00E4ngiges Feedback automatisch frei.",
+                    )}
                   </p>
                 </>
               ) : (
                 <>
                   <p>
                     {model === "sinden"
-                      ? "Sinden bietet softwareseitige Rückstoßstärke und Impulsmuster. Diese werden über die Hersteller-Software eingerichtet."
+                      ? t(
+                          "Sinden bietet softwareseitige R\u00FCcksto\u00DFst\u00E4rke und Impulsmuster. Diese werden \u00FCber die Hersteller-Software eingerichtet.",
+                        )
                       : model === "blamcon"
-                        ? "Blamcon ARC bietet Rückstoßmodi und Rumble-Stärke. Für die Konfiguration muss die Blamcon angeschlossen sein."
-                        : "Die X-Gunner wird über die offizielle Konfigurationssoftware eingerichtet. Funktionen hängen vom angeschlossenen Modell ab."}
+                        ? t(
+                            "Blamcon ARC bietet R\u00FCcksto\u00DFmodi und Rumble-St\u00E4rke. F\u00FCr die Konfiguration muss die Blamcon angeschlossen sein.",
+                          )
+                        : t(
+                            "Die X-Gunner wird \u00FCber die offizielle Konfigurationssoftware eingerichtet. Funktionen h\u00E4ngen vom angeschlossenen Modell ab.",
+                          )}
                   </p>
                   <button
                     className="primary"
                     disabled={busy}
                     onClick={() => send("setup-gun", { system: model })}
                   >
-                    Hersteller-Software vorbereiten / öffnen
+                    {t("Hersteller-Software vorbereiten / \u00F6ffnen")}
                   </button>
                   <p className="studio-caption">
-                    Für dieses System wurde hier noch kein reales Feedback
-                    getestet.
+                    {t(
+                      "F\u00FCr dieses System wurde hier noch kein reales Feedback getestet.",
+                    )}
                   </p>
                 </>
               )}
@@ -627,36 +675,45 @@ export function GunStudio({
         {tab === "setup" && (
           <div className="setup-layout">
             <section>
-              <h2>Einrichtung für {selected.name}</h2>
+              <h2>
+                {t("Einrichtung f\u00FCr") + " "}
+                {selected.name}
+              </h2>
               <div className="setup-progress">
                 {[
                   [
                     !!sameModel,
-                    "Gerät erkannt",
+                    t("Ger\u00E4t erkannt"),
                     sameModel
                       ? gun!.name
-                      : "USB-Gun bzw. Empfänger anschließen",
+                      : t("USB-Gun bzw. Empf\u00E4nger anschlie\u00DFen"),
                   ],
                   [
                     !!sameModel && !!gun?.driverHealthy,
-                    "Windows-Gerätestatus",
+                    t("Windows-Ger\u00E4testatus"),
                     sameModel && gun?.driverHealthy
-                      ? "Kein gemeldeter Gerätefehler"
-                      : "Noch offen",
+                      ? t("Kein gemeldeter Ger\u00E4tefehler")
+                      : t("Noch offen"),
                   ],
                   [
                     !!sameModel && !!binding?.softwareConfigured,
-                    "Software vorbereitet",
+                    t("Software vorbereitet"),
                     sameModel && binding?.softwareConfigured
-                      ? "Mausmodus, Format und Reload angefordert"
+                      ? t("Mausmodus, Format und Reload angefordert")
                       : selected.software,
                   ],
                   [
                     !!sameModel && !!results[player],
-                    "Zieltest am Bildschirm",
+                    t("Zieltest am Bildschirm"),
                     sameModel && results[player]
-                      ? `${results[player].at} · max. ${results[player].max} px`
-                      : "Fünf Ziele prüfen · lokal erforderlich",
+                      ? t(
+                          "{0} \u00B7 max. {1} px",
+                          results[player].at,
+                          results[player].max,
+                        )
+                      : t(
+                          "F\u00FCnf Ziele pr\u00FCfen \u00B7 lokal erforderlich",
+                        ),
                   ],
                 ].map(([okay, title, detail], i) => (
                   <div key={i} className={okay ? "done" : ""}>
@@ -669,7 +726,9 @@ export function GunStudio({
                 ))}
               </div>
               {gun && state.gunIssues?.[gun.id] && (
-                <p className="setup-warning">{state.gunIssues[gun.id]}</p>
+                <p className="setup-warning">
+                  {message(state.gunIssues[gun.id])}
+                </p>
               )}
               <div className="inline-actions">
                 <button
@@ -679,8 +738,8 @@ export function GunStudio({
                 >
                   <DownloadIcon />
                   {model === "rs3"
-                    ? "Automatisch einrichten"
-                    : "Software vorbereiten / öffnen"}
+                    ? t("Automatisch einrichten")
+                    : t("Software vorbereiten / \u00F6ffnen")}
                 </button>
                 <button
                   className="secondary"
@@ -690,22 +749,24 @@ export function GunStudio({
                   onClick={() => test(player)}
                 >
                   <Target size={18} />
-                  Zieltest
+                  {t("Zieltest")}
                 </button>
               </div>
               {model === "rs3" && (
                 <>
                   <div className="feedback-switch">
                     <span>
-                      <strong>Offscreen-Reload</strong>
-                      <small>Außerhalb des Bildschirms nachladen</small>
+                      <strong>{t("Offscreen-Reload")}</strong>
+                      <small>
+                        {t("Au\u00DFerhalb des Bildschirms nachladen")}
+                      </small>
                     </span>
                     <button
                       className={
                         "toggle " + (feedback.offscreenReload ? "on" : "")
                       }
                       disabled={!canConfigure}
-                      aria-label="Offscreen-Reload aktivieren"
+                      aria-label={t("Offscreen-Reload aktivieren")}
                       aria-pressed={feedback.offscreenReload}
                       onClick={() =>
                         updateFeedback({
@@ -717,7 +778,7 @@ export function GunStudio({
                     </button>
                   </div>
                   <div className="aspect-buttons">
-                    <span>Menü-Bildformat</span>
+                    <span>{t("Men\u00FC-Bildformat")}</span>
                     {["16:9", "4:3"].map((aspect) => (
                       <button
                         disabled={!canConfigure}
@@ -730,19 +791,19 @@ export function GunStudio({
                     ))}
                   </div>
                   <p className="studio-caption">
-                    Spielstarts übernehmen das jeweilige Spielformat. Danach
-                    stellt die App dein Menüformat wieder her. Die
-                    Zielkalibrierung wird an deinem echten Bildschirm
-                    vorgenommen.
+                    {t(
+                      "Spielstarts \u00FCbernehmen das jeweilige Spielformat. Danach stellt die App dein Men\u00FCformat wieder her. Die Zielkalibrierung wird an deinem echten Bildschirm vorgenommen.",
+                    )}
                   </p>
                 </>
               )}
               {model === "rs3" && (
                 <div className="manufacturer-calibration">
-                  <h3>Hersteller-Kalibrierung</h3>
+                  <h3>{t("Hersteller-Kalibrierung")}</h3>
                   <p>
-                    Für die genaue Ausrichtung am echten Bildschirm das
-                    vorhandene Retro-Shooter-Programm öffnen.
+                    {t(
+                      "F\u00FCr die genaue Ausrichtung am echten Bildschirm das vorhandene Retro-Shooter-Programm \u00F6ffnen.",
+                    )}
                   </p>
                   <div className="inline-actions">
                     <button
@@ -750,7 +811,7 @@ export function GunStudio({
                       disabled={busy}
                       onClick={() => send("set-calibration")}
                     >
-                      Programm auswählen
+                      {t("Programm ausw\u00E4hlen")}
                     </button>
                     <button
                       className="secondary"
@@ -759,7 +820,7 @@ export function GunStudio({
                       }
                       onClick={() => send("run-calibration")}
                     >
-                      Kalibrierung starten
+                      {t("Kalibrierung starten")}
                     </button>
                   </div>
                   {state.calibrationTool && (
@@ -770,27 +831,32 @@ export function GunStudio({
               <div className="setup-note">
                 <ShieldCheck size={24} />
                 <p>
-                  USB erkannt bedeutet noch keine geprüfte Zielgenauigkeit.
-                  Stromversorgung, IR-Punkte bzw. Bildschirmrand und der reale
-                  Zieltest gehören zur Einrichtung.
+                  {t(
+                    "USB erkannt bedeutet noch keine gepr\u00FCfte Zielgenauigkeit. Stromversorgung, IR-Punkte bzw. Bildschirmrand und der reale Zieltest geh\u00F6ren zur Einrichtung.",
+                  )}
                 </p>
               </div>
             </section>
             <section className="detected-panel">
-              <h2>Erkannte Geräte</h2>
+              <h2>{t("Erkannte Ger\u00E4te")}</h2>
               {(state.guns ?? []).map((g) => (
                 <div className="detected-gun" key={g.id}>
                   <GunShape model={g.systemId} mini />
                   <div>
                     <strong>{g.name}</strong>
                     <small>
-                      {g.driverHealthy ? "Windows-Status OK" : "Gerätefehler"} ·{" "}
-                      {g.port ?? "USB"} · {g.inputIds.length} Eingänge
+                      {g.driverHealthy
+                        ? t("Windows-Status OK")
+                        : t("Ger\u00E4tefehler")}{" "}
+                      · {g.port ?? "USB"} · {g.inputIds.length}
+                      {" " + t("Eing\u00E4nge")}
                     </small>
                     <small>
                       {g.systemId === "xgunner"
-                        ? "Empfänger erkannt; drahtlose Guns erst mit echten Eingaben prüfen"
-                        : g.identityEvidence}
+                        ? t(
+                            "Empf\u00E4nger erkannt; drahtlose Guns erst mit echten Eingaben pr\u00FCfen",
+                          )
+                        : message(g.identityEvidence)}
                     </small>
                   </div>
                   {g.systemId !== "rs3" && g.mouseId && (
@@ -798,31 +864,38 @@ export function GunStudio({
                       className="secondary compact"
                       onClick={() => send("assign-gun", { player, id: g.id })}
                     >
-                      P{player} zuweisen
+                      {t("P")}
+                      {player}
+                      {" " + t("zuweisen")}
                     </button>
                   )}
                 </div>
               ))}
               {!(state.guns ?? []).length && (
                 <p>
-                  Kein bekanntes Lightgun-Gerät gefunden. Normale Mäuse und
-                  Tastaturen zählen hier nicht als Guns.
+                  {t(
+                    "Kein bekanntes Lightgun-Ger\u00E4t gefunden. Normale M\u00E4use und Tastaturen z\u00E4hlen hier nicht als Guns.",
+                  )}
                 </p>
               )}
-              <h3>Herstellerprogramme</h3>
+              <h3>{t("Herstellerprogramme")}</h3>
               <p>
                 {model === "rs3"
-                  ? "RS3 verwendet Windows HID und die serielle Schnittstelle; ein zusätzlicher Treiber ist nicht nötig."
-                  : (state.gunSoftware?.find((s) => s.id === model)?.status ??
-                    selected.software)}
+                  ? t(
+                      "RS3 verwendet Windows HID und die serielle Schnittstelle; ein zus\u00E4tzlicher Treiber ist nicht n\u00F6tig.",
+                    )
+                  : message(
+                      state.gunSoftware?.find((s) => s.id === model)?.status ??
+                        selected.software,
+                    )}
               </p>
               <p className="studio-caption">
-                Downloads kommen aus den Herstellerquellen und werden vor dem
-                Öffnen anhand der geprüften Paket-Prüfsumme kontrolliert.
-                Firmware-Updates werden nicht automatisch ausgeführt.
+                {t(
+                  "Downloads kommen aus den Herstellerquellen und werden vor dem \u00D6ffnen anhand der gepr\u00FCften Paket-Pr\u00FCfsumme kontrolliert. Firmware-Updates werden nicht automatisch ausgef\u00FChrt.",
+                )}
               </p>
               <details>
-                <summary>Technische Eingänge anzeigen</summary>
+                <summary>{t("Technische Eing\u00E4nge anzeigen")}</summary>
                 {state.devices.map((d) => (
                   <p className="technical" key={d.id}>
                     {d.name} · {d.kind}

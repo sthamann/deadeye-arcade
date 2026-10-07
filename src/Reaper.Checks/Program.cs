@@ -4,6 +4,19 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+Check(I18n.Language == "en" && new AppSettings().Language == "en", "English is the default UI and settings language");
+Check(System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}", JsonDefaults.Options)!.Language == "en", "Libraries without a language migrate to English");
+I18n.Language = "en";
+Check(I18n.T("Neu starten") == "Restart game" && I18n.F($"Gun meldet P{2}. Die Oberfläche unterstützt aktuell P1/P2.") == "Gun reports P2. The interface currently supports P1/P2.", "Native menu and formatted device errors use the English catalog");
+Check(I18n.Normalize("fr") == "en" && I18n.Normalize("de") == "de", "Unsupported language values fall back to English");
+I18n.Language = "de";
+Check(I18n.T("Neu starten") == "Neu starten" && OverlayControls.ActionName("coin") == "Münze", "Switching to German updates native controls immediately");
+var languageStore = new LibraryStore(Path.Combine(Path.GetTempPath(), "reaper-language-" + Guid.NewGuid()));
+var languageLibrary = LibraryState.Empty with { Settings = new AppSettings(Language: "de") };
+languageStore.Save(languageLibrary);
+Check(languageStore.Load().Settings.Language == "de" && !languageStore.Load().Settings.StartWithWindows, "German language survives a cold reload without changing autostart");
+Directory.Delete(languageStore.DirectoryPath, true);
+// Existing profile assertions use the German catalog.
 void Check(bool pass, string label) { if (!pass) throw new Exception("FAIL: " + label); checks++; Console.WriteLine("PASS: " + label); }
 void Throws(Action action, string label) { try { action(); throw new Exception("Expected error: " + label); } catch (Exception e) when (!e.Message.StartsWith("Expected error")) { checks++; Console.WriteLine("PASS: " + label); } }
 string root = Path.Combine(args.FirstOrDefault() ?? Path.GetTempPath(), "reaper-check-" + Guid.NewGuid().ToString("N"));

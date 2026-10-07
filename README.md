@@ -1,100 +1,164 @@
-# Reaper Arcade 0.3 – in Entwicklung
+# Reaper Arcade
 
-Eine Windows-App für RS3 Reaper Pro und eine gemeinsame Lightgun-Bibliothek: große Vollbildoberfläche, getrennte Gun-Eingänge und Import vorhandener TeknoParrot-/MAME-Spiele.
+**Your lightguns. Your games. One Windows arcade.**
 
-**[Windows-Version 0.3.1 herunterladen](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.1/Reaper-Arcade-0.3.1-Windows-x64.zip)** · [Entwicklungsrelease und Quellcodepaket](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.1)
+A fullscreen, gun-first launcher for your existing lightgun collection. Browse games,
+set up player inputs, check required runtimes, and return from a game without
+reaching for a keyboard.
 
-![Cinema-Oberfläche mit ausdrücklich gewählter Beispielbibliothek](oberflaeche.png)
+[![MIT License](https://img.shields.io/badge/license-MIT-86d9b0)](LICENSE)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/reaper-arcade/releases)
+[![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-Die Abbildung zeigt die optionale Beispielbibliothek mit eigenen Cover-Platzhaltern. Die echte Bibliothek startet leer. Spiele, ROMs, Emulatoren und Herstellerwerkzeuge werden nicht mitgeliefert.
+**[Download Reaper Arcade 0.3.2 for Windows](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.2/Reaper-Arcade-0.3.2-Windows-x64.zip)** · [Release notes & checksums](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.2)
 
-**Früher Entwicklungsstand:** Die Windows-Oberfläche und der Programmstart wurden getestet. Eine RS3 ist inzwischen per USB und COM-ID nachgewiesen. Reale Tastendrücke, Zielgenauigkeit und vollständige Spielekompatibilität sind noch nicht abschließend geprüft.
+> **Early access.** The Windows frontend and game-session flows have been tested.
+> A connected RS3 has been detected and configured in software. Physical aiming,
+> the ten-second trigger gesture and game-driven recoil still require local
+> hardware tests. Reaper does not mark a game as playable just because its files exist.
 
-## Lightgun Studio in 0.3
+## See it in action
 
-- Auswahl für RS3 Reaper Pro, Sinden, X-Gunner Wireless und Blamcon Vyper.
-- Physische USB-Geräte gruppieren, automatische RS3-Spielerzuordnung per COM-ID und zusätzliche Windows-Schnittstellenabfrage für Remote-Sitzungen.
-- P1/P2-Silhouetten und Status im Header; Live-Tasten in einer schematischen Gun-Zeichnung und lernbare Menübelegung. Die unterstützten MAME-Spielaktionen werden beim Start exportiert.
-- RS3-Format, Offscreen-Reload und begrenzte Feedbacktests; tatsächliche Kraftschalter verständlich erklärt.
-- Offizielle Herstellerprogramme vorbereiten: Sinden/X-Gunner per geprüftem Download, Blamcon ARC über Steam. Kalibrierung und nicht implementierte Hersteller-/Emulatoradapter bleiben ausdrücklich offen.
+![Animated library walkthrough](docs/images/library.gif)
 
-Details, unterstützte Pfade und Grenzen: [Gun Studio](docs/gun-studio.md).
+*Recorded from the running UI with its optional sample library and original cover
+placeholders. Sample titles are not installed games; a new real library starts empty.*
 
-## Spielmenü in 0.3.1
+![Animated gun setup and English / German switch](docs/images/gun-studio-language.gif)
 
-Abzug mindestens zehn Sekunden halten, loslassen und eine große Aktion wählen: Weiter spielen, Neu starten oder Spiel beenden. Das native Vollbildmenü zeigt die P1/P2-Belegung aus MAME-, TeknoParrot-, Dolphin-/Wii- und RetroArch-Konfigurationen sowie die gespeicherte Gun-Belegung. Unbekannte Spielzuordnungen und mögliche Profil-Overrides werden erklärt. F10 ist eine zusätzliche Tastaturalternative; F12 bleibt der direkte Ausstieg. Das Spiel wird dabei nicht automatisch pausiert. [Bedienung und Grenzen](docs/in-game-overlay.md).
+*Gun Studio and language switching in the browser preview. The recording does not
+simulate a connected gun or a successful hardware test.*
 
-## Erweiterungen in 0.3
+## What's inside
 
-- Import der `spiele.json`-Übergabe mit alternativen Startwegen, Abhängigkeiten, Prioritäten und Spielerangaben. Fehlende Dateien sperren den Start; eine erneute Prüfung kann abgeschlossene Kopien freigeben.
-- Vorschauvideos ohne Ton mit Pause beim Ansichtswechsel, Dialog und Spielstart; Screenshots und Logos. Medienzugriff bleibt auf eigene Medienordner begrenzt.
-- Große Systemauswahl sowie Filter für erste Priorität und vorhandene Startdateien.
-- Einzeltests für Rückstoß, Rumble und die Kombination am lokalen Bildschirm; keine stufenlose Kraftsteuerung.
-- Explizit konfigurierte Helfer starten mit der Spielsitzung und werden vor der Menürückkehr beendet. Dies allein ersetzt keine Konfiguration ihrer Spieloutputs.
-- Automatische Prüfung der EXE- und DLL-Abhängigkeiten beim Öffnen, nach Importen und vor dem Spielstart. Fehlende Visual-C++-2010/2012/2013/14-, DirectX-Zusatz- und .NET-8/9/10-Laufzeiten lassen sich über offizielle Microsoft-Installer ergänzen; Architektur, Download-Adresse und Microsoft-Signatur werden geprüft. Lizenz und Windows-Freigabe bleiben im Herstellerdialog.
-- Ein großer nativer Knopf „App schließen · Windows“ bleibt außerhalb der scrollenden Browseroberfläche sichtbar, auch bei Dateiauswahl und laufender Suche. Start + Münze etwa zwei Sekunden halten beendet im Spiel die Sitzung und im Menü die App; vor dem zweiten Ausstieg beide Tasten loslassen.
-- F12 beendet die eigene Spielsitzung zusätzlich zur Gun-Kombination, auch per Remote Desktop. Die Tastenerkennung dafür ist ausschließlich während einer eigenen Spielsitzung aktiv.
+- **A fullscreen game library:** search, favorites, platform filters, game details,
+  local covers, muted preview videos, screenshots and logos.
+- **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper
+  system selection; grouped USB devices, P1/P2 status, live button diagrams and
+  learnable menu bindings.
+- **An in-game menu:** hold the assigned trigger for **at least 10 seconds**, release
+  it, then shoot **Resume game**, **Restart game** or **End game**. D-pad navigation
+  and Start confirmation are available too.
+- **A controls reference:** P1/P2 mappings read from MAME, TeknoParrot, Dolphin/Wii
+  and RetroArch configuration files. Unknown mappings and possible game overrides
+  are identified rather than guessed.
+- **Runtime checks:** inspect launch programs and local DLLs on startup, after
+  import and before launch. Missing supported Visual C++, DirectX and .NET runtimes
+  can be downloaded from Microsoft with architecture and signature checks.
+- **A dependable way out:** a native **Close app · Windows** button stays outside
+  the scrolling web interface. Hold Start + Coin for about two seconds to end a
+  game; release both, then hold again in the frontend to close the app. **F10** opens
+  the game menu; **F12** ends the current game session.
+- **English and German:** English by default; change the language in Settings.
+  The choice applies to the frontend, native menu, dialogs and app messages, and
+  survives restart.
+- **Local storage:** a backed-up JSON library, user-bound encryption for the optional
+  SteamGridDB key, and diagnostic export without API keys.
 
-Version 0.3 wurde auf dem Lightgun-PC installiert: 183 Titel importiert und 639 Medien kopiert. Echte Vorschauvideos laufen in WebView2. Dead Space Extraction startet über Dolphin bis zum Titelbildschirm und CarnEvil über MAME bis zur echten Arcade-Bootsequenz und Blue Estate bis ins Hauptmenü; F12 beendet die eigene Spielsitzung und bringt das Vollbildmenü zurück. Die Spielekopie und weitere Emulatorprüfungen laufen noch. Eine RS3 ist inzwischen angeschlossen und antwortet mit Spieler-ID 1. Der Download oben enthält diesen Entwicklungsstand; Details stehen in [verification-0.3.md](docs/verification-0.3.md).
+The in-game menu does **not automatically pause the game**. Background game timers,
+inputs or audio may continue while the menu is open.
 
-## Direkt auf dem Windows-PC starten
+## Get started on Windows
 
-1. Das Paket **Reaper-Arcade-0.3.1-Windows-x64.zip** auf den Windows-PC kopieren und vollständig entpacken.
-2. **ReaperArcade.exe** öffnen. Eine separate .NET-Installation ist nicht nötig.
-3. Unter **Meine Guns** das Lightgun Studio öffnen. Eine erkannte RS3 wird über ihre COM-Spieler-ID automatisch P1 oder P2 zugeordnet und für Maus-/Tastatureingaben eingerichtet. Weitere Systeme auswählen und deren Herstellerprogramm vorbereiten lassen. Tasten mit dem Live-Test prüfen und bei Bedarf durch Anklicken einer Aktion neu belegen.
-4. Den Zieltest durchführen. Er prüft fünf Ziele; er schreibt keine Kalibrierung in die Firmware.
-5. Unter **Spiele finden** TeknoParrot, MAME oder eine Windows-Spielanwendung auswählen.
-6. Das erste Spiel starten, Zielen und Tasten im Spiel prüfen und anschließend Start + Münze etwa zwei Sekunden halten. Auf Spieler 1 entspricht das `1` + `5`, auf Spieler 2 `2` + `6`.
-7. Unter **Einstellungen** bei Bedarf Vollbild und Start nach Windows-Anmeldung aktivieren.
+1. Download the ZIP above and **extract the entire package**.
+2. Open `ReaperArcade.exe`. The .NET runtime is included; **Microsoft Edge WebView2
+   Runtime** must be installed. The app explains this if it is missing.
+3. Open **My Guns**. Connect your gun, inspect P1/P2 detection, and prepare its
+   software. An RS3's COM player ID is used for automatic assignment.
+4. Check the live buttons and run the five-target aim test **at your physical screen**.
+   This test measures accepted hit deviation; it does not write firmware calibration.
+5. Open **Find Games** to import existing TeknoParrot profiles, scan MAME ROMs against
+   that emulator's catalog, add a Windows game application, or import a collection handoff.
+6. Launch a game, test aiming and buttons, then use the game menu to return.
+   Confirm playability in Game Details only after a real test.
 
-Vorausgesetzt werden Windows x64 und die Microsoft Edge WebView2 Runtime. Falls die Runtime fehlt, erklärt die App das beim Start. Download: https://developer.microsoft.com/microsoft-edge/webview2/ . Das Paket ist ein noch nicht signierter Entwicklungsstand.
+Fullscreen is enabled by default. **Start with Windows is off by default** and can
+be enabled separately in Settings. The portable prerelease is not code-signed.
+Games, ROMs, emulators and manufacturer utilities are **not included**.
 
-## Was in 0.2 implementiert ist
+### Language
 
-- Native WPF-Anwendung mit lokal verpackter React-Oberfläche. Kein Webserver oder Browserfenster für den Windows-Betrieb nötig.
-- Cinema-Layout mit horizontalem Hauptmenü, großem Spielbereich und Coverkarten; Vollbild, Favoriten, Suche, Plattformfilter und Spieldetails.
-- Automatische Suche in üblichen Installationsordnern nach TeknoParrot, MAME und weiteren Emulatoren/Tools. Eine gefundene Anwendung ist noch kein funktionierendes Spieleprofil.
-- Große Datei- und Ordnerauswahl direkt im Vollbild sowie Bildschirmtastatur für Suche und Cover-Schlüssel.
-- Bibliotheksprüfung auf fehlende Startdateien. Fehlende Dateien setzen alte Spielbestätigungen zurück.
-- Remote-Desktop-Modus für die Bedienprüfung; Gun-Zuordnung und Kalibrierung am echten Bildschirm prüfen.
-- Auswahl und Start eines vorhandenen Hersteller-Kalibrierwerkzeugs mit anschließender Rückkehr ins Menü.
-- Enumeration der Windows-Raw-Input-Geräte; Erkennung der Retro-Shooter-Familie, wenn das Gerät einen passenden Produktnamen liefert. Modell und Firmware werden nicht geraten.
-- Bewusste Zuordnung des Maus- und Tasteneingangs pro Spieler; kein automatisches Zusammenwerfen der Geräte.
-- Getrennte absolute Zielkoordinaten und Abzugseingaben; Navigation mit Stick im Maus-/Tastaturmodus.
-- Geführter Zieltest: nur die dem gewählten Spieler zugeordnete Gun wird im nativen Betrieb gewertet. Der Test zeigt Trefferabweichung und Fehlschüsse; er misst keine Latenz.
-- Optionaler COM-Port pro Gun. Vor jeder Steuerung wird `ID` abgefragt und mit dem Spieler verglichen. Mausmodus und 4:3/16:9 werden in einem begrenzten Befehlsablauf angefordert; anschließend endet der externe Steuerungsmodus.
-- TeknoParrot-Import bereits angelegter `UserProfiles` mit kuratierter Zuordnung bekannter Lightgun-Titel. Nicht zugeordnete Profile werden im Importbericht genannt. Ein vorhandenes Basisprofil und eine vorhandene Spielanwendung sind Voraussetzung.
-- MAME-Import anhand des tatsächlichen `-listxml`-Katalogs dieses Emulators und vorhandener ZIP-/7z-ROMs. Beim Start entsteht eine eigene Controller-Datei mit den gespeicherten Gun-IDs. Vorhandene MAME-Konfigurationen werden nicht überschrieben.
-- Manuelles Hinzufügen von Windows-Spielanwendungen.
-- Lokale Cover sowie SteamGridDB-Abruf bei genau einer passenden Titelzuordnung. Mit gespeichertem Schlüssel folgt der Coverabruf auch nach dem Import. Der Schlüssel wird mit Windows DPAPI benutzergebunden verschlüsselt.
-- Lokale Bibliothek in `%LOCALAPPDATA%\ReaperArcade`, Sicherung der vorigen JSON-Version, Wiederherstellung nach Neustart und Diagnoseexport ohne API-Schlüssel.
-- Spielstart mit gespeicherten Argumenten, Beobachtung des gestarteten Prozesses und seiner Folgestarts, Rückkehr ins Menü nach Ende, gezieltes Beenden der eigenen Spielsitzung.
+Open **Settings → Language → English / Deutsch**. Existing libraries without a
+language preference also start in English. Changing language preserves games,
+favorites, gun bindings and the Windows autostart setting.
 
-## Was noch folgt
+The browser preview remembers its own language in local storage; the Windows app
+stores the choice in `%LOCALAPPDATA%\ReaperArcade\library.json`. Imported game titles,
+user notes, file paths and external manufacturer/emulator interfaces keep their
+original language.
 
-- Automatische Konfiguration der TeknoParrot-Controller: 0.2 startet das bereits vorhandene Profil. Dessen Eingabebelegung muss zunächst im Emulator stimmen.
-- Automatische Geräte- und Firmwareprüfung des Hersteller-Kalibrierwerkzeugs. In 0.2 lässt sich dessen vorhandene EXE auswählen und lokal starten; der eigene Zieltest schreibt keine Firmwarekalibrierung.
-- DemulShooter und Hook of the Reaper für titelabhängige Mehrspieler- und Spielefeedback-Profile. 0.2 verändert deren Konfiguration noch nicht und erzeugt keine spieleabhängigen Recoil-/LED-Ausgaben.
-- Spieleimport und Eingabeadapter für DuckStation, PCSX2, Dolphin, Flycast, Model 2 und Supermodel sowie automatischer Steam-Import. Die Installationssuche erkennt die üblichen EXE-Namen bereits; vollständige Unterstützung folgt pro Adapter.
-- Signierter Installer und Updates.
+## Support at a glance
 
-Spielauswahl, Dateiimport und seltene Texteingaben besitzen große Bedienelemente für die Gun. Der optionale Diagnoseexport verwendet noch einen Windows-Speicherdialog. Ein externes Herstellerwerkzeug behält seine eigene Bedienoberfläche.
+| System | Available today | Still needs verification / configuration |
+| --- | --- | --- |
+| RS3 Reaper Pro | USB/COM detection, automatic player assignment, mouse mode, aspect ratio, offscreen reload, bounded recoil/rumble test pulses | Physical aiming, feedback feel and title-specific game outputs |
+| Sinden | Product detection, input assignment and preparation of checked manufacturer software | Local calibration, manufacturer prompts and game profiles |
+| X-Gunner Wireless | Receiver/product detection, input assignment and checked configuration software | A receiver alone does not prove how many wireless guns are active; actual input is required |
+| Blamcon Vyper | Product-family detection, input assignment and Blamcon ARC entry through Steam | Exact model confirmation, calibration and physical feedback |
+| TeknoParrot | Import existing UserProfiles, profile launch, read configured controls | Existing input profiles and title-specific helper/output setup |
+| MAME | Import actual lightgun catalog + present ROM archives, generated controller mapping, controls reference | Game overrides, calibration and real gameplay |
+| Dolphin / RetroArch | Launch paths from collection handoffs; read supported control configuration | Dedicated automatic import adapters and title/core-specific overrides |
+| Other systems | Executable discovery for several emulators/tools; manual or handoff launch paths | Dedicated import/input adapters and per-title tests |
 
-## Frühere Verifikation von 0.2
+RS3 recoil and grip rumble are separate mechanisms. Reaper can send test pulses;
+there is **no documented continuous RS3 force slider**. Hardware switches and the
+specified power supply determine mechanical recoil. Helpers such as DemulShooter
+and Hook of the Reaper can be launched with a session, but still need appropriate
+per-game configuration for real output-driven feedback.
 
-Version 0.2 wurde am 3. Oktober 2026 auf einem Windows-Test-PC per Remote Desktop installiert und gestartet. WPF/WebView2, Cinema-Vollbild, Wechsel der Ansichten, Installationssuche, Dateiauswahl und Bildschirmtastatur liefen dort. Desktop- und Startmenü-Verknüpfung sind vorhanden. Der optionale Windows-Autostart wurde aktiviert und nach erneutem App-Start sowohl in der Bibliothek als auch im Benutzer-Run-Eintrag nachgewiesen. Anschließend wurde er in den Einstellungen wieder ausgeschaltet; ein Windows-Neustart wurde nicht durchgeführt. Bei einer neuen Bibliothek ist Autostart standardmäßig aus.
+## Bring an existing collection
 
-Ein temporäres Profil startete `cmd.exe /c "timeout /t 10"` durch die echte Spielsitzung. Das externe Programm war sichtbar; nach dessen Ende kehrte das Vollbildmenü automatisch zurück. Der Testeintrag wurde danach entfernt. Das ist ein Prozess- und Rückkehrtest, kein erfolgreich gespielter Lightgun-Titel.
+In **Find Games → Import collection handoff**, select `spiele.json`. Existing
+favorites, covers and gun bindings are retained. **Validate library** checks launch
+files and TeknoParrot GamePath independently of gameplay confirmation.
 
-26 Kernprüfungen und die Browserprüfung bestanden. Die üblichen Installationsordner lieferten auf diesem PC keine unterstützte Emulatorinstallation. Individuelle Ordner können anschließend im Vollbild ausgewählt werden.
+For a prepared collection, [`scripts/install-collection.ps1`](scripts/install-collection.ps1)
+backs up an existing frontend/library, copies media, imports the library and creates
+shortcuts. It requires completed migration journals unless `-AllowPendingMigration`
+is explicitly used. It does not start competing copy jobs or enable autostart.
 
-**Die RS3-Guns waren dort nicht angeschlossen.** Echte USB-/COM-Eingaben, Kalibrierung, Spielertrennung und reale TeknoParrot-/MAME-Spiele bleiben deshalb offen. Die Bibliothek startet leer und vergibt keine erfundenen Spielbarkeitsurteile. „Von dir bestätigt“ setzt der Nutzer nach einem tatsächlichen Spieltest.
+With the app closed, these commands use the intended Windows game user's library:
 
-## Weiterentwickeln
+```powershell
+ReaperArcade.exe --import-collection "C:\path\to\spiele.json"
+ReaperArcade.exe --validate-library
+ReaperArcade.exe --check-dependencies
+ReaperArcade.exe --inspect-guns
+```
 
-Node.js und .NET SDK 10 werden zum Bauen benötigt:
+Reports are stored under `%LOCALAPPDATA%\ReaperArcade`. Runtime inspection covers
+known PE imports and .NET runtime configurations; dynamically loaded plugins,
+special DLL search paths, drivers, older .NET Framework requirements and vendor
+packages may need additional setup. Unknown DLLs are never downloaded from DLL portals.
 
-```text
+## Verification
+
+- **76 core checks:** imports, file readiness, preservation after reload, player
+  isolation, trigger hold timing, control-profile parsing, dependency detection,
+  English defaults, native translations and saved language preference.
+- **Browser checks:** English ↔ German switching and reload, four pages at five
+  screen widths, library search/filters, raw-input routing, live button state,
+  player-isolated aim tests, picker and on-screen keyboard.
+- **Windows language checks:** English default with an existing library, immediate
+  switching, cold restart in both languages, localized native exit button and
+  CarnEvil/MAME in-game menu. All 183 entries and saved gun bindings remained intact;
+  autostart stayed off. [0.3.2 verification](docs/verification-0.3.2.md).
+- **Windows game-session checks:** CarnEvil/MAME menu open, resume, restart and exit
+  back to the frontend. Earlier target-PC launches reached the title/menu screens
+  of Dead Space Extraction/Dolphin and Blue Estate.
+- **Physical gun validation remains pending:** USB/COM detection is distinct from
+  button, aim, calibration and recoil verification. Not every imported title has
+  been launched or tested.
+
+The configured target collection contains 183 selected titles, including 71
+TeknoParrot titles. That is an imported collection, **not a bundled game pack or a
+claim of 183 tested games**. Copy completion and per-title setup are tracked separately.
+
+## Build and contribute
+
+Requirements: **Node.js** and **.NET SDK 10**.
+
+```sh
 cd ui
 npm ci
 npm run build
@@ -103,28 +167,32 @@ dotnet run --project src/Reaper.Checks -c Release
 dotnet publish src/Reaper.Windows -c Release -r win-x64 --self-contained true -o release/windows-x64
 ```
 
-Die portable Windows-App benötigt den vollständigen Inhalt von `release/windows-x64` einschließlich `web/`. `scripts/build-windows.ps1` baut und verpackt diesen Stand auf Windows. `npm run dev` im Ordner `ui` öffnet eine reine Bedienvorschau, ohne Hardware- oder Dateioperationen zu simulieren.
+Keep the complete publish output, including `web/`. On Windows,
+[`scripts/build-windows.ps1`](scripts/build-windows.ps1) builds and packages the portable app.
+The application is native WPF with a locally packaged React/WebView2 interface;
+it does not require a local web server in normal Windows use.
 
-Für die Browserprüfung einmal `npx playwright install chromium` im Ordner `ui` ausführen. Danach dort die Vorschau mit `npm run dev -- --port 5199` starten und aus dem Projektordner `node scripts/check-ui.cjs` aufrufen. Alternativ setzt `REAPER_PREVIEW_URL` die Adresse der laufenden Vorschau.
+For the browser preview and its checks:
 
-Technische Entscheidungen und Herstellerreferenzen: [docs/architecture.md](docs/architecture.md). Erster echter Test: [docs/windows-test.md](docs/windows-test.md).
+```sh
+cd ui
+npx playwright install chromium
+npm run dev -- --port 5199
+# In a second terminal, from the repository root:
+node scripts/check-ui.cjs
+```
 
-## Lizenz
+The preview demonstrates the interface without performing hardware or file operations.
+UI and native code share [`localization/en.json`](localization/en.json). German source
+messages are the keys; English translations are the values. Keep numbered placeholders
+and surrounding spaces intact. [Localization details](docs/localization.md).
 
-Der Quellcode ist öffentlich einsehbar; eine offene Lizenz für den eigenen Anwendungscode wurde noch nicht festgelegt. Siehe [LICENSE](LICENSE). Die Lizenzbedingungen der Abhängigkeiten sind unter [THIRD-PARTY.md](THIRD-PARTY.md) aufgeführt.
+Further implementation notes: [architecture](docs/architecture.md),
+[Gun Studio](docs/gun-studio.md), [in-game menu](docs/in-game-overlay.md),
+[Windows checks](docs/verification-0.3.md). These earlier detailed notes are currently in German.
 
-## Vorhandene Sammlung einrichten
+## License
 
-Unter **Spiele finden → Übergabepaket importieren** die `spiele.json` auswählen. Bereits gespeicherte Favoriten, Covers und Gun-Bindings bleiben erhalten. **Bibliothek prüfen** kontrolliert Abhängigkeiten und TeknoParrot-GamePath; der Spieltest bleibt davon getrennt. Medien aus dem Übergabeplan liegen unter `C:\Lightgun\Media` und werden ohne zusätzliche Kopie in den Benutzerordner bereitgestellt.
-
-`scripts/install-collection.ps1 -Package <Windows-ZIP> -Handoff <Übergabeordner> -StartAfter` sichert eine vorhandene Installation/Bibliothek, verlangt abgeschlossene Migrationsjournale, kopiert Medien, importiert die Bibliothek und legt Verknüpfungen an. Mit `-AllowPendingMigration` können Frontend und Medien bereits während der Spielekopie eingerichtet werden; der Bericht kennzeichnet den offenen Migrationsstand. Danach **Bibliothek prüfen** erneut ausführen. Das Skript startet keine konkurrierenden Migrationsjobs und schaltet Autostart nicht ein. Fehlende Quellen bleiben im Bericht unter `C:\Lightgun\Setup\Logs`.
-
-Einrichten ohne Oberfläche: `ReaperArcade.exe --import-collection <spiele.json>` beziehungsweise `--validate-library`, jeweils bei geschlossener App und unter dem vorgesehenen Windows-Spielbenutzer. Die Ergebnisse stehen in `%LOCALAPPDATA%\ReaperArcade\library-import-report.json`.
-
-## Fehlende Laufzeiten automatisch prüfen
-
-Unter **Einstellungen → Spiele und Emulatoren: benötigte Laufzeiten** zeigt die App fehlende Pakete und betroffene Spiele. **Fehlende Pakete installieren** lädt die passenden offiziellen Microsoft-Installer und prüft ihre Authenticode-Signatur. Reaper minimiert sich für den Installer und prüft nach dessen Ende erneut. Lizenz, Windows-Freigabe und ein gegebenenfalls angebotener Neustart erfolgen im Microsoft-Dialog. Ein durch bekannte fehlende Pflichtbibliotheken blockierter Spielstart führt direkt zu dieser Ansicht.
-
-Die Prüfung liest Windows-Programmdateien, lokale DLLs und vorhandene `.runtimeconfig.json`-Dateien. Sie unterscheidet x86 und x64 sowie zwingende und verzögert geladene Bibliotheken. Dynamisch nachgeladene Plugins, besondere DLL-Suchpfade, Treiber, ältere .NET-Framework-/Side-by-Side-Abhängigkeiten und herstellereigene Pakete werden damit nicht vollständig erfasst. Unaufgelöste Dateien bleiben sichtbar; unbekannte DLLs werden nicht von Downloadportalen nachgeladen. **Dateien vorhanden** bestätigt weder passende API-Versionen noch einen erfolgreichen Spielstart.
-
-Bei geschlossener App: `ReaperArcade.exe --check-dependencies`. Der Bericht wird unter `%LOCALAPPDATA%\ReaperArcade\dependencies.json` gespeichert.
+Reaper Arcade's application code is licensed under the **[MIT License](LICENSE)**.
+Third-party runtimes and components retain their own terms; see
+[THIRD-PARTY.md](THIRD-PARTY.md) and the packaged `licenses/` folder.

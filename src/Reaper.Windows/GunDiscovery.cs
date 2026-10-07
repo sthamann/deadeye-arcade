@@ -37,7 +37,7 @@ public static class GunDiscovery
                 string? path = null;
                 try { Marshal.WriteInt32(buffer, IntPtr.Size == 8 ? 8 : 6); if (SetupDiGetDeviceInterfaceDetailW(set, ref info, buffer, size, out _, 0)) path = Marshal.PtrToStringUni(buffer + 4); }
                 finally { Marshal.FreeHGlobal(buffer); }
-                if (!string.IsNullOrWhiteSpace(path)) yield return new(path, "Windows-Geräteschnittstelle", kind, false);
+                if (!string.IsNullOrWhiteSpace(path)) yield return new(path, I18n.T("Windows-Geräteschnittstelle"), kind, false);
             }
         }
         finally { SetupDiDestroyDeviceInfoList(set); }
@@ -45,7 +45,7 @@ public static class GunDiscovery
     private record Node(string Instance, string Container, string Name, string? Port, bool Healthy);
     public static PhysicalGun[] Scan(IReadOnlyList<InputDevice> inputs)
     {
-        nint set = SetupDiGetClassDevsW(0, null, 0, 6); if (set == -1) throw new IOException("Windows-Geräteabfrage konnte nicht gestartet werden.");
+        nint set = SetupDiGetClassDevsW(0, null, 0, 6); if (set == -1) throw new IOException(I18n.T("Windows-Geräteabfrage konnte nicht gestartet werden."));
         List<Node> nodes = [];
         try
         {
@@ -77,9 +77,9 @@ public static class GunDiscovery
             if (identified is null) continue;
             var matched = interfaces.Where(input => group.Any(n => Normalize(input.Id).Equals(n.Instance, StringComparison.OrdinalIgnoreCase))).GroupBy(input => Normalize(input.Id), StringComparer.OrdinalIgnoreCase).Select(g => g.OrderBy(d => d.Kind == "hid" ? 1 : 0).First()).ToArray();
             string system = GunSystems.Identify(identified.Name)!;
-            result.Add(new(group.Key, identified.Name, system, "Windows USB-Produktname + Container-ID", matched.Select(d => d.Id).ToArray(),
+            result.Add(new(group.Key, identified.Name, system, I18n.T("Windows USB-Produktname + Container-ID"), matched.Select(d => d.Id).ToArray(),
                 matched.FirstOrDefault(d => d.Kind == "mouse")?.Id, matched.FirstOrDefault(d => d.Kind == "keyboard")?.Id,
-                group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + ": Windows-Gerätefehler").Distinct().ToArray(), inputs.Any(d => matched.Any(m => Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
+                group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Distinct().ToArray(), inputs.Any(d => matched.Any(m => Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
         }
         return result.ToArray();
     }

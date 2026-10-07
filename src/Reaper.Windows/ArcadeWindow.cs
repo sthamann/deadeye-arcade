@@ -50,7 +50,7 @@ public sealed class ArcadeWindow : Window
     private bool ready, busy, closing, closeRequested, launching;
     private readonly Button exitButton = new()
     {
-        Content = "App schließen · Windows", MinWidth = 260, Height = 64,
+        Content = I18n.T("App schließen · Windows"), MinWidth = 260, Height = 64,
         FontSize = 17, HorizontalAlignment = HorizontalAlignment.Right,
         VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(20),
         Background = new SolidColorBrush(Color.FromRgb(38, 45, 58)), Foreground = Brushes.White,
@@ -75,7 +75,7 @@ public sealed class ArcadeWindow : Window
         Grid.SetRow(exitButton, 1); layout.Children.Add(web); layout.Children.Add(exitButton); Content = layout;
         exitButton.Click += (_, _) => Close();
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
-        Directory.CreateDirectory(data); store = new(data); state = store.Load(); logPath = Path.Combine(data, "activity.log");
+        Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
         raw.Packet += Input; raw.DevicesChanged += () => { foreach (var hold in triggerHolds.Values) hold.Reset(); if (overlay is not null) overlay.Arm(); if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); } };
@@ -111,7 +111,7 @@ public sealed class ArcadeWindow : Window
             {
                 e.Cancel = true;
                 if (closeRequested) return;
-                closeRequested = true; exitButton.Content = "Spiel wird beendet …";
+                closeRequested = true; exitButton.Content = I18n.T("Spiel wird beendet …");
                 await session.End();
                 while (session.Active) await Task.Delay(100);
                 if (!launching && !closing) Close();
@@ -127,7 +127,7 @@ public sealed class ArcadeWindow : Window
         try
         {
             string webDirectory = Path.Combine(AppContext.BaseDirectory, "web");
-            if (!System.IO.File.Exists(Path.Combine(webDirectory, "index.html"))) throw new IOException("Die Oberfläche fehlt. Bitte das vollständige Windows-Paket entpacken.");
+            if (!System.IO.File.Exists(Path.Combine(webDirectory, "index.html"))) throw new IOException(I18n.T("Die Oberfläche fehlt. Bitte das vollständige Windows-Paket entpacken."));
             var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(store.DirectoryPath, "browser"));
             await web.EnsureCoreWebView2Async(env);
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("reaper.local", webDirectory, CoreWebView2HostResourceAccessKind.DenyCors);
@@ -153,7 +153,7 @@ public sealed class ArcadeWindow : Window
             };
             SetFullscreen(state.Settings.Fullscreen); web.Source = new Uri("https://reaper.local/index.html");
         }
-        catch (WebView2RuntimeNotFoundException) { MessageBox.Show("Für die Oberfläche wird Microsoft Edge WebView2 Runtime benötigt.\nDownload: https://developer.microsoft.com/microsoft-edge/webview2/", Title); Close(); }
+        catch (WebView2RuntimeNotFoundException) { MessageBox.Show(I18n.T("Für die Oberfläche wird Microsoft Edge WebView2 Runtime benötigt.\nDownload: https://developer.microsoft.com/microsoft-edge/webview2/"), Title); Close(); }
     }
     private void SetFullscreen(bool enabled)
     { WindowState = WindowState.Normal; WindowStyle = enabled ? WindowStyle.None : WindowStyle.SingleBorderWindow; ResizeMode = enabled ? ResizeMode.NoResize : ResizeMode.CanResize; if (enabled) WindowState = WindowState.Maximized; }
@@ -177,9 +177,9 @@ public sealed class ArcadeWindow : Window
             gunSignals,
             learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
-            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, hasCoverKey = state.Settings.CoverKey is not null },
+            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
-            version = "0.3.1",
+            version = "0.3.2",
             remoteSession,
             installations,
             dependencies = DependencyView(),
@@ -214,7 +214,7 @@ public sealed class ArcadeWindow : Window
             {
                 int player = bindPlayer.Value;
                 if (state.Bindings.Any(b => b.Player != player && (b.MouseId == bindMouse || b.KeyboardId == packet.DeviceId)))
-                { Send("error", new { message = "Dieser Eingang ist bereits einem anderen Spieler zugeordnet. Bitte dessen Gun verwenden oder Zuordnung entfernen." }); return; }
+                { Send("error", new { message = I18n.T("Dieser Eingang ist bereits einem anderen Spieler zugeordnet. Bitte dessen Gun verwenden oder Zuordnung entfernen.") }); return; }
                 state.Bindings.RemoveAll(b => b.Player == player);
                 state.Bindings.Add(new(player, bindMouse, packet.DeviceId)); bindMouse = null; bindPlayer = null; Persist(); return;
             }
@@ -340,7 +340,7 @@ public sealed class ArcadeWindow : Window
     private async Task DiscoverGuns()
     {
         if (scanningGuns || closing) return;
-        scanningGuns = true; Send("busy", new { message = "Lightguns werden erkannt und zugeordnet …" });
+        scanningGuns = true; Send("busy", new { message = I18n.T("Lightguns werden erkannt und zugeordnet …") });
         try
         {
             var devices = raw.Devices.ToArray(); guns = await Task.Run(() => GunDiscovery.Scan(devices)); gunIssues.Clear();
@@ -349,14 +349,14 @@ public sealed class ArcadeWindow : Window
                 try
                 {
                     if (!gun.DriverHealthy) throw new IOException(string.Join("; ", gun.Issues));
-                    if (gun.Port is null || gun.MouseId is null || gun.KeyboardId is null) throw new IOException("USB-Maus, Tastatur oder COM-Port fehlen. Mausmodus prüfen.");
+                    if (gun.Port is null || gun.MouseId is null || gun.KeyboardId is null) throw new IOException(I18n.T("USB-Maus, Tastatur oder COM-Port fehlen. Mausmodus prüfen."));
                     int player = await serial.Probe(gun.Port);
-                    if (player > 2) throw new IOException($"Gun meldet P{player}. Die Oberfläche unterstützt aktuell P1/P2.");
+                    if (player > 2) throw new IOException(I18n.F($"Gun meldet P{player}. Die Oberfläche unterstützt aktuell P1/P2."));
                     var existing = state.Bindings.FirstOrDefault(b => b.Player == player);
                     if (existing is not null && !string.Equals(existing.MouseId, gun.MouseId, StringComparison.OrdinalIgnoreCase) && existing.PhysicalId != gun.Id && guns.Any(g => g.Id == existing.PhysicalId || string.Equals(g.MouseId, existing.MouseId, StringComparison.OrdinalIgnoreCase)))
-                        throw new IOException($"P{player} ist schon durch eine andere angeschlossene Gun belegt. DIP-Spielerzuordnung prüfen.");
+                        throw new IOException(I18n.F($"P{player} ist schon durch eine andere angeschlossene Gun belegt. DIP-Spielerzuordnung prüfen."));
                     if (state.Bindings.Any(b => b.Player != player && (b.PhysicalId == gun.Id || b.MouseId == gun.MouseId)))
-                        throw new IOException("Dieselbe Gun ist bereits einem anderen Spieler zugeordnet.");
+                        throw new IOException(I18n.T("Dieselbe Gun ist bereits einem anderen Spieler zugeordnet."));
                     var feedback = existing?.Feedback ?? new();
                     await serial.Command(gun.Port, player, GunSystems.ReaperConfiguration(feedback));
                     state.Bindings.RemoveAll(b => b.Player == player);
@@ -380,28 +380,36 @@ public sealed class ArcadeWindow : Window
         finally { scanningGuns = false; Send("busy", new { message = "" }); }
     }
     private static string? Folder(string title) { var picker = new OpenFolderDialog { Title = title }; return picker.ShowDialog() == true ? picker.FolderName : null; }
-    private static string? File(string title, string filter = "Windows-Anwendung|*.exe") { var picker = new OpenFileDialog { Title = title, Filter = filter }; return picker.ShowDialog() == true ? picker.FileName : null; }
+    private static string? File(string title, string filter = "Windows-Anwendung|*.exe") { var picker = new OpenFileDialog { Title = title, Filter = I18n.T(filter) }; return picker.ShowDialog() == true ? picker.FileName : null; }
     private async Task Handle(JsonElement message)
     {
         string type = message.GetProperty("type").GetString() ?? "";
         JsonElement payload = message.TryGetProperty("payload", out var p) ? p : default;
         string Str(string name) => payload.GetProperty(name).GetString() ?? "";
-        int Player() => payload.GetProperty("player").GetInt32() is var n && n is >= 1 and <= 2 ? n : throw new ArgumentException("Ungültiger Spieler.");
-        GameEntry Game() => state.Games.FirstOrDefault(g => g.Id == Str("id")) ?? throw new ArgumentException("Das Spiel existiert nicht mehr.");
+        int Player() => payload.GetProperty("player").GetInt32() is var n && n is >= 1 and <= 2 ? n : throw new ArgumentException(I18n.T("Ungültiger Spieler."));
+        GameEntry Game() => state.Games.FirstOrDefault(g => g.Id == Str("id")) ?? throw new ArgumentException(I18n.T("Das Spiel existiert nicht mehr."));
+        if (type == "set-language")
+        {
+            string language = Str("language");
+            if (language is not ("en" or "de")) throw new ArgumentException("Unsupported language.");
+            state = state with { Settings = state.Settings with { Language = language } };
+            I18n.Language = language; exitButton.Content = I18n.T("App schließen · Windows"); Persist(); return;
+        }
         if (type == "close") { Close(); return; }
         if (type == "browse-path") { picker.Browse(Str("path")); return; }
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
-        if (picker.Active) throw new InvalidOperationException("Bitte zuerst die Dateiauswahl schließen.");
+        if (picker.Active) throw new InvalidOperationException(I18n.T("Bitte zuerst die Dateiauswahl schließen."));
         if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); return; }
         if (type == "end-game") { await session.End(); return; }
         if (type == "show-overlay") { OpenOverlay(0); overlay?.Arm(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
-        if (session.Active && type != "fullscreen") throw new InvalidOperationException("Bitte zuerst das laufende Spiel beenden.");
+        if (session.Active && type != "fullscreen") throw new InvalidOperationException(I18n.T("Bitte zuerst das laufende Spiel beenden."));
         if (type == "cancel-learn") { learningPlayer = null; learningAction = null; SendState(); return; }
-        if (busy || scanningGuns) throw new InvalidOperationException("Die laufende Aktion wird noch abgeschlossen.");
+        if (busy || scanningGuns) throw new InvalidOperationException(I18n.T("Die laufende Aktion wird noch abgeschlossen."));
         switch (type)
         {
+
             case "check-dependencies": await CheckDependencies(); break;
             case "install-dependencies":
                 {
@@ -421,7 +429,7 @@ public sealed class ArcadeWindow : Window
                             }
                             finally { SetFullscreen(state.Settings.Fullscreen); Activate(); }
                             Log($"runtime: {package.Id} installer exit {code}");
-                            if (code == 3010) Send("notice", new { message = "Die Laufzeit meldet einen nötigen Neustart. Bitte später selbst neu starten." });
+                            if (code == 3010) Send("notice", new { message = I18n.T("Die Laufzeit meldet einen nötigen Neustart. Bitte später selbst neu starten.") });
                             else if (code != 0) { Send("notice", new { message = $"{package.Name}: Installation abgebrochen oder fehlgeschlagen (Code {code})." }); break; }
                         }
                     }
@@ -430,7 +438,7 @@ public sealed class ArcadeWindow : Window
                 }
             case "scan-installations":
                 {
-                    busy = true; Send("busy", new { message = "Bekannte Spieleordner werden durchsucht …" });
+                    busy = true; Send("busy", new { message = I18n.T("Bekannte Spieleordner werden durchsucht …") });
                     try
                     {
                         var roots = new List<string> { Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads"), Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) };
@@ -440,20 +448,20 @@ public sealed class ArcadeWindow : Window
                             foreach (var folder in new[] { "Games", "Arcade", "Emulators", "RetroBat", "LaunchBox", "TeknoParrot" }) roots.Add(Path.Combine(drive.RootDirectory.FullName, folder));
                         }
                         installations = await Task.Run(() => InstallationFinder.Find(roots)); SendState();
-                        Send("notice", new { message = installations.Count == 0 ? "In den üblichen Ordnern nichts gefunden. Du kannst den richtigen Ordner über die großen Schaltflächen wählen." : $"{installations.Count} Programme gefunden. Wähle die gewünschte Installation." });
+                        Send("notice", new { message = installations.Count == 0 ? I18n.T("In den üblichen Ordnern nichts gefunden. Du kannst den richtigen Ordner über die großen Schaltflächen wählen.") : I18n.F($"{installations.Count} Programme gefunden. Wähle die gewünschte Installation.") });
                     }
                     finally { busy = false; Send("busy", new { message = "" }); }
                     break;
                 }
             case "set-calibration":
                 {
-                    string? exe = await picker.Open("Hersteller-Kalibrierprogramm auswählen", false); if (exe is null) return;
+                    string? exe = await picker.Open(I18n.T("Hersteller-Kalibrierprogramm auswählen"), false); if (exe is null) return;
                     state = state with { Settings = state.Settings with { CalibrationTool = exe } }; Persist(); break;
                 }
             case "run-calibration":
                 {
-                    if (remoteSession) throw new InvalidOperationException("Die Gun am echten Bildschirm lokal kalibrieren. Remote Desktop verändert die Anzeige.");
-                    string exe = state.Settings.CalibrationTool ?? throw new InvalidOperationException("Bitte zuerst das Herstellerprogramm auswählen.");
+                    if (remoteSession) throw new InvalidOperationException(I18n.T("Die Gun am echten Bildschirm lokal kalibrieren. Remote Desktop verändert die Anzeige."));
+                    string exe = state.Settings.CalibrationTool ?? throw new InvalidOperationException(I18n.T("Bitte zuerst das Herstellerprogramm auswählen."));
                     await session.Run(GameImporter.Pc(exe, "RS3-Kalibrierung"), store.DirectoryPath, state.Bindings); break;
                 }
             case "validate-library":
@@ -470,21 +478,21 @@ public sealed class ArcadeWindow : Window
                 }
             case "import-collection":
                 {
-                    string? path = await picker.Open("spiele.json aus der Übergabe auswählen", false, [".json"]);
+                    string? path = await picker.Open(I18n.T("spiele.json aus der Übergabe auswählen"), false, [".json"]);
                     if (path is not null) { await Import(() => CollectionImporter.Read(path)); await CheckDependencies(); }
                     break;
                 }
             case "test-feedback":
                 {
-                    if (remoteSession) throw new InvalidOperationException("Feedback am lokalen Bildschirm testen und die Gun dabei in der Hand halten.");
+                    if (remoteSession) throw new InvalidOperationException(I18n.T("Feedback am lokalen Bildschirm testen und die Gun dabei in der Hand halten."));
                     var b = state.Bindings.First(x => x.Player == Player());
-                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Bitte zuerst den Gun-COM-Port zuordnen.");
+                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException(I18n.T("Bitte zuerst den Gun-COM-Port zuordnen."));
                     string effect = Str("effect");
                     var feedback = b.Feedback ?? new();
-                    if (effect is "recoil" or "combined" && !feedback.Recoil || effect is "rumble" or "combined" && !feedback.Rumble) throw new InvalidOperationException("Diesen Testeffekt zuerst in der Feedback-Auswahl aktivieren.");
-                    string[] commands = effect switch { "recoil" => ["ZS", "Z5", "ZX"], "rumble" => ["ZS", "ZZ", "ZX"], "combined" => ["ZS", "Z5", "ZZ", "ZX"], _ => throw new ArgumentException("Unbekannter Feedbacktest.") };
+                    if (effect is "recoil" or "combined" && !feedback.Recoil || effect is "rumble" or "combined" && !feedback.Rumble) throw new InvalidOperationException(I18n.T("Diesen Testeffekt zuerst in der Feedback-Auswahl aktivieren."));
+                    string[] commands = effect switch { "recoil" => ["ZS", "Z5", "ZX"], "rumble" => ["ZS", "ZZ", "ZX"], "combined" => ["ZS", "Z5", "ZZ", "ZX"], _ => throw new ArgumentException(I18n.T("Unbekannter Feedbacktest.")) };
                     busy = true;
-                    try { await serial.Command(b.SerialPort, b.Player, commands); Send("notice", new { message = "Einzelimpuls gesendet. Stärke und Gefühl beurteilst du an der Gun; dies bestätigt noch kein Spielefeedback." }); }
+                    try { await serial.Command(b.SerialPort, b.Player, commands); Send("notice", new { message = I18n.T("Einzelimpuls gesendet. Stärke und Gefühl beurteilst du an der Gun; dies bestätigt noch kein Spielefeedback.") }); }
                     finally { busy = false; }
                     break;
                 }
@@ -492,29 +500,29 @@ public sealed class ArcadeWindow : Window
             case "learn-button":
                 {
                     int player = Player(); string action = Str("action");
-                    if (!GunSystems.Actions.Contains(action) || action == "none") throw new ArgumentException("Unbekannte Aktion.");
-                    if (!state.Bindings.Any(b => b.Player == player)) throw new InvalidOperationException("Bitte zuerst die Gun einrichten.");
+                    if (!GunSystems.Actions.Contains(action) || action == "none") throw new ArgumentException(I18n.T("Unbekannte Aktion."));
+                    if (!state.Bindings.Any(b => b.Player == player)) throw new InvalidOperationException(I18n.T("Bitte zuerst die Gun einrichten."));
                     learningPlayer = player; learningAction = action; SendState(); break;
                 }
             case "reset-button-map":
                 {
-                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException("Keine Gun zugeordnet.");
+                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException(I18n.T("Keine Gun zugeordnet."));
                     state.Bindings[i] = state.Bindings[i] with { ButtonMap = GunSystems.DefaultMap(Player()) }; Persist(); break;
                 }
             case "set-gun-feedback":
                 {
-                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException("Keine Gun zugeordnet.");
-                    var feedback = JsonSerializer.Deserialize<GunFeedback>(payload.GetProperty("feedback"), JsonDefaults.Options) ?? throw new ArgumentException("Einstellungen fehlen.");
+                    int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException(I18n.T("Keine Gun zugeordnet."));
+                    var feedback = JsonSerializer.Deserialize<GunFeedback>(payload.GetProperty("feedback"), JsonDefaults.Options) ?? throw new ArgumentException(I18n.T("Einstellungen fehlen."));
                     _ = GunSystems.ReaperConfiguration(feedback);
                     var b = state.Bindings[i];
-                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Diese Konfiguration benötigt eine erkannte RS3 mit COM-Port.");
+                    if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException(I18n.T("Diese Konfiguration benötigt eine erkannte RS3 mit COM-Port."));
                     await serial.Command(b.SerialPort, b.Player, GunSystems.ReaperConfiguration(feedback));
                     state.Bindings[i] = b with { Feedback = feedback, SoftwareConfigured = true }; Persist();
-                    Send("notice", new { message = "Mausmodus, Bildformat und Offscreen-Reload angefordert. Feedback-Auswahl für die Testimpulse gespeichert; die DIP-Schalter an der Gun bleiben maßgeblich." }); break;
+                    Send("notice", new { message = I18n.T("Mausmodus, Bildformat und Offscreen-Reload angefordert. Feedback-Auswahl für die Testimpulse gespeichert; die DIP-Schalter an der Gun bleiben maßgeblich.") }); break;
                 }
             case "setup-gun":
                 {
-                    string system = Str("system"); if (!GunSystems.Catalog.Any(g => g.Id == system)) throw new ArgumentException("Unbekanntes Lightgun-System.");
+                    string system = Str("system"); if (!GunSystems.Catalog.Any(g => g.Id == system)) throw new ArgumentException(I18n.T("Unbekanntes Lightgun-System."));
                     if (system == "rs3") { await DiscoverGuns(); break; }
                     busy = true;
                     try { var path = await GunSoftware.Prepare(system, store.DirectoryPath, text => Send("busy", new { message = text })); Send("notice", new { message = path }); }
@@ -524,9 +532,9 @@ public sealed class ArcadeWindow : Window
             case "assign-gun":
                 {
                     int player = Player(); var gun = guns.First(g => g.Id == Str("id"));
-                    if (gun.SystemId == "rs3") throw new InvalidOperationException("RS3-Spieler werden über die Hardware-ID zugeordnet. DIP-Spieler prüfen und neu erkennen.");
-                    if (gun.MouseId is null) throw new InvalidOperationException("Noch kein Maus-Eingang der Gun vorhanden. Zuerst Hersteller-Software einrichten.");
-                    if (state.Bindings.Any(b => b.Player != player && b.PhysicalId == gun.Id)) throw new InvalidOperationException("Die Gun gehört schon zu einem anderen Spieler.");
+                    if (gun.SystemId == "rs3") throw new InvalidOperationException(I18n.T("RS3-Spieler werden über die Hardware-ID zugeordnet. DIP-Spieler prüfen und neu erkennen."));
+                    if (gun.MouseId is null) throw new InvalidOperationException(I18n.T("Noch kein Maus-Eingang der Gun vorhanden. Zuerst Hersteller-Software einrichten."));
+                    if (state.Bindings.Any(b => b.Player != player && b.PhysicalId == gun.Id)) throw new InvalidOperationException(I18n.T("Die Gun gehört schon zu einem anderen Spieler."));
                     state.Bindings.RemoveAll(b => b.Player == player); state.Bindings.Add(new(player, gun.MouseId, gun.KeyboardId, gun.Port, gun.SystemId, gun.Id, GunSystems.DefaultMap(player))); Persist(); break;
                 }
             case "bind": bindPlayer = Player(); bindMouse = null; SendState(); break;
@@ -536,52 +544,52 @@ public sealed class ArcadeWindow : Window
             case "set-port":
                 {
                     int player = Player(); string port = Str("port");
-                    if (port != "" && !SerialPort.GetPortNames().Contains(port, StringComparer.OrdinalIgnoreCase)) throw new ArgumentException("Der Port ist nicht vorhanden.");
-                    if (port != "" && state.Bindings.Any(b => b.Player != player && b.SerialPort == port)) throw new ArgumentException("Dieser Port ist bereits vergeben.");
-                    int index = state.Bindings.FindIndex(b => b.Player == player); if (index < 0) throw new InvalidOperationException("Bitte zuerst die Gun zuordnen.");
+                    if (port != "" && !SerialPort.GetPortNames().Contains(port, StringComparer.OrdinalIgnoreCase)) throw new ArgumentException(I18n.T("Der Port ist nicht vorhanden."));
+                    if (port != "" && state.Bindings.Any(b => b.Player != player && b.SerialPort == port)) throw new ArgumentException(I18n.T("Dieser Port ist bereits vergeben."));
+                    int index = state.Bindings.FindIndex(b => b.Player == player); if (index < 0) throw new InvalidOperationException(I18n.T("Bitte zuerst die Gun zuordnen."));
                     state.Bindings[index] = state.Bindings[index] with { SerialPort = port == "" ? null : port }; Persist(); break;
                 }
             case "test-serial":
                 {
-                    var binding = state.Bindings.First(b => b.Player == Player()); if (binding.SystemId != "rs3" || binding.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
-                    busy = true; try { int number = await serial.Command(binding.SerialPort, binding.Player); Send("notice", new { message = $"RS3 antwortet: Spieler {number}. Zielgenauigkeit und Recoil sind damit noch nicht geprüft." }); } finally { busy = false; }
+                    var binding = state.Bindings.First(b => b.Player == Player()); if (binding.SystemId != "rs3" || binding.SerialPort is null) throw new InvalidOperationException(I18n.T("Bitte den RS3-COM-Port auswählen."));
+                    busy = true; try { int number = await serial.Command(binding.SerialPort, binding.Player); Send("notice", new { message = I18n.F($"RS3 antwortet: Spieler {number}. Zielgenauigkeit und Recoil sind damit noch nicht geprüft.") }); } finally { busy = false; }
                     break;
                 }
             case "mouse-mode":
                 {
-                    var b = state.Bindings.First(b => b.Player == Player()); if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException("Bitte den RS3-COM-Port auswählen.");
-                    busy = true; try { await serial.Command(b.SerialPort, b.Player, "ZS", "ZM", "ZW", "ZX"); Send("notice", new { message = "Mausmodus und 16:9 angefordert. Mit dem Zieltest prüfen." }); } finally { busy = false; }
+                    var b = state.Bindings.First(b => b.Player == Player()); if (b.SystemId != "rs3" || b.SerialPort is null) throw new InvalidOperationException(I18n.T("Bitte den RS3-COM-Port auswählen."));
+                    busy = true; try { await serial.Command(b.SerialPort, b.Player, "ZS", "ZM", "ZW", "ZX"); Send("notice", new { message = I18n.T("Mausmodus und 16:9 angefordert. Mit dem Zieltest prüfen.") }); } finally { busy = false; }
                     break;
                 }
             case "import-tekno":
                 {
-                    string? root = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detected) && installations.Any(i => i.Kind == "tekno" && i.Path == detected.GetString()) ? Path.GetDirectoryName(detected.GetString()) : await picker.Open("TeknoParrot-Ordner auswählen", true); if (root is null) return;
+                    string? root = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detected) && installations.Any(i => i.Kind == "tekno" && i.Path == detected.GetString()) ? Path.GetDirectoryName(detected.GetString()) : await picker.Open(I18n.T("TeknoParrot-Ordner auswählen"), true); if (root is null) return;
                     await Import(() => GameImporter.TeknoParrot(root)); break;
                 }
             case "import-mame":
                 {
-                    string? exe = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detectedMame) && installations.Any(i => i.Kind == "mame" && i.Path == detectedMame.GetString()) ? detectedMame.GetString() : await picker.Open("MAME-Anwendung auswählen", false); if (exe is null) return;
-                    string? roms = await picker.Open("MAME-ROM-Ordner auswählen", true); if (roms is null) return;
-                    busy = true; Send("busy", new { message = "MAME-Spielekatalog wird gelesen …" });
+                    string? exe = payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("path", out var detectedMame) && installations.Any(i => i.Kind == "mame" && i.Path == detectedMame.GetString()) ? detectedMame.GetString() : await picker.Open(I18n.T("MAME-Anwendung auswählen"), false); if (exe is null) return;
+                    string? roms = await picker.Open(I18n.T("MAME-ROM-Ordner auswählen"), true); if (roms is null) return;
+                    busy = true; Send("busy", new { message = I18n.T("MAME-Spielekatalog wird gelesen …") });
                     try
                     {
                         var info = new ProcessStartInfo(exe) { WorkingDirectory = Path.GetDirectoryName(exe)!, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
-                        info.ArgumentList.Add("-listxml"); using var process = Process.Start(info) ?? throw new IOException("MAME startet nicht.");
+                        info.ArgumentList.Add("-listxml"); using var process = Process.Start(info) ?? throw new IOException(I18n.T("MAME startet nicht."));
                         var error = process.StandardError.ReadToEndAsync();
                         var catalogTask = Task.Run(() => GameImporter.MameGunCatalog(process.StandardOutput.BaseStream));
                         try { await Task.WhenAll(catalogTask, process.WaitForExitAsync(), error).WaitAsync(TimeSpan.FromMinutes(2)); }
                         catch { if (!process.HasExited) process.Kill(); throw; }
-                        if (process.ExitCode != 0) throw new IOException("MAME-Katalog konnte nicht gelesen werden: " + await error);
+                        if (process.ExitCode != 0) throw new IOException(I18n.T("MAME-Katalog konnte nicht gelesen werden: ") + await error);
                         ApplyImport(GameImporter.Mame(exe, roms, await catalogTask));
                     }
                     finally { busy = false; Send("busy", new { message = "" }); }
                     break;
                 }
-            case "add-pc": { string? exe = await picker.Open("Lightgun-Spiel auswählen", false); if (exe is not null) ApplyImport(new([GameImporter.Pc(exe)], [])); break; }
+            case "add-pc": { string? exe = await picker.Open(I18n.T("Lightgun-Spiel auswählen"), false); if (exe is not null) ApplyImport(new([GameImporter.Pc(exe)], [])); break; }
             case "add-cover":
                 {
-                    var game = Game(); string? file = await picker.Open("Cover auswählen", false, [".png", ".jpg", ".jpeg", ".webp"]); if (file is null) return;
-                    if (new FileInfo(file).Length > 8_000_000) throw new IOException("Das Cover ist größer als 8 MB.");
+                    var game = Game(); string? file = await picker.Open(I18n.T("Cover auswählen"), false, [".png", ".jpg", ".jpeg", ".webp"]); if (file is null) return;
+                    if (new FileInfo(file).Length > 8_000_000) throw new IOException(I18n.T("Das Cover ist größer als 8 MB."));
                     string dest = Path.Combine(store.DirectoryPath, "covers", game.Id + Path.GetExtension(file).ToLowerInvariant()); System.IO.File.Copy(file, dest, true);
                     state.Games[state.Games.IndexOf(game)] = game with { Cover = dest }; Persist(); break;
                 }
@@ -601,16 +609,16 @@ public sealed class ArcadeWindow : Window
                     state = state with { Settings = state.Settings with { StartWithWindows = on } }; Persist(); break;
                 }
             case "set-aspect":
-                { var game = Game(); string aspect = Str("aspect"); if (aspect is not ("4:3" or "16:9")) throw new ArgumentException("Ungültiges Bildformat."); state.Games[state.Games.IndexOf(game)] = game with { Aspect = aspect }; Persist(); break; }
+                { var game = Game(); string aspect = Str("aspect"); if (aspect is not ("4:3" or "16:9")) throw new ArgumentException(I18n.T("Ungültiges Bildformat.")); state.Games[state.Games.IndexOf(game)] = game with { Aspect = aspect }; Persist(); break; }
             case "mark-tested":
                 { var game = Game(); state.Games[state.Games.IndexOf(game)] = game with { Status = "tested" }; Persist(); break; }
             case "launch": await Launch(Game()); break;
             case "export-diagnostics":
                 {
-                    var picker = new SaveFileDialog { Title = "Diagnose speichern", Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
+                    var picker = new SaveFileDialog { Title = I18n.T("Diagnose speichern"), Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
                     System.IO.File.WriteAllText(picker.FileName, JsonSerializer.Serialize(new
                     {
-                        version = "0.3.0",
+                        version = "0.3.2",
             remoteSession,
             installations,
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
@@ -618,23 +626,23 @@ public sealed class ArcadeWindow : Window
                         devices = raw.Devices,
                         bindings = state.Bindings,
                         games = state.Games.Select(g => new { g.Title, g.Platform, g.Status, starterExists = System.IO.File.Exists(g.Executable) })
-                    }, JsonDefaults.Options)); Send("notice", new { message = "Diagnose gespeichert. Sie enthält Gerätekennungen und keine API-Schlüssel." }); break;
+                    }, JsonDefaults.Options)); Send("notice", new { message = I18n.T("Diagnose gespeichert. Sie enthält Gerätekennungen und keine API-Schlüssel.") }); break;
                 }
-            default: throw new ArgumentException("Unbekannte Aktion.");
+            default: throw new ArgumentException(I18n.T("Unbekannte Aktion."));
         }
         if ((type is "import-tekno" or "import-mame" or "add-pc") && state.Settings.CoverKey is not null)
             await Covers();
         if (type is "import-tekno" or "import-mame" or "add-pc" or "validate-library") await CheckDependencies();
     }
     private async Task Import(Func<ImportResult> operation)
-    { busy = true; Send("busy", new { message = "Spiele werden eingelesen …" }); try { ApplyImport(await Task.Run(operation)); } finally { busy = false; Send("busy", new { message = "" }); } }
+    { busy = true; Send("busy", new { message = I18n.T("Spiele werden eingelesen …") }); try { ApplyImport(await Task.Run(operation)); } finally { busy = false; Send("busy", new { message = "" }); } }
     private void ApplyImport(ImportResult result)
     { LibraryStore.Merge(state, result.Games); Persist(); Log($"import: {result.Games.Count} entries"); Send("import-result", new { count = result.Games.Count, warnings = result.Warnings }); }
     private async Task Covers()
     {
-        if (state.Settings.CoverKey is null) throw new InvalidOperationException("Bitte zuerst einen SteamGridDB-API-Schlüssel hinterlegen oder eigene Cover auswählen.");
+        if (state.Settings.CoverKey is null) throw new InvalidOperationException(I18n.T("Bitte zuerst einen SteamGridDB-API-Schlüssel hinterlegen oder eigene Cover auswählen."));
         string key = Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(state.Settings.CoverKey), null, DataProtectionScope.CurrentUser));
-        busy = true; int found = 0; List<string> missing = []; Send("busy", new { message = "Cover werden ergänzt …" });
+        busy = true; int found = 0; List<string> missing = []; Send("busy", new { message = I18n.T("Cover werden ergänzt …") });
         try
         {
             var service = new CoverService(http, Path.Combine(store.DirectoryPath, "covers"));
@@ -644,7 +652,7 @@ public sealed class ArcadeWindow : Window
                 if (cover is null) missing.Add(game.Title); else { state.Games[state.Games.IndexOf(game)] = game with { Cover = cover }; found++; store.Save(state); }
                 await Task.Delay(250);
             }
-            Send("notice", new { message = $"{found} Cover ergänzt. {missing.Count} Titel ohne eindeutiges Cover." });
+            Send("notice", new { message = I18n.F($"{found} Cover ergänzt. {missing.Count} Titel ohne eindeutiges Cover.") });
         }
         finally { busy = false; Send("busy", new { message = "" }); SendState(); }
     }
@@ -662,7 +670,7 @@ public sealed class ArcadeWindow : Window
     };
     private async Task CheckDependencies()
     {
-        busy = true; Send("busy", new { message = "Laufzeiten für Spiele und Emulatoren werden geprüft …" });
+        busy = true; Send("busy", new { message = I18n.T("Laufzeiten für Spiele und Emulatoren werden geprüft …") });
         try
         {
             var games = state.Games.ToArray();
@@ -682,7 +690,7 @@ public sealed class ArcadeWindow : Window
         if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
         {
             await CheckDependencies();
-            Send("dependency-blocked", new { message = "Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten." });
+            Send("dependency-blocked", new { message = I18n.T("Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten.") });
             return;
         }
         busy = true; launching = true; var changed = new List<GunBinding>();
@@ -698,7 +706,7 @@ public sealed class ArcadeWindow : Window
         finally
         {
             foreach (var binding in changed)
-            { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = "Menümodus konnte nicht wiederhergestellt werden: " + e.Message }); } }
+            { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = I18n.T("Menümodus konnte nicht wiederhergestellt werden: ") + e.Message }); } }
             busy = false; launching = false; activeGame = null;
             if (closeRequested) Close(); else SendState();
         }

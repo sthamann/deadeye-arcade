@@ -8,12 +8,12 @@ public static class CollectionImporter
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(path));
         if (!doc.RootElement.TryGetProperty("games", out var games) || games.ValueKind != JsonValueKind.Array)
-            throw new InvalidDataException("Die Übergabe enthält keine Spieleliste.");
+            throw new InvalidDataException(I18n.T("Die Übergabe enthält keine Spieleliste."));
         var result = new List<GameEntry>(); var warnings = new List<string>();
         foreach (var row in games.EnumerateArray())
         {
             if (!row.TryGetProperty("launch_options", out var options))
-                throw new InvalidDataException("Bitte spiele.json aus dem Übergabepaket auswählen, nicht den Bibliotheksentwurf.");
+                throw new InvalidDataException(I18n.T("Bitte spiele.json aus dem Übergabepaket auswählen, nicht den Bibliotheksentwurf."));
             string Str(JsonElement e, string key) => e.ValueKind == JsonValueKind.Object && e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
             string[] Strings(JsonElement e, string key) => e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : [];
             string id = row.GetProperty("id").ToString();
@@ -51,7 +51,7 @@ public static class CollectionImporter
             if (candidates.Count == 0)
             {
                 candidates.Add(new("inventory-" + id, Str(row, "title"), Str(row, "system"), "", [], "", "custom", "",
-                    "needs-setup", SetupIssues: ["Kein Startweg in der Übergabe vorhanden."]));
+                    "needs-setup", SetupIssues: [I18n.T("Kein Startweg in der Übergabe vorhanden.")]));
             }
             var chosen = candidates.FirstOrDefault(g => g.Status != "needs-setup") ?? candidates[0];
             result.Add(chosen);

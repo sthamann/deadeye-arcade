@@ -1,3 +1,4 @@
+import { t, message, getLanguage } from "./i18n";
 import { useState } from "react";
 import { ArrowLeft, FolderOpen, X, File, Check, Delete } from "lucide-react";
 export type PickerState = {
@@ -6,10 +7,17 @@ export type PickerState = {
   page: {
     path: string;
     parent: string | null;
-    entries: { name: string; path: string; directory: boolean }[];
+    entries: {
+      name: string;
+      path: string;
+      directory: boolean;
+    }[];
     warning: string | null;
   };
-  shortcuts: { name: string; path: string }[];
+  shortcuts: {
+    name: string;
+    path: string;
+  }[];
 };
 export function FilePicker({
   picker,
@@ -24,13 +32,13 @@ export function FilePicker({
         className="modal file-picker"
         role="dialog"
         aria-modal="true"
-        aria-label={picker.title}
+        aria-label={message(picker.title)}
       >
         <div className="section-heading">
-          <h2>{picker.title}</h2>
+          <h2>{message(picker.title)}</h2>
           <button
             className="icon-button"
-            aria-label="Dateiauswahl schließen"
+            aria-label={t("Dateiauswahl schlie\u00DFen")}
             onClick={() => send("cancel-picker")}
           >
             <X />
@@ -55,11 +63,11 @@ export function FilePicker({
             onClick={() => send("browse-path", { path: picker.page.parent })}
           >
             <ArrowLeft size={18} />
-            Eine Ebene höher
+            {t("Eine Ebene h\u00F6her")}
           </button>
           <span>{picker.page.path}</span>
         </div>
-        {picker.page.warning && <p>{picker.page.warning}</p>}
+        {picker.page.warning && <p>{message(picker.page.warning)}</p>}
         <div className="picker-entries">
           {picker.page.entries.length ? (
             picker.page.entries.map((e) => (
@@ -76,7 +84,7 @@ export function FilePicker({
               </button>
             ))
           ) : (
-            <p>Keine passenden Einträge in diesem Ordner.</p>
+            <p>{t("Keine passenden Eintr\u00E4ge in diesem Ordner.")}</p>
           )}
         </div>
         {picker.foldersOnly && (
@@ -85,7 +93,7 @@ export function FilePicker({
             onClick={() => send("choose-path", { path: picker.page.path })}
           >
             <Check size={20} />
-            Diesen Ordner verwenden
+            {t("Diesen Ordner verwenden")}
           </button>
         )}
       </section>
@@ -119,28 +127,35 @@ export function ArcadeKeyboard({
           <h2>{title}</h2>
           <button
             className="icon-button"
-            aria-label="Tastatur schließen"
+            aria-label={t("Tastatur schlie\u00DFen")}
             onClick={cancel}
           >
             <X />
           </button>
         </div>
         <input
-          aria-label="Texteingabe"
+          aria-label={t("Texteingabe")}
           type={secret ? "password" : "text"}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           autoComplete="off"
         />
         <div className="keyboard-keys">
-          {"1234567890qwertzuiopasdfghjklyxcvbnm-_.".split("").map((c) => (
-            <button
-              key={c}
-              onClick={() => setValue((v) => v + (upper ? c.toUpperCase() : c))}
-            >
-              {upper ? c.toUpperCase() : c}
-            </button>
-          ))}
+          {(getLanguage() === "de"
+            ? "1234567890qwertzuiopasdfghjklyxcvbnmäöüß-_."
+            : "1234567890qwertyuiopasdfghjklzxcvbnm-_."
+          )
+            .split("")
+            .map((c) => (
+              <button
+                key={c}
+                onClick={() =>
+                  setValue((v) => v + (upper ? c.toUpperCase() : c))
+                }
+              >
+                {upper ? c.toUpperCase() : c}
+              </button>
+            ))}
         </div>
         <div className="keyboard-actions">
           <button
@@ -148,27 +163,27 @@ export function ArcadeKeyboard({
             onClick={() => setUpper(!upper)}
             aria-pressed={upper}
           >
-            Aa
+            {t("Aa")}
           </button>
           <button
             className="secondary"
             onClick={() => setValue((v) => v + " ")}
           >
-            Leerzeichen
+            {t("Leerzeichen")}
           </button>
           <button
             className="secondary"
-            aria-label="Letztes Zeichen löschen"
+            aria-label={t("Letztes Zeichen l\u00F6schen")}
             onClick={() => setValue((v) => v.slice(0, -1))}
           >
             <Delete size={20} />
           </button>
           <button className="secondary" onClick={() => setValue("")}>
-            Leeren
+            {t("Leeren")}
           </button>
           <button className="primary" onClick={() => done(value)}>
             <Check size={18} />
-            Übernehmen
+            {t("\u00DCbernehmen")}
           </button>
         </div>
       </section>

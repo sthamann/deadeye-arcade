@@ -52,7 +52,7 @@ public sealed class GameSession
     }
     public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
-        if (Active) throw new InvalidOperationException("Es läuft bereits ein Spiel.");
+        if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         _ = LaunchRules.Prepare(game);
         var helpers = new List<Process>();
         try
@@ -61,10 +61,10 @@ public sealed class GameSession
             {
                 var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(helper.Executable));
                 bool running = previous.Length > 0; foreach (var p in previous) p.Dispose();
-                if (running) throw new IOException("Der Helfer läuft bereits. Bitte vor dem Start schließen: " + Path.GetFileName(helper.Executable));
+                if (running) throw new IOException(I18n.T("Der Helfer läuft bereits. Bitte vor dem Start schließen: ") + Path.GetFileName(helper.Executable));
                 var info = new ProcessStartInfo(helper.Executable) { WorkingDirectory = helper.WorkingDirectory, UseShellExecute = false };
                 foreach (var argument in helper.Arguments) info.ArgumentList.Add(argument);
-                helpers.Add(Process.Start(info) ?? throw new IOException("Helfer konnte nicht gestartet werden."));
+                helpers.Add(Process.Start(info) ?? throw new IOException(I18n.T("Helfer konnte nicht gestartet werden.")));
             }
             await RunGame(game, dataDirectory, bindings);
         }
@@ -86,13 +86,13 @@ public sealed class GameSession
     }
     private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
-        if (Active) throw new InvalidOperationException("Es läuft bereits ein Spiel.");
+        if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         var info = LaunchRules.Prepare(game);
         if (game.Source == "teknoparrot")
         {
             var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(game.Executable));
             bool running = previous.Length > 0; foreach (var p in previous) p.Dispose();
-            if (running) throw new InvalidOperationException("Bitte die bereits geöffnete TeknoParrot-Oberfläche schließen. Danach kann Reaper Arcade die eigene Spielsitzung starten.");
+            if (running) throw new InvalidOperationException(I18n.T("Bitte die bereits geöffnete TeknoParrot-Oberfläche schließen. Danach kann Reaper Arcade die eigene Spielsitzung starten."));
         }
         if (game.Source == "mame")
         {
@@ -111,7 +111,7 @@ public sealed class GameSession
         }
         HashSet<int> existing = Snapshot().Select(p => p.Id).ToHashSet();
         var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayWindows.Clear();
-        using var process = Process.Start(info) ?? throw new IOException("Das Spiel konnte nicht gestartet werden.");
+        using var process = Process.Start(info) ?? throw new IOException(I18n.T("Das Spiel konnte nicht gestartet werden."));
         lock (sync) owned[process.Id] = process.StartTime;
         Active = true; Changed?.Invoke("running");
         bool targetSeen = game.Source != "teknoparrot", descendantSeen = false;
@@ -150,8 +150,8 @@ public sealed class GameSession
                     if (children > 0) lastChild = DateTime.Now;
                     if (targetSeen && liveTarget == 0 && (game.Source == "teknoparrot" || children == 0)) break;
                     if (descendantSeen && children == 0 && DateTime.Now - lastChild > TimeSpan.FromSeconds(3)) break;
-                    if (live == 0 && DateTime.Now - started > TimeSpan.FromSeconds(15)) throw new IOException("Der Starter wurde beendet, aber kein Spielprozess erkannt. Bitte das Profil direkt in seinem Emulator prüfen.");
-                    if (!targetSeen && !descendantSeen && DateTime.Now - started > TimeSpan.FromSeconds(30)) throw new IOException("Kein Spielprozess erkannt. TeknoParrot-Profil direkt prüfen.");
+                    if (live == 0 && DateTime.Now - started > TimeSpan.FromSeconds(15)) throw new IOException(I18n.T("Der Starter wurde beendet, aber kein Spielprozess erkannt. Bitte das Profil direkt in seinem Emulator prüfen."));
+                    if (!targetSeen && !descendantSeen && DateTime.Now - started > TimeSpan.FromSeconds(30)) throw new IOException(I18n.T("Kein Spielprozess erkannt. TeknoParrot-Profil direkt prüfen."));
                 }
                 await Task.Delay(200);
             }

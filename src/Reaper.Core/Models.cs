@@ -13,7 +13,7 @@ public record GameEntry(string Id, string Title, string Platform, string Executa
 public record HelperLaunch(string Executable, string[] Arguments, string WorkingDirectory);
 public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null, string SystemId = "rs3", string? PhysicalId = null, Dictionary<string, string>? ButtonMap = null, GunFeedback? Feedback = null, bool SoftwareConfigured = false);
 public record InputDevice(string Id, string Name, string Kind, bool RetroShooter, string? PhysicalId = null);
-public record AppSettings(bool StartWithWindows = false, bool Fullscreen = true, string? CoverKey = null, string? CalibrationTool = null);
+public record AppSettings(bool StartWithWindows = false, bool Fullscreen = true, string? CoverKey = null, string? CalibrationTool = null, string Language = "en");
 public record LibraryState(List<GameEntry> Games, List<GunBinding> Bindings, AppSettings Settings)
 {
     public static LibraryState Empty => new([], [], new());
@@ -38,7 +38,7 @@ public sealed class LibraryStore(string directory)
         if (!File.Exists(FilePath)) return LibraryState.Empty;
         // A damaged library must never silently become an empty library and overwrite the user's data.
         return JsonSerializer.Deserialize<LibraryState>(File.ReadAllText(FilePath), JsonDefaults.Options)
-               ?? throw new InvalidDataException("Die gespeicherte Bibliothek ist ungültig.");
+               ?? throw new InvalidDataException(I18n.T("Die gespeicherte Bibliothek ist ungültig."));
     }
     public void Save(LibraryState state)
     {

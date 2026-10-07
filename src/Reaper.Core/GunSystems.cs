@@ -8,11 +8,11 @@ public record PhysicalGun(string Id, string Name, string SystemId, string Identi
     string? MouseId, string? KeyboardId, string? Port, bool DriverHealthy, string[] Issues, bool LiveInputAvailable = false);
 public static class GunSystems
 {
-    public static readonly GunSystem[] Catalog = [
-        new("rs3", "RS3 Reaper Pro", "USB · 4 IR-Punkte", "Retro-Shooter-Produktfamilie + COM-ID", "Windows HID – kein Sondertreiber", "https://retroshooter.com/wp-content/uploads/2026/02/Retro-Shooter-Reaper-User-Manual-2026.pdf"),
-        new("sinden", "Sinden Lightgun", "USB · Kamera / Bildschirmrand", "Sinden-Produktname", "Sinden Lightgun Software", "https://sindenlightgun.com/drivers/"),
-        new("xgunner", "X-Gunner Wireless", "2,4 GHz · USB-Empfänger · IR", "X-Gunner-Produktname", "X-Gunner Konfiguration", "https://hwhxg.com/downloads/"),
-        new("blamcon", "Blamcon Vyper", "USB · IR · 12 V für Feedback", "Blamcon-Produktfamilie; Vyper separat bestätigen", "Blamcon ARC", "https://blamcon.com/get-started-with-blamcon/blamcon-arc-gui/")
+    public static GunSystem[] Catalog => [
+        new("rs3", "RS3 Reaper Pro", I18n.T("USB · 4 IR-Punkte"), I18n.T("Retro-Shooter-Produktfamilie + COM-ID"), I18n.T("Windows HID – kein Sondertreiber"), "https://retroshooter.com/wp-content/uploads/2026/02/Retro-Shooter-Reaper-User-Manual-2026.pdf"),
+        new("sinden", "Sinden Lightgun", I18n.T("USB · Kamera / Bildschirmrand"), I18n.T("Sinden-Produktname"), "Sinden Lightgun Software", "https://sindenlightgun.com/drivers/"),
+        new("xgunner", "X-Gunner Wireless", I18n.T("2,4 GHz · USB-Empfänger · IR"), I18n.T("X-Gunner-Produktname"), I18n.T("X-Gunner Konfiguration"), "https://hwhxg.com/downloads/"),
+        new("blamcon", "Blamcon Vyper", I18n.T("USB · IR · 12 V für Feedback"), I18n.T("Blamcon-Produktfamilie; Vyper separat bestätigen"), "Blamcon ARC", "https://blamcon.com/get-started-with-blamcon/blamcon-arc-gui/")
     ];
     public static string? Identify(string product) => product.Contains("Retro Shooter", StringComparison.OrdinalIgnoreCase) || product.Contains("3AGAME", StringComparison.OrdinalIgnoreCase) ? "rs3"
         : product.Contains("Sinden", StringComparison.OrdinalIgnoreCase) ? "sinden"
@@ -28,12 +28,12 @@ public static class GunSystems
     public static bool ValidToken(string token) => Regex.IsMatch(token, @"^(key:([1-9]\d{0,2})|mouse:[1-5])$") && (!token.StartsWith("key:") || int.Parse(token[4..]) <= 255);
     public static Dictionary<string, string> ValidateMap(Dictionary<string, string> map)
     {
-        if (map.Count > 32 || map.Any(p => !ValidToken(p.Key) || !Actions.Contains(p.Value))) throw new ArgumentException("Ungültige Gun-Belegung.");
+        if (map.Count > 32 || map.Any(p => !ValidToken(p.Key) || !Actions.Contains(p.Value))) throw new ArgumentException(I18n.T("Ungültige Gun-Belegung."));
         return new(map);
     }
     public static string[] ReaperConfiguration(GunFeedback settings)
     {
-        if (settings.Aspect is not ("16:9" or "4:3")) throw new ArgumentException("Ungültiges Bildformat.");
+        if (settings.Aspect is not ("16:9" or "4:3")) throw new ArgumentException(I18n.T("Ungültiges Bildformat."));
         return ["ZS", "ZM", settings.Aspect == "4:3" ? "ZN" : "ZW", settings.OffscreenReload ? "ZA" : "ZB", "ZX"];
     }
 }

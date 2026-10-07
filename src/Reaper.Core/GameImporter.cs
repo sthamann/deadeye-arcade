@@ -37,8 +37,8 @@ public static partial class GameImporter
         root = Path.GetFullPath(root);
         string exe = Path.Combine(root, "TeknoParrotUi.exe");
         string profiles = Path.Combine(root, "UserProfiles");
-        if (!File.Exists(exe)) throw new InvalidDataException("TeknoParrotUi.exe fehlt im ausgewählten Ordner.");
-        if (!Directory.Exists(profiles)) throw new InvalidDataException("Keine UserProfiles gefunden. Richte zunächst ein Spiel in TeknoParrot ein.");
+        if (!File.Exists(exe)) throw new InvalidDataException(I18n.T("TeknoParrotUi.exe fehlt im ausgewählten Ordner."));
+        if (!Directory.Exists(profiles)) throw new InvalidDataException(I18n.T("Keine UserProfiles gefunden. Richte zunächst ein Spiel in TeknoParrot ein."));
         List<GameEntry> games = []; List<string> warnings = [];
         foreach (var path in Directory.EnumerateFiles(profiles, "*.xml"))
         {
@@ -83,7 +83,7 @@ public static partial class GameImporter
     }
     public static ImportResult Mame(string exe, string romDirectory, Dictionary<string, string> catalog)
     {
-        if (!File.Exists(exe)) throw new FileNotFoundException("MAME wurde nicht gefunden.", exe);
+        if (!File.Exists(exe)) throw new FileNotFoundException(I18n.T("MAME wurde nicht gefunden."), exe);
         List<GameEntry> games = []; List<string> warnings = [];
         foreach (var path in Directory.EnumerateFiles(romDirectory))
         {
@@ -99,7 +99,7 @@ public static partial class GameImporter
     public static GameEntry Pc(string exe, string? title = null)
     {
         if (!File.Exists(exe) || !Path.GetExtension(exe).Equals(".exe", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Bitte eine vorhandene Windows-Spielanwendung auswählen.");
+            throw new InvalidDataException(I18n.T("Bitte eine vorhandene Windows-Spielanwendung auswählen."));
         return new(Identity.For("PC", exe), title ?? Path.GetFileNameWithoutExtension(exe), "Windows",
             Path.GetFullPath(exe), [], Path.GetDirectoryName(Path.GetFullPath(exe))!, "pc", Path.GetFullPath(exe));
     }

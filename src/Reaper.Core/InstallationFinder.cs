@@ -46,7 +46,7 @@ public static class InstallationFinder
     public static BrowsePage Browse(string directory, bool foldersOnly, string[] extensions)
     {
         directory = Path.GetFullPath(directory);
-        if (!Directory.Exists(directory)) throw new DirectoryNotFoundException("Dieser Ordner ist nicht vorhanden.");
+        if (!Directory.Exists(directory)) throw new DirectoryNotFoundException(I18n.T("Dieser Ordner ist nicht vorhanden."));
         List<BrowseEntry> entries = []; string? warning = null;
         try
         {
@@ -55,9 +55,9 @@ public static class InstallationFinder
             if (!foldersOnly)
                 foreach (var file in Directory.EnumerateFiles(directory).Where(f => extensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase)).OrderBy(Path.GetFileName).Take(300))
                     entries.Add(new(Path.GetFileName(file), file, false));
-            if (entries.Count >= 300) warning = "Große Ordner werden gekürzt angezeigt. Öffne einen Unterordner.";
+            if (entries.Count >= 300) warning = I18n.T("Große Ordner werden gekürzt angezeigt. Öffne einen Unterordner.");
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { warning = "Dieser Ordner kann nicht vollständig gelesen werden."; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { warning = I18n.T("Dieser Ordner kann nicht vollständig gelesen werden."); }
         return new(directory, Directory.GetParent(directory)?.FullName, entries, warning);
     }
 }

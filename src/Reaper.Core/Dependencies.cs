@@ -21,7 +21,7 @@ public static class NativeImports
     {
         using var stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var pe = new PEReader(stream);
-        var header = pe.PEHeaders.PEHeader ?? throw new BadImageFormatException("Kein Windows-Programm.");
+        var header = pe.PEHeaders.PEHeader ?? throw new BadImageFormatException(I18n.T("Kein Windows-Programm."));
         string arch = pe.PEHeaders.CoffHeader.Machine switch { Machine.I386 => "x86", Machine.Amd64 => "x64", Machine.Arm64 => "arm64", _ => "unknown" };
         var imports = new List<NativeImport>();
         ReadTable(header.ImportTableDirectory, 20, 12, false);
@@ -42,7 +42,7 @@ public static class NativeImports
                 var bytes = new List<byte>();
                 while (text.RemainingBytes > 0 && bytes.Count < 260) { byte b = text.ReadByte(); if (b == 0) break; bytes.Add(b); }
                 string dll = System.Text.Encoding.ASCII.GetString(bytes.ToArray()).ToLowerInvariant();
-                if (dll.Length == 0 || dll.IndexOfAny(['/', '\\', ':']) >= 0) throw new BadImageFormatException("Ungültiger DLL-Name.");
+                if (dll.Length == 0 || dll.IndexOfAny(['/', '\\', ':']) >= 0) throw new BadImageFormatException(I18n.T("Ungültiger DLL-Name."));
                 imports.Add(new(dll, delayed));
             }
         }
@@ -63,7 +63,7 @@ public static class RuntimeCatalog
     };
     public static RuntimePackage? Get(string id)
     {
-        if (id == "directx") return new(id, "DirectX Zusatzbibliotheken", "https://download.microsoft.com/download/1/7/1/1718CCC4-6315-4D8E-9543-8E28A4E18C4C/dxwebsetup.exe", "https://www.microsoft.com/en-us/download/details.aspx?id=35");
+        if (id == "directx") return new(id, I18n.T("DirectX Zusatzbibliotheken"), "https://download.microsoft.com/download/1/7/1/1718CCC4-6315-4D8E-9543-8E28A4E18C4C/dxwebsetup.exe", "https://www.microsoft.com/en-us/download/details.aspx?id=35");
         if (Regex.IsMatch(id, @"^dotnet(8|9|10)-(x86|x64)$"))
         {
             var parts = id.Split('-'); string version = parts[0][6..];
@@ -104,12 +104,12 @@ public static class DependencyScanner
                 // A required path must be inspected again if an optional import reached it first.
                 if (visited.TryGetValue(file, out bool optional) && (!optional || inheritedOptional)) return;
                 visited[file] = inheritedOptional;
-                if (!File.Exists(file)) { uncheckedFiles.Add(game.Title + ": " + file + " fehlt"); return; }
-                if (depth > 3 || visited.Count > 128) { uncheckedFiles.Add(game.Title + ": Prüftiefe erreicht"); return; }
+                if (!File.Exists(file)) { uncheckedFiles.Add(game.Title + ": " + file + I18n.T(" fehlt")); return; }
+                if (depth > 3 || visited.Count > 128) { uncheckedFiles.Add(game.Title + I18n.T(": Prüftiefe erreicht")); return; }
                 NativeImage image;
                 try { if (!images.TryGetValue(file, out image!)) { image = NativeImports.Read(file); images[file] = image; } }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or BadImageFormatException or ArgumentOutOfRangeException or OverflowException)
-                { uncheckedFiles.Add(game.Title + ": " + Path.GetFileName(file) + " nicht lesbar"); return; }
+                { uncheckedFiles.Add(game.Title + ": " + Path.GetFileName(file) + I18n.T(" nicht lesbar")); return; }
                 inspected.Add(file);
                 InspectManaged(file, image.Architecture);
                 foreach (var import in image.Imports)
@@ -120,9 +120,9 @@ public static class DependencyScanner
                     bool exists = Compatible(local, image.Architecture) || Compatible(system, image.Architecture);
                     if (package is not null) findings.Add(new(game.Id, game.Title, file, image.Architecture, import.Name, package, !exists, !inheritedOptional && !import.Delayed));
                     else if (!exists && !import.Name.StartsWith("api-ms-") && !import.Name.StartsWith("ext-ms-"))
-                        uncheckedFiles.Add(game.Title + ": " + import.Name + " nicht aufgelöst (Profil oder lokale Installation prüfen)");
+                        uncheckedFiles.Add(game.Title + ": " + import.Name + I18n.T(" nicht aufgelöst (Profil oder lokale Installation prüfen)"));
                     if (Compatible(local, image.Architecture)) Inspect(local, executableDirectory, depth + 1, inheritedOptional || import.Delayed);
-                    else if (File.Exists(local)) uncheckedFiles.Add(game.Title + ": " + import.Name + " hat ein falsches oder nicht lesbares Dateiformat");
+                    else if (File.Exists(local)) uncheckedFiles.Add(game.Title + ": " + import.Name + I18n.T(" hat ein falsches oder nicht lesbares Dateiformat"));
                 }
             }
             void InspectManaged(string file, string architecture)
@@ -142,12 +142,12 @@ public static class DependencyScanner
                         if (!Version.TryParse(framework.GetProperty("version").GetString(), out var version)) continue;
                         string? id = name is "Microsoft.NETCore.App" or "Microsoft.WindowsDesktop.App" && version.Major is 8 or 9 or 10 && architecture is "x86" or "x64" ? $"dotnet{version.Major}-{architecture}" : null;
                         bool installed = managedInstalled(architecture, name, version);
-                        if (id is null) { uncheckedFiles.Add(game.Title + ": " + name + " " + version + " separat prüfen"); continue; }
+                        if (id is null) { uncheckedFiles.Add(game.Title + ": " + name + " " + version + I18n.T(" separat prüfen")); continue; }
                         findings.Add(new(game.Id, game.Title, file, architecture, name + " " + version, id, !installed, true));
                     }
                 }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or KeyNotFoundException)
-                { uncheckedFiles.Add(game.Title + ": .NET-Konfiguration nicht lesbar"); }
+                { uncheckedFiles.Add(game.Title + I18n.T(": .NET-Konfiguration nicht lesbar")); }
             }
         }
         return new(DateTimeOffset.Now, games.Length, inspected.Count, findings.Distinct().ToArray(), uncheckedFiles.Distinct().ToArray());

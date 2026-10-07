@@ -52,7 +52,7 @@ public sealed class RawInput : IDisposable
             }
             string kind = d.Type == 0 ? "mouse" : d.Type == 1 ? "keyboard" : "hid";
             bool retro = product.Contains("Retro Shooter", StringComparison.OrdinalIgnoreCase) || product.Contains("3AGAME", StringComparison.OrdinalIgnoreCase);
-            devices.Add(new(id, string.IsNullOrEmpty(product) ? kind == "mouse" ? "Maus / Lightgun" : kind == "keyboard" ? "Tasteneingang" : "HID-Gerät" : product, kind, retro));
+            devices.Add(new(id, string.IsNullOrEmpty(product) ? kind == "mouse" ? I18n.T("Maus / Lightgun") : kind == "keyboard" ? "Tasteneingang" : I18n.T("HID-Gerät") : product, kind, retro));
         }
         Devices = devices;
     }
