@@ -1,8 +1,8 @@
 # Third-party notices
 
-Reaper Arcade's application code is licensed under the [MIT License](LICENSE).
+Deadeye Arcade's application code is licensed under the [MIT License](LICENSE).
 Dependencies retain their own licenses. Games, ROMs, emulators and manufacturer
-utilities are not bundled with Reaper Arcade.
+utilities are not bundled with Deadeye Arcade.
 
 | Component | License / source |
 | --- | --- |
@@ -14,8 +14,18 @@ utilities are not bundled with Reaper Arcade.
 | NSIS installer runtime | zlib/libpng license and compression component licenses; included in `licenses/nsis-COPYING.txt`. Unmodified upstream source: [NSIS download](https://nsis.sourceforge.io/Download). |
 | Vite / TypeScript / Playwright | Development tools; not run as Windows processes in the portable app. |
 
-The generic cover placeholders in the UI are original application assets.
-README animations use these placeholders and the explicitly selected sample
-library. Real game artwork supplied by users or metadata providers remains
-subject to its owners' rights. The application license does not grant rights
-to games, ROMs or third-party artwork.
+The generic cover placeholders are original application assets. README recordings
+show the running interface with a curated selection of game artwork and preview
+clips. Third-party game artwork remains subject to its owners' rights. The
+application license does not grant rights to games, ROMs or artwork.
+
+## Separately downloaded setup assets
+
+- [Dolphin Lightguns Accuracy INIs](https://github.com/ProfgLX/Dolphin-Lightguns-Accuracy-Inis)
+  are GPL-3.0 assets. The app downloads a verified revision into the user's data
+  directory and preserves its LICENSE alongside generated, game-specific profiles.
+  These profiles and their upstream assets are not bundled as MIT application code.
+- The RS3 calibration DLL is obtained separately from the manufacturer's public
+  calibration package. Its exact package and DLL hashes are checked before use.
+  It retains the manufacturer's terms and is not redistributed in the application
+  source or release packages.

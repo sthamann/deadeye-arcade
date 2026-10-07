@@ -55,6 +55,20 @@ public static class OverlayControls
             }
             if (Path.GetFileName(game.Executable).Contains("dolphin", StringComparison.OrdinalIgnoreCase))
             {
+                var profile=DolphinSetup.ProfilePath(game);
+                if(profile is not null && File.Exists(profile))
+                {
+                    var rows=new List<ControlRow>();bool active=false;
+                    foreach(string line in File.ReadLines(profile))
+                    {
+                        var item=line.Trim();if(item.StartsWith('['))active=item=="[Profile]";
+                        if(!active || item.Split('=',2) is not {Length:2} pair || string.IsNullOrWhiteSpace(pair[1]))continue;
+                        string key=pair[0].Trim();
+                        if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/Buttons/") || key.StartsWith("Nunchuk/Stick/") || key is "Tilt/Left" or "Shake/X" or "Nunchuk/Shake/X")
+                            rows.Add(new(1,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(profile)));
+                    }
+                    return new(rows.ToArray(),I18n.T("Aktives Dolphin-Titelprofil. P1 ist vorbereitet; P2 benötigt eine separat zugeordnete DirectInput-Gun. Zwei Desktop-Mäuse sind keine unabhängigen Spieler."));
+                }
                 string? path = DolphinConfig(game);
                 if (path is not null)
                 {
@@ -101,6 +115,16 @@ public static class OverlayControls
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Xml.XmlException or ArgumentException)
         { return new([], I18n.T("Spielprofil konnte nicht gelesen werden. Die Gun-/Menübelegung bleibt verfügbar.")); }
     }
+    private static string DolphinLabel(string key,string? id)
+    {
+        if(id?.StartsWith("RZJ")==true) return key switch {
+            "Buttons/A"=>I18n.T("Kinesis / Benutzen (A)"),"Buttons/B"=>I18n.T("Schießen (B)"),"Buttons/+"=>I18n.T("Pause (+)"),
+            "Nunchuk/Buttons/Z"=>I18n.T("Nachladen (Z)"),"Nunchuk/Buttons/C"=>I18n.T("Stasis (C)"),"Tilt/Left"=>I18n.T("Alternativfeuer · Gun neigen"),
+            "Shake/X"=>I18n.T("Glow Worm · Wiimote schütteln"),"Nunchuk/Shake/X"=>I18n.T("Nahkampf · Nunchuk schütteln"),
+            _=>key.Replace("Nunchuk/Stick/",I18n.T("Waffenwahl · "))
+        };
+        return key;
+    }
     private static string Value(XElement e, string name) => e.Elements().FirstOrDefault(c => c.Name.LocalName == name)?.Value ?? "";
     private static int Player(string name) => Regex.Match(name, @"^(?:P|Player\s*)([12])", RegexOptions.IgnoreCase) is { Success:true } m ? int.Parse(m.Groups[1].Value)
         : Regex.Match(name, @"^(?:COIN|START|Coin|Service)([12])$", RegexOptions.IgnoreCase) is { Success:true } n ? int.Parse(n.Groups[1].Value) : 0;
@@ -127,13 +151,7 @@ public static class OverlayControls
     }
     private static string? DolphinConfig(GameEntry game)
     {
-        string? user = null;
-        for (int i = 0; i < game.Arguments.Length; i++)
-            if (game.Arguments[i] is "-u" or "--user" && i + 1 < game.Arguments.Length) user = Path.GetFullPath(game.Arguments[i + 1], game.WorkingDirectory);
-            else if (game.Arguments[i].StartsWith("--user=")) user = Path.GetFullPath(game.Arguments[i][7..], game.WorkingDirectory);
-        string baseDir = Path.GetDirectoryName(game.Executable)!;
-        string path = user is not null ? Path.Combine(user, "Config", "WiimoteNew.ini") : File.Exists(Path.Combine(baseDir, "portable.txt"))
-            ? Path.Combine(baseDir, "User", "Config", "WiimoteNew.ini") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Dolphin Emulator", "Config", "WiimoteNew.ini");
+        string path = Path.Combine(DolphinSetup.UserDirectory(game), "Config", "WiimoteNew.ini");
         return File.Exists(path) ? path : null;
     }
 }

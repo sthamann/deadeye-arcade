@@ -50,7 +50,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  }
  const native=await browser.newPage({viewport:{width:1440,height:1000}});native.on('pageerror',e=>errors.push(e.message));
  await native.addInitScript(()=>{
-  const listeners=[];window.fixture={sent:[],emit:(type,payload)=>listeners.forEach(fn=>fn({data:{type,payload}}))};
+  const listeners=[];window.fixture={sent:[],emit:(type,payload)=>{if(type==='state')window.fixture.lastState=payload;listeners.forEach(fn=>fn({data:{type,payload}}));}};
   window.chrome={webview:{addEventListener:(name,fn)=>listeners.push(fn),removeEventListener:()=>{},postMessage:message=>{
    window.fixture.sent.push(message);if(message.type==='ready')setTimeout(()=>window.fixture.emit('state',{native:true,version:'fixture',games:[],bindings:[{player:1,mouseId:'gun-1',keyboardId:'key-1',serialPort:'COM3',systemId:'rs3',physicalId:'physical-1',softwareConfigured:true}],guns:[{id:'physical-1',name:'3A-3H Retro Shooter 1',systemId:'rs3',mouseId:'gun-1',keyboardId:'key-1',port:'COM3',inputIds:['gun-1','key-1'],driverHealthy:true,issues:[],identityEvidence:'Fixture container'}],devices:[{id:'gun-1',name:'Fixture gun',kind:'mouse',retroShooter:true}],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'de'},bindingStage:null,installations:[],remoteSession:false}),0);
   }}};
@@ -87,6 +87,15 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  }
  assert.equal(new Set(studioPaths).size,4,'All manufacturers have distinct anatomy and physical controls');
  await native.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).evaluate(b=>b.click());
+ await native.getByRole('button',{name:'Kalibrierung automatisch vorbereiten',exact:true}).evaluate(b=>b.click());
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='prepare-calibration')),'Calibration package preparation reaches Windows');
+ await native.getByRole('button',{name:'P1 am Bildschirm kalibrieren',exact:true}).evaluate(b=>b.click());
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='calibrate-rs3'&&m.payload.player===1)),'Calibration uses the selected physical player');
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:true}));
+ assert(await native.getByRole('button',{name:'P1 am Bildschirm kalibrieren',exact:true}).isDisabled(),'Remote Desktop cannot start physical screen calibration');
+ assert(await native.getByRole('button',{name:'Kalibrierung automatisch vorbereiten',exact:true}).isEnabled(),'Remote Desktop can still prepare the vendor module');
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:false}));
+
  await native.getByRole('button',{name:'Zieltest',exact:true}).first().evaluate(b=>b.click());
  // An unassigned mouse / the other player's gun cannot certify this player's target test.
  await native.evaluate(()=>window.fixture.emit('input',{deviceId:'other',kind:'mouse',player:2,x:.5,y:.5,buttons:1}));

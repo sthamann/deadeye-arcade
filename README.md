@@ -43,6 +43,10 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
+The current source prepares **0.3.6**, including the calibration and game-specific
+setup below. The downloadable stable release above is **0.3.5** until the new
+Windows installation and game-launch checks are complete.
+
 - **A fullscreen game library:** search, favorites, platform filters, game details,
   local covers, muted preview videos, screenshots and logos.
 - **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper
@@ -54,6 +58,12 @@ Original game-media files are not bundled as library assets.*
 - **A controls reference:** P1/P2 mappings read from MAME, TeknoParrot, Dolphin/Wii
   and RetroArch configuration files. Unknown mappings and possible game overrides
   are identified rather than guessed.
+- **RS3 screen calibration:** prepare the manufacturer module automatically and
+  calibrate a selected player in a fullscreen four-target sequence. Remote Desktop
+  allows preparation; calibration needs the physical screen and gun.
+- **Game-specific setup:** reviewed USA Dolphin accuracy profiles with RS3 P1
+  controls and live per-player Supermodel RawInput routing. Game Details explains
+  remaining P2, plugin and patch requirements. [Compatibility guide](docs/compatibility.md).
 - **Runtime checks:** inspect launch programs and local DLLs on startup, after
   import and before launch. Missing supported Visual C++, DirectX and .NET runtimes
   can be downloaded from Microsoft with architecture and signature checks.
@@ -78,8 +88,9 @@ inputs or audio may continue while the menu is open.
    Edge WebView2 Runtime if it is missing (an Internet connection is then required).
 3. Open **My Guns**. Connect your gun, inspect P1/P2 detection, and prepare its
    software. An RS3's COM player ID is used for automatic assignment.
-4. Check the live buttons and run the five-target aim test **at your physical screen**.
-   This test measures accepted hit deviation; it does not write firmware calibration.
+4. For RS3, prepare and run the integrated four-target **screen calibration** at the
+   physical monitor, then check live buttons and run the separate five-target aim test.
+   [Calibration and game-specific setup](docs/compatibility.md) explains the distinction.
 5. Open **Find Games** to import existing TeknoParrot profiles, scan MAME ROMs against
    that emulator's catalog, add a Windows game application, or import a collection handoff.
 6. Launch a game, test aiming and buttons, then use the game menu to return.

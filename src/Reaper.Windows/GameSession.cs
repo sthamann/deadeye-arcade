@@ -105,6 +105,7 @@ public sealed class GameSession
         EmulatorSetup.ConfigurePaths(game);
         TeknoGunSetup.Configure(game,bindings);
         var info = LaunchRules.Prepare(game);
+        if(SupermodelSetup.IsSupermodel(game) && bindings.Any()) info.ArgumentList.Add("-input-system=rawinput");
         if (game.Source == "teknoparrot")
         {
             var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(game.Executable));

@@ -1,11 +1,11 @@
-Deadeye Arcade 0.3.5 introduces the new name and a media-rich project showcase.
+Deadeye Arcade 0.3.6 adds integrated RS3 calibration and game-specific input setup.
 
-- Renamed the project and GitHub repository from Reaper Arcade to Deadeye Arcade.
-- Updated the frontend, native window, game menu, installer, shortcuts and update endpoint.
-- Kept the executable, data folder, registry keys and mutex IDs compatible with existing installations.
-- Replaced placeholder README recordings with the running interface displaying game covers, screenshots, logos and playing preview clips.
-- Windows Setup and portable packages use the Deadeye Arcade name.
+- Prepare the verified manufacturer calibration module automatically, then run a selected-player four-target sequence at the physical screen. Cancel with the grip button, Escape or the visible control; run the separate aim test afterward.
+- Install reviewed USA Dolphin profiles by the actual disc ID, preserving unrelated settings and the upstream GPL-3.0 license. RS3 P1 mappings include the additional Dead Space Extraction actions.
+- Resolve Supermodel RawInput mouse and keyboard device numbers on each launch and keep player inputs separate.
+- Display per-title two-player, plugin and patch requirements in Game Details, and read active Dolphin title controls in the in-game menu.
+- Keep preparation available under Remote Desktop while blocking physical screen calibration there.
 
-Users of 0.3.4 or earlier should install this Setup once: older clients correctly reject the renamed repository's download address. Future updates use the new endpoint. Libraries, gun bindings, language and autostart preferences are preserved.
+Independent Dolphin P2 setup, native calibration accuracy and physical game actions still need hardware verification. Blue Estate's external two-gun patch is not automatically installed. Games, emulators and manufacturer utilities are not bundled. Autostart remains an explicit setting and is off by default.
 
-Physical aiming, trigger-hold access and game-driven recoil still require tests with real guns. The Model 2 crash and Naomi rendering artifacts recorded in the 0.3.4 verification report remain unresolved. Games, emulators and artwork are not bundled.
+This is a source candidate pending Windows installation and fresh game-launch verification; see docs/verification-0.3.6.md.

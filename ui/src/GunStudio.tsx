@@ -693,9 +693,19 @@ export function GunStudio({
                   <h3>{t("Hersteller-Kalibrierung")}</h3>
                   <p>
                     {t(
-                      "F\u00FCr die genaue Ausrichtung am echten Bildschirm das vorhandene Retro-Shooter-Programm \u00F6ffnen.",
+                      "Vier Ziele direkt in Deadeye Arcade kalibrieren: Mitte, oben links, unten rechts, oben rechts. Nur die ausgewählte Gun schießt. Grifftaste oder Escape bricht ab.",
                     )}
                   </p>
+                  <div className="inline-actions">
+                    <button className="primary" disabled={busy || !sameModel || !!state.remoteSession} onClick={() => send("calibrate-rs3", {player})}>
+                      <Crosshair size={18}/>{t("P{0} am Bildschirm kalibrieren",player)}
+                    </button>
+                    <button className="secondary" disabled={busy} onClick={()=>send("prepare-calibration")}>
+                      {state.calibrationPrepared?t("Kalibrierung bereit"):t("Kalibrierung automatisch vorbereiten")}
+                    </button>
+                  </div>
+                  <p className="studio-caption">{t("In 16:9 und deiner Spielposition kalibrieren. Für 4:3 genügt die automatische Formatumschaltung. Anschließend den Zieltest ausführen. Unter Remote Desktop ist nur die Vorbereitung verfügbar.")}</p>
+                  <details><summary>{t("Eigenes Herstellerprogramm verwenden")}</summary>
                   <div className="inline-actions">
                     <button
                       className="secondary"
@@ -717,6 +727,7 @@ export function GunStudio({
                   {state.calibrationTool && (
                     <p className="studio-caption">{state.calibrationTool}</p>
                   )}
+                  </details>
                 </div>
               )}
               <div className="setup-note">

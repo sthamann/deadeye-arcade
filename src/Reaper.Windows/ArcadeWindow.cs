@@ -45,6 +45,7 @@ public sealed class ArcadeWindow : Window
     private readonly Dictionary<int, TriggerHold> triggerHolds = [];
     private InGameOverlay? overlay;
     private GameEntry? activeGame;
+    private ReaperCalibrationWindow? calibration;
     private int overlayOpener;
     private bool overlayAction;
     private EmergencyExit? emergencyExit;
@@ -127,7 +128,7 @@ public sealed class ArcadeWindow : Window
                 if (!launching && !closing) Close();
                 return;
             }
-            closing = true; ready = false; Log("exit: desktop");
+            calibration?.Close(); closing = true; ready = false; Log("exit: desktop");
         };
         Closed += (_, _) => { CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
@@ -178,6 +179,7 @@ public sealed class ArcadeWindow : Window
         Send("state", new
         {
             games = state.Games.Select(g => g with { Cover = MediaUrl(g.Cover, true), PreviewVideo = MediaUrl(g.PreviewVideo), Screenshot = MediaUrl(g.Screenshot), Logo = MediaUrl(g.Logo) }),
+            gameCompatibility = state.Games.ToDictionary(g=>g.Id,g=>GameCompatibility.Read(g,state.Bindings.Count(b=>guns.Any(gun=>gun.MouseId==b.MouseId)))),
             bindings = state.Bindings,
             devices = raw.Devices,
             gunSystems = GunSystems.Catalog,
@@ -192,6 +194,7 @@ public sealed class ArcadeWindow : Window
             version = AppUpdater.Current,
             update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
             remoteSession,
+            calibrationPrepared = ReaperCalibrationPackage.Prepared(store.DirectoryPath),
             installations,
             dependencies = DependencyView(),
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
@@ -219,6 +222,12 @@ public sealed class ArcadeWindow : Window
     private void Log(string message) { System.IO.File.AppendAllText(logPath, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine); }
     private void Input(RawPacket packet)
     {
+        if(calibration is not null)
+        {
+            try { calibration.Input(packet); }
+            catch(Exception e) { Send("error",new {message=e.Message}); }
+            return;
+        }
         // The physical trigger can always reach the native exit, even while learning a button.
         if (!session.Active && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
         {
@@ -364,7 +373,7 @@ public sealed class ArcadeWindow : Window
     }
     private async Task DiscoverGuns()
     {
-        if (scanningGuns || closing) return;
+        if (scanningGuns || closing || calibration is not null) return;
         scanningGuns = true; Send("busy", new { message = I18n.T("Lightguns werden erkannt und zugeordnet …") });
         try
         {
@@ -431,6 +440,7 @@ public sealed class ArcadeWindow : Window
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
         if (session.Active && type != "fullscreen") throw new InvalidOperationException(I18n.T("Bitte zuerst das laufende Spiel beenden."));
         if (type == "cancel-learn") { learningPlayer = null; learningAction = null; learningControl = null; SendState(); return; }
+        if(calibration is not null) throw new InvalidOperationException(I18n.T("Bitte zuerst die Kalibrierung beenden."));
         if (busy || scanningGuns) throw new InvalidOperationException(I18n.T("Die laufende Aktion wird noch abgeschlossen."));
         switch (type)
         {
@@ -508,6 +518,35 @@ public sealed class ArcadeWindow : Window
                     string exe = state.Settings.CalibrationTool ?? throw new InvalidOperationException(I18n.T("Bitte zuerst das Herstellerprogramm auswählen."));
                     await session.Run(GameImporter.Pc(exe, "RS3-Kalibrierung"), store.DirectoryPath, state.Bindings); break;
                 }
+            case "prepare-calibration":
+                busy=true; Send("busy",new {message=I18n.T("Hersteller-Kalibrierung wird vorbereitet …")});
+                try { await ReaperCalibrationPackage.Prepare(store.DirectoryPath); Send("notice",new {message=I18n.T("RS3-Kalibrierung bereit. Am echten Bildschirm P1 oder P2 wählen und kalibrieren.")}); }
+                finally {busy=false;Send("busy",new {message=""});SendState();}
+                break;
+            case "calibrate-rs3":
+                {
+                    if(remoteSession) throw new InvalidOperationException(I18n.T("Die Gun am echten Bildschirm lokal kalibrieren. Remote Desktop verändert die Anzeige."));
+                    var binding=state.Bindings.SingleOrDefault(b=>b.Player==Player() && b.SystemId=="rs3") ?? throw new InvalidOperationException(I18n.T("Keine Gun zugeordnet."));
+                    if(binding.SerialPort is null || !guns.Any(g=>g.MouseId==binding.MouseId && g.DriverHealthy)) throw new IOException(I18n.T("Die ausgewählte Gun ist nicht mehr verbunden."));
+                    string pid=$"vid_0483&pid_{0x574f+binding.Player:x4}";
+                    if(guns.Count(g=>g.MouseId?.Contains(pid,StringComparison.OrdinalIgnoreCase)==true)!=1) throw new IOException(I18n.T("Gun-ID und Spielerzuordnung stimmen nicht überein."));
+                    busy=true; string dll;
+                    try { dll=await ReaperCalibrationPackage.Prepare(store.DirectoryPath); await serial.Command(binding.SerialPort,binding.Player,GunSystems.ReaperConfiguration((binding.Feedback??new()) with {Aspect="16:9"})); }
+                    catch { try { await serial.Command(binding.SerialPort,binding.Player,GunSystems.ReaperConfiguration(binding.Feedback??new())); } catch(Exception e) {Log("calibration preparation restore: "+e.Message);} throw; }
+                    finally {busy=false;Send("busy",new {message=""});}
+                    if(closing) { try { await serial.Command(binding.SerialPort,binding.Player,GunSystems.ReaperConfiguration(binding.Feedback??new())); } catch(Exception e) {Log("calibration closing restore: "+e.Message);} return; }
+                    ReaperCalibrationWindow window;
+                    try { window=new ReaperCalibrationWindow(this,binding,dll,()=>raw.Devices.Any(d=>d.Id.Equals(binding.MouseId,StringComparison.OrdinalIgnoreCase))); }
+                    catch { try { await serial.Command(binding.SerialPort,binding.Player,GunSystems.ReaperConfiguration(binding.Feedback??new())); } catch(Exception e) {Log("calibration module restore: "+e.Message);} throw; }
+                    calibration=window;
+                    window.Closed+=async (_,_)=> {
+                        calibration=null;
+                        try { await serial.Command(binding.SerialPort,binding.Player,GunSystems.ReaperConfiguration(binding.Feedback??new())); }
+                        catch(Exception e) {Log("calibration restore: "+e.Message);}
+                        if(!closing) {Activate();SendState();Send("notice",new {message=window.CommandsSent?I18n.T("Kalibrierungsbefehle gesendet. Jetzt mit dem Zieltest die tatsächliche Genauigkeit prüfen."):I18n.T("Kalibrierung abgebrochen. Vorherige Kalibrierung bleibt erhalten.")});}
+                    };
+                    window.Show(); window.Activate(); break;
+                }
             case "validate-library":
                 {
                     var warnings = new List<string>();
@@ -575,7 +614,7 @@ public sealed class ArcadeWindow : Window
             case "setup-gun":
                 {
                     string system = Str("system"); if (!GunSystems.Catalog.Any(g => g.Id == system)) throw new ArgumentException(I18n.T("Unbekanntes Lightgun-System."));
-                    if (system == "rs3") { await DiscoverGuns(); break; }
+                    if (system == "rs3") { await DiscoverGuns(); busy=true; try {await ReaperCalibrationPackage.Prepare(store.DirectoryPath);} finally {busy=false;SendState();} break; }
                     busy = true;
                     try { var path = await GunSoftware.Prepare(system, store.DirectoryPath, text => Send("busy", new { message = text })); Send("notice", new { message = path }); }
                     finally { busy = false; Send("busy", new { message = "" }); SendState(); }
@@ -749,8 +788,21 @@ public sealed class ArcadeWindow : Window
         busy = true; launching = true; var changed = new List<GunBinding>();
         try
         {
+            raw.Refresh(); SupermodelSetup.Configure(game,state.Bindings,raw.Devices);
+            if(DolphinSetup.IsDolphin(game) && state.Bindings.Any(b=>b.Player==1 && b.SystemId=="rs3" && guns.Any(g=>g.MouseId==b.MouseId)))
+            {
+                Send("busy",new {message=I18n.T("Dolphin-Spielprofil wird für RS3 vorbereitet …")});
+                var pack=await DolphinAccuracyPackage.Prepare(store.DirectoryPath);
+                if(!DolphinSetup.Configure(game,pack,state.Bindings)) Send("notice",new {message=I18n.T("Für diese Spielregion liegt kein geprüftes Dolphin-Profil vor. Bestehende Belegung wird verwendet.")});
+            }
             foreach (var binding in state.Bindings.Where(b => b.SystemId == "rs3" && b.SerialPort is not null && guns.Any(g => g.Id == b.PhysicalId || g.MouseId == b.MouseId)))
-            { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect })); changed.Add(binding); }
+            {
+                changed.Add(binding);
+                await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect }));
+                // Keep a second physical mouse from steering P1's shared Dolphin cursor.
+                // P2 remains pending until its independent DirectInput controls are verified.
+                if(DolphinSetup.IsDolphin(game) && binding.Player==2) await serial.Command(binding.SerialPort!,binding.Player,["ZJ"]);
+            }
             foreach (var gesture in gestures.Values) gesture.Reset();
             foreach (var hold in triggerHolds.Values) hold.Reset(); activeGame = game;
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);

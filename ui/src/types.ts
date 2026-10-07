@@ -111,6 +111,8 @@ export type State = {
   version: string;
   remoteSession?: boolean;
   calibrationTool?: string | null;
+  calibrationPrepared?: boolean;
+  gameCompatibility?: Record<string,{twoPlayer:string;notes:string[]}|null>;
   installations: {
     kind: string;
     name: string;
@@ -181,7 +183,7 @@ export const empty: State = {
     language: "en",
   },
   bindingStage: null,
-  version: "0.3.5",
+  version: "0.3.6",
   installations: [],
   native: !!window.chrome?.webview,
 };

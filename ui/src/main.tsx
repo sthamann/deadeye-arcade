@@ -1678,6 +1678,11 @@ function App() {
                     )}
                   </p>
                 )}
+                {state.gameCompatibility?.[modal.game.id] && (
+                  <div className="setup-warning"><strong>{message(state.gameCompatibility[modal.game.id]!.twoPlayer)}</strong>
+                    {state.gameCompatibility[modal.game.id]!.notes.map((note,i)=><p key={i}>{message(note)}</p>)}
+                  </div>
+                )}
                 {modal.game.setupNotes && (
                   <details>
                     <summary>{t("Einrichtung und Helfer")}</summary>
