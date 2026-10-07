@@ -73,6 +73,19 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.waitForFunction(()=>document.querySelector('.gun-hotspot.pressed'));
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'shoot'}));
  await native.waitForFunction(()=>!document.querySelector('.gun-hotspot.pressed'));
+ // Physical highlight follows the input, even when its assigned action is changed.
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:true,action:'reload'}));
+ await native.waitForFunction(()=>document.querySelector('[data-control="trigger"].pressed'));
+ assert.equal(await native.locator('[data-control="reload"].pressed').count(),0);
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'reload'}));
+ await native.locator('.physical-row').filter({hasText:'Magazinboden'}).evaluate(b=>b.click());
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='learn-control'&&m.payload.control==='magazine')),'Physical control capture is separate from action binding');
+ const studioPaths=[];
+ for(const model of ['Sinden Lightgun','X-Gunner Wireless','Blamcon Vyper','RS3 Reaper Pro']){
+  await native.locator('.system-card').filter({hasText:model}).evaluate(b=>b.click());
+  studioPaths.push(await native.locator('.gun-live-panel .gun-shape').innerHTML());
+ }
+ assert.equal(new Set(studioPaths).size,4,'All manufacturers have distinct anatomy and physical controls');
  await native.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).evaluate(b=>b.click());
  await native.getByRole('button',{name:'Zieltest',exact:true}).first().evaluate(b=>b.click());
  // An unassigned mouse / the other player's gun cannot certify this player's target test.
@@ -107,6 +120,18 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.evaluate(()=>window.fixture.emit('import-result',{count:0,warnings:[],validation:true}));
  await native.getByRole('heading',{name:'0 Spiele mit vorhandenen Startdateien.'}).waitFor();
  await native.getByText('BIBLIOTHEK GEPRÜFT',{exact:true}).waitFor();
+ // A long library must be navigable without a wheel, then selection returns to the launch area.
+ await native.getByRole('button',{name:'Zur Bibliothek',exact:false}).evaluate(b=>b.click());
+ const longGames=Array.from({length:72},(_,i)=>({id:'scroll-'+i,title:'Scroll game '+i,platform:'MAME',source:'custom',sourcePath:'fixture',executable:'fixture',workingDirectory:'fixture',arguments:[],status:'unverified',cover:null,favorite:false,aspect:'4:3',lastPlayed:null}));
+ await native.evaluate(games=>window.fixture.emit('state',{native:true,remoteSession:false,installations:[],version:'fixture',games,bindings:[],devices:[],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'de'},bindingStage:null}),longGames);
+ await native.waitForFunction(()=>document.querySelectorAll('.game-tile').length===72);
+ await native.evaluate(()=>window.scrollTo(0,0));
+ await clickRaw('Eine Seite nach unten');
+ await native.waitForFunction(()=>window.scrollY>300);
+ await native.locator('.game-tile').last().scrollIntoViewIfNeeded();
+ await clickRaw('Scroll game 71 auswählen');
+ await native.waitForFunction(()=>window.scrollY===0&&document.querySelector('.hero h1')?.textContent==='Scroll game 71');
+ assert.equal(await native.evaluate(()=>document.activeElement?.textContent?.trim()),'Spiel starten','Selection focuses launch without starting automatically');
  const handoffPath=process.env.REAPER_HANDOFF_CHECK;
  if(handoffPath){
   const {readFileSync}=require('node:fs');

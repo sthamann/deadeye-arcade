@@ -10,12 +10,14 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/reaper-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.3](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.3/Reaper-Arcade-0.3.3-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.3)
+**[Download Windows Setup 0.3.4](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.4/Reaper-Arcade-0.3.4-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.4)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
 > the ten-second trigger gesture and game-driven recoil still require local
 > hardware tests. Reaper does not mark a game as playable just because its files exist.
+
+Use the fixed **Up / Down** buttons to scroll by aiming and pulling the trigger. Selecting a cover returns to the featured game's launch button. Gun Studio now shows model-specific physical controls, with independent live highlights and input capture. [Hardware references and exact control behavior](docs/HARDWARE-CONTROLS.md).
 
 ## See it in action
 
@@ -117,7 +119,7 @@ portable ZIP and SHA-256 checksums are generated and uploaded to GitHub Releases
 | Sinden | Product detection, input assignment and preparation of checked manufacturer software | Local calibration, manufacturer prompts and game profiles |
 | X-Gunner Wireless | Receiver/product detection, input assignment and checked configuration software | A receiver alone does not prove how many wireless guns are active; actual input is required |
 | Blamcon Vyper | Product-family detection, input assignment and Blamcon ARC entry through Steam | Exact model confirmation, calibration and physical feedback |
-| TeknoParrot | Import existing UserProfiles, profile launch, read configured controls | Existing input profiles and title-specific helper/output setup |
+| TeknoParrot | Import UserProfiles, repair unambiguous game paths, configure connected guns for supported RawInput controls, launch and read mappings | Pedals, unusual title-specific actions and helper/output setup |
 | MAME | Import actual lightgun catalog + present ROM archives, generated controller mapping, controls reference | Game overrides, calibration and real gameplay |
 | Dolphin / RetroArch | Launch paths from collection handoffs; read supported control configuration | Dedicated automatic import adapters and title/core-specific overrides |
 | Other systems | Executable discovery for several emulators/tools; manual or handoff launch paths | Dedicated import/input adapters and per-title tests |
@@ -150,7 +152,7 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
 
 ## Verification
 
-- **85 core checks:** imports, file readiness, preservation after reload, player
+- **106 core checks:** imports, file readiness, preservation after reload, player
   isolation, trigger hold timing, control-profile parsing, dependency detection,
   English defaults, native translations, saved language preference and update validation.
 - **Browser checks:** English ↔ German switching and reload, four pages at five
@@ -164,9 +166,10 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
   0.3.3. A controlled older Windows build downloaded that public release through
   the app, installed it and restarted as 0.3.3; library entries and gun mappings
   were preserved. [Installer/update verification](docs/verification-0.3.3.md).
-- **Windows game-session checks:** CarnEvil/MAME menu open, resume, restart and exit
-  back to the frontend. Earlier Windows checks reached the title/menu screens
-  of Dead Space Extraction/Dolphin and Blue Estate.
+- **Windows game-session checks:** rendered title/menu screens in MAME, Dolphin,
+  RetroArch, TeknoParrot, Supermodel and Blue Estate, and the GunCon2 calibration screen in PCSX2.
+  Resume/restart/exit checks and unresolved emulator cases are recorded in
+  [0.3.4 verification](docs/verification-0.3.4.md).
 - **Physical gun validation remains pending:** USB/COM detection is distinct from
   button, aim, calibration and recoil verification. Not every imported title has
   been launched or tested.

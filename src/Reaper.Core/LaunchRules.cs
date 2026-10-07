@@ -8,12 +8,15 @@ public static class LaunchRules
 {
     public static ProcessStartInfo Prepare(GameEntry game)
     {
+        if (game.Source == "teknoparrot") {
+            RepairTeknoParrotPath(game); game=Validate(game);
+        }
         if (game.Source == "demo") throw new InvalidOperationException(I18n.T("Vorschauspiele können nicht gestartet werden."));
         if (game.Status == "needs-setup") throw new InvalidOperationException(I18n.T("Die Spieleinrichtung ist noch unvollständig."));
         var issues = Issues(game);
         if (issues.Length > 0) throw new IOException(string.Join("\n", issues));
         var info = new ProcessStartInfo(game.Executable) { WorkingDirectory = game.WorkingDirectory, UseShellExecute = false };
-        foreach (var arg in game.Arguments) info.ArgumentList.Add(arg);
+        foreach (var arg in game.Arguments) info.ArgumentList.Add(Path.GetFileName(game.Executable).Equals("Supermodel.exe",StringComparison.OrdinalIgnoreCase) && File.Exists(arg) ? LegacyPaths.ForAnsiEmulator(arg) : arg);
         return info;
     }
     public static string[] Issues(GameEntry game)
@@ -37,11 +40,55 @@ public static class LaunchRules
                 string? path = xml.Descendants().FirstOrDefault(e => e.Name.LocalName == "GamePath")?.Value;
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(Path.GetFullPath(path, game.WorkingDirectory)))
                     issues.Add(I18n.T("TeknoParrot-GamePath fehlt oder zeigt nicht auf die vorhandene Spielanwendung."));
+                bool two=xml.Descendants().Any(e=>e.Name.LocalName=="HasTwoExecutables"&&e.Value.Equals("true",StringComparison.OrdinalIgnoreCase));
+                string? second=xml.Descendants().FirstOrDefault(e=>e.Name.LocalName=="GamePath2")?.Value;
+                if(two&&(string.IsNullOrWhiteSpace(second)||!File.Exists(Path.GetFullPath(second,game.WorkingDirectory))))
+                    issues.Add(I18n.T("TeknoParrot-GamePath2 fehlt oder zeigt nicht auf den benötigten zweiten Starter."));
             }
             catch (Exception e) when (e is IOException or System.Xml.XmlException or ArgumentException)
             { issues.Add(I18n.T("TeknoParrot-Profil nicht lesbar: ") + e.Message); }
         }
         return issues.Distinct().ToArray();
+    }
+    public static bool RepairTeknoParrotPath(GameEntry game)
+    {
+        if(game.Source != "teknoparrot" || !File.Exists(game.SourcePath)) return false;
+        var document=XDocument.Load(game.SourcePath);
+        var nodes=document.Descendants().Where(e=>e.Name.LocalName=="GamePath").ToArray();
+        if(nodes.Length!=1) return false;
+        var node=nodes[0];
+        string? candidate=null;
+        if(!string.IsNullOrWhiteSpace(node.Value))
+            try { var current=Path.GetFullPath(node.Value,game.WorkingDirectory); if(File.Exists(current)) candidate=current; }
+            catch(ArgumentException) { /* Repair an invalid path only from one explicit library file. */ }
+        if(candidate is null)
+        {
+            var candidates=(game.RequiredFiles ?? []).Where(p=>!p.Equals(game.SourcePath,StringComparison.OrdinalIgnoreCase)&&File.Exists(p)&&!p.EndsWith(".xml",StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            // Only use an explicit library file. Never guess among directory contents.
+            if(candidates.Length!=1) return false;
+            candidate=Path.GetFullPath(candidates[0]);
+        }
+        string compatible=candidate;
+        bool changed=node.Value!=compatible;
+        var second=document.Descendants().SingleOrDefault(e=>e.Name.LocalName=="GamePath2");
+        bool two=document.Descendants().Any(e=>e.Name.LocalName=="HasTwoExecutables"&&e.Value.Equals("true",StringComparison.OrdinalIgnoreCase));
+        if(two&&second is not null&&!string.IsNullOrWhiteSpace(second.Value)&&!File.Exists(second.Value))
+        {
+            // Rebase a second executable only by a shared named ancestor and a unique existing file.
+            string[] old=second.Value.Replace('\\','/').Split('/',StringSplitOptions.RemoveEmptyEntries);
+            var matches=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for(var parent=Directory.GetParent(candidate);parent is not null;parent=parent.Parent)
+                for(int i=1;i<old.Length-1;i++)
+                    if(parent.Name.Equals(old[i],StringComparison.OrdinalIgnoreCase))
+                    { string rebased=Path.Combine([parent.FullName,..old[(i+1)..]]); if(File.Exists(rebased)) matches.Add(rebased); }
+            if(matches.Count==1) { second.Value=matches.Single(); changed=true; }
+        }
+        if(!changed) return false;
+        string backup=game.SourcePath+".before-reaper-path-fix";
+        if(!File.Exists(backup)) File.Copy(game.SourcePath,backup);
+        node.Value=compatible;
+        string temporary=game.SourcePath+".reaper-new"; document.Save(temporary); File.Move(temporary,game.SourcePath,true);
+        return true;
     }
     public static GameEntry Validate(GameEntry game)
     {
@@ -54,7 +101,7 @@ public static class LaunchRules
         var input = new XElement("input", devices.Select(b => new XElement("mapdevice", new XAttribute("device", b.MouseId), new XAttribute("controller", "GUNCODE_" + b.Player))));
         foreach (var binding in devices)
         {
-            var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player);
+            var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId);
             foreach (var action in new[] { "shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right" })
             {
                 string type = action switch

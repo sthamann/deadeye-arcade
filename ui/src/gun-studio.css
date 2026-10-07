@@ -715,3 +715,4 @@
     min-width: 0;
   }
 }
+.physical-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 18px}.physical-row{display:flex;align-items:center;gap:10px;text-align:left;padding:12px;background:#1b2839;border:1px solid #3c5068;border-radius:10px;min-height:66px}.physical-row>b{background:#304761;border-radius:50%;min-width:25px;height:25px;display:grid;place-items:center;font-size:12px}.physical-row>span:first-of-type{flex:1;min-width:0}.physical-row strong{font-size:12px}.physical-row small{display:block;font-size:10px;color:#a7b9d1;margin-top:5px;overflow-wrap:anywhere}.physical-row>span:last-child{font-size:10px;color:#f5a680}.physical-row.pressed{border-color:#75efaf;background:#204436}.gun-hotspot.hardware{cursor:default}.gun-hotspot.hardware circle{fill:#b87934}.gun-live-panel{min-width:0}@media(max-width:850px){.physical-controls{grid-template-columns:1fr}}

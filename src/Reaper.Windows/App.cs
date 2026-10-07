@@ -36,7 +36,7 @@ public static class App
                 }
                 if (args.Length == 2 && args[0] == "--import-collection") LibraryStore.Merge(state, CollectionImporter.Read(args[1]).Games);
                 else if (args.Length != 1 || args[0] != "--validate-library") throw new ArgumentException(I18n.T("Unbekannter Einrichtungsaufruf."));
-                for (int i = 0; i < state.Games.Count; i++) state.Games[i] = LaunchRules.Validate(state.Games[i]);
+                for (int i = 0; i < state.Games.Count; i++) { LaunchRules.RepairTeknoParrotPath(state.Games[i]); state.Games[i] = LaunchRules.Validate(state.Games[i]); }
                 store.Save(state);
                 File.WriteAllText(Path.Combine(data, "library-import-report.json"), JsonSerializer.Serialize(new
                 {

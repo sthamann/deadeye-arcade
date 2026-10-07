@@ -9,6 +9,8 @@ public sealed class GameSession
 {
     private readonly Dictionary<int, DateTime> owned = [];
     private volatile bool stop;
+    private volatile bool overlayVisible;
+    private string targetExecutable = "";
     private readonly object sync = new();
     private Task? ending;
     private readonly List<(nint Handle, int Show)> overlayWindows = [];
@@ -22,12 +24,13 @@ public sealed class GameSession
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] private static extern bool Process32Next(nint snapshot, ref ProcessEntry entry);
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(nint handle);
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hwnd, int command);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsZoomed(nint hwnd);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
     public void HideForOverlay()
     {
-        overlayWindows.Clear();
+        overlayVisible = true; overlayWindows.Clear();
         KeyValuePair<int, DateTime>[] list; lock (sync) list = owned.ToArray();
         foreach (var pair in list)
             try
@@ -40,7 +43,18 @@ public sealed class GameSession
     }
     public void RestoreFromOverlay()
     {
+        overlayVisible = false;
         if (Active) foreach (var window in overlayWindows) { ShowWindowAsync(window.Handle, window.Show); SetForegroundWindow(window.Handle); }
+        // A launcher can own a visible status window. Finish with the actual game in front.
+        KeyValuePair<int, DateTime>[] list; lock (sync) list = owned.ToArray();
+        if (Active) foreach (var pair in list)
+            try
+            {
+                using var process = Process.GetProcessById(pair.Key);
+                if (!process.HasExited && process.StartTime == pair.Value && string.Equals(process.MainModule?.FileName, targetExecutable, StringComparison.OrdinalIgnoreCase) && process.MainWindowHandle != 0)
+                    SetForegroundWindow(process.MainWindowHandle);
+            }
+            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
         overlayWindows.Clear();
     }
     private static List<(int Id, int Parent)> Snapshot()
@@ -70,6 +84,7 @@ public sealed class GameSession
         }
         finally
         {
+            if (ending is not null) await ending;
             foreach (var helper in helpers)
             {
                 try { if (!helper.HasExited) helper.CloseMainWindow(); } catch (InvalidOperationException) { }
@@ -87,6 +102,8 @@ public sealed class GameSession
     private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
         if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
+        EmulatorSetup.ConfigurePaths(game);
+        TeknoGunSetup.Configure(game,bindings);
         var info = LaunchRules.Prepare(game);
         if (game.Source == "teknoparrot")
         {
@@ -110,13 +127,15 @@ public sealed class GameSession
             if (!string.IsNullOrWhiteSpace(path)) target = Path.GetFullPath(path, game.WorkingDirectory);
         }
         HashSet<int> existing = Snapshot().Select(p => p.Id).ToHashSet();
-        var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayWindows.Clear();
+        targetExecutable = target;
+        var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayVisible = false; overlayWindows.Clear();
         using var process = Process.Start(info) ?? throw new IOException(I18n.T("Das Spiel konnte nicht gestartet werden."));
         lock (sync) owned[process.Id] = process.StartTime;
         Active = true; Changed?.Invoke("running");
         bool targetSeen = game.Source != "teknoparrot", descendantSeen = false;
         var targets = new HashSet<int>(); if (targetSeen) targets.Add(process.Id);
         var lastChild = DateTime.Now;
+        var presented = new HashSet<nint>();
         try
         {
             while (!stop)
@@ -147,6 +166,18 @@ public sealed class GameSession
                         try { using var p = Process.GetProcessById(pair.Key); if (!p.HasExited && p.StartTime == pair.Value) { live++; if (targets.Contains(pair.Key)) liveTarget++; if (pair.Key != process.Id) children++; } }
                         catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     }
+                    // Minimized frontend may otherwise leave a terminal ahead of a slowly created game window.
+                    // Focus each session window once, only during startup and while no overlay is open.
+                    if (!overlayVisible && DateTime.Now - started < TimeSpan.FromSeconds(20))
+                        foreach (var pair in owned.ToArray())
+                            try
+                            {
+                                using var gameProcess = Process.GetProcessById(pair.Key);
+                                if (gameProcess.HasExited || gameProcess.StartTime != pair.Value) continue;
+                                var handle = gameProcess.MainWindowHandle;
+                                if (handle != 0 && IsWindowVisible(handle) && presented.Add(handle)) { if(IsIconic(handle)) ShowWindowAsync(handle, 9); SetForegroundWindow(handle); }
+                            }
+                            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     if (children > 0) lastChild = DateTime.Now;
                     if (targetSeen && liveTarget == 0 && (game.Source == "teknoparrot" || children == 0)) break;
                     if (descendantSeen && children == 0 && DateTime.Now - lastChild > TimeSpan.FromSeconds(3)) break;
@@ -155,10 +186,12 @@ public sealed class GameSession
                 }
                 await Task.Delay(200);
             }
+            if(!stop && ending is null && game.Source!="teknoparrot" && process.HasExited && process.ExitCode!=0)
+                throw new IOException(I18n.F($"Das Spiel wurde mit Fehlercode {process.ExitCode} beendet. Bitte das Emulatorprotokoll prüfen."));
         }
         finally
         {
-            if (game.Source == "teknoparrot") try { if (!process.HasExited) process.CloseMainWindow(); } catch (InvalidOperationException) { }
+            if (game.Source == "teknoparrot") await End();
             // The owning wrapper releases this session's helpers before returning to the menu.
         }
     }
@@ -173,6 +206,9 @@ public sealed class GameSession
             catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
         }
         await Task.Delay(1800);
+        // Launchers may reopen their library while the game closes. Include children
+        // observed during the grace period, while retaining PID/start-time ownership.
+        lock (sync) list = owned.ToArray();
         foreach (var pair in list.Reverse())
         {
             try { using var p = Process.GetProcessById(pair.Key); if (!p.HasExited && p.StartTime == pair.Value) p.Kill(); }

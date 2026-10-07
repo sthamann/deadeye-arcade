@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import type { State, GunSignal } from "./types";
 import "./gun-studio.css";
+import {GunShape, controls, factoryMap} from "./GunHardware";
+export {GunShape} from "./GunHardware";
 const models = () => [
   {
     id: "rs3",
@@ -50,28 +52,6 @@ const actions = (): Record<string, string> => ({
   left: t("Nach links"),
   right: t("Nach rechts"),
 });
-const points: Record<string, [number, number]> = {
-  shoot: [254, 159],
-  reload: [308, 121],
-  secondary: [345, 121],
-  start: [391, 116],
-  coin: [426, 117],
-  up: [326, 78],
-  down: [326, 101],
-  left: [314, 90],
-  right: [338, 90],
-};
-const defaultMap = (player: number): Record<string, string> => ({
-  "mouse:1": "shoot",
-  "mouse:2": "reload",
-  "mouse:3": "secondary",
-  [`key:${48 + player}`]: "start",
-  [`key:${52 + player}`]: "coin",
-  "key:85": "up",
-  "key:86": "down",
-  "key:87": "left",
-  "key:88": "right",
-});
 function tokenLabel(token: string) {
   return token.startsWith("mouse:")
     ? t("Maustaste {0}", token.slice(6))
@@ -82,98 +62,6 @@ function tokenLabel(token: string) {
           ? " · " + String.fromCharCode(+token.slice(4))
           : "",
       );
-}
-export function GunShape({
-  model = "rs3",
-  mini = false,
-  pressed = new Set<string>(),
-  select,
-}: {
-  model?: string;
-  mini?: boolean;
-  pressed?: Set<string>;
-  select?: (action: string) => void;
-}) {
-  return (
-    <svg
-      className={"gun-shape " + model + (mini ? " mini" : "")}
-      viewBox="0 0 560 270"
-      role="img"
-      aria-label={
-        mini
-          ? t("Lightgun-Silhouette")
-          : t("Schematische Lightgun mit Live-Tasten")
-      }
-    >
-      <defs>
-        <linearGradient id={"metal-" + model} x2="0" y2="1">
-          <stop stopColor="#485366" />
-          <stop offset=".47" stopColor="#202b3a" />
-          <stop offset="1" stopColor="#0d1520" />
-        </linearGradient>
-      </defs>
-      <g
-        fill={t("url(#metal-{0})", model)}
-        stroke="currentColor"
-        strokeWidth={mini ? 5 : 2}
-        strokeLinejoin="round"
-      >
-        {model === "sinden" ? (
-          <path d="M100 89H387L431 118 432 143H344L318 240H254L273 143H108Z" />
-        ) : model === "blamcon" ? (
-          <path d="M58 90H423L470 126V154H350L318 238H258L278 154H134L130 183H64Z" />
-        ) : model === "xgunner" ? (
-          <path d="M91 91H399L439 122V150H351L326 236H256L273 150H107Z" />
-        ) : (
-          <path d="M72 93H395L430 108H479L477 143H368L338 234H272L288 146H165L149 175H70Z" />
-        )}
-        <path d="M92 109H246V130H92Z" fill="#141e2a" />
-        <path d="M170 89H379V79H181Z" />
-        <path d="M272 149H328L316 183H284Z" fill="#0c1119" />
-        <path d="M282 152L297 169 300 151" fill="none" />
-        <path
-          d="M303 193L330 201M296 207L327 215M291 220L323 230"
-          opacity=".7"
-        />
-      </g>
-      <path d="M177 99H371" stroke="#ff7850" strokeWidth="4" />
-      {!mini && (
-        <>
-          <text x="178" y="122" fill="#8796ab" fontSize="12" letterSpacing="4">
-            {model === "rs3" ? "REAPER" : model.toUpperCase()}
-          </text>
-          {Object.entries(points).map(([action, [x, y]]) => (
-            <g
-              key={action}
-              className={
-                "gun-hotspot " + (pressed.has(action) ? "pressed" : "")
-              }
-              onClick={() => select?.(action)}
-              aria-hidden="true"
-            >
-              <circle cx={x} cy={y} r={action === "shoot" ? 15 : 8} />
-            </g>
-          ))}
-          <path
-            d="M254 162L225 212H175M394 116L435 55H495M311 120L269 45H179"
-            fill="none"
-            stroke="#516078"
-            strokeWidth="1"
-            strokeDasharray="4 5"
-          />
-          <text x="108" y="224" fill="#a5b3c7" fontSize="11">
-            {t("ABZUG")}
-          </text>
-          <text x="437" y="46" fill="#a5b3c7" fontSize="11">
-            {t("START / COIN")}
-          </text>
-          <text x="104" y="38" fill="#a5b3c7" fontSize="11">
-            {t("AKTIONEN")}
-          </text>
-        </>
-      )}
-    </svg>
-  );
 }
 export function GunHeader({ state, open }: { state: State; open: () => void }) {
   const guns = state.guns ?? [];
@@ -297,12 +185,10 @@ export function GunStudio({
   );
   const online = !!gun;
   const selected = models().find((m) => m.id === model)!;
-  const map = binding?.buttonMap ?? defaultMap(player);
-  const pressed = new Set(
-    Object.keys(held)
-      .filter((k) => held[k])
-      .map((k) => map[k]),
-  );
+  const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(player,model) : factoryMap(player,model);
+  const physicalControls = controls(model,player);
+  const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? physicalControls.find(c=>c.id===id)?.token;
+  const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token];}).map(c=>c.id));
   const feedback = binding?.feedback ?? {
     recoil: true,
     rumble: true,
@@ -417,9 +303,7 @@ export function GunStudio({
               <GunShape
                 model={model}
                 pressed={sameModel ? pressed : new Set()}
-                select={(action) =>
-                  sameModel && send("learn-button", { player, action })
-                }
+                select={(control) => sameModel && send("learn-control", { player, control })}
               />
               <div className="signal-readout">
                 <Crosshair size={18} />
@@ -431,9 +315,16 @@ export function GunStudio({
               </div>
               <p className="studio-caption">
                 {t(
-                  "Schematische Ansicht. Die beleuchteten Punkte zeigen empfangene Tastenaktionen; die genaue Lage kann je nach Modell abweichen.",
+                  "Modellansicht nach Herstellerunterlagen. Nummern entsprechen den physischen Bedienelementen. Unbekannte Eingänge einmal erfassen; die Anzeige bleibt unabhängig von deiner Aktionsbelegung.",
                 )}
               </p>
+              <div className="physical-controls">{physicalControls.map((control,i)=>{
+                const token=tokenFor(control.id);
+                return <button key={control.id} className={"physical-row "+(pressed.has(control.id)?"pressed":"")} disabled={!sameModel||busy||control.hardware} onClick={()=>send("learn-control",{player,control:control.id})}>
+                  <b>{i+1}</b><span><strong>{t(control.label)}</strong><small>{control.hardware?t("Hardware-Schalter · kein HID-Taster"):token?tokenLabel(token)+" · "+(actions()[map[token]]??t("Nicht belegt")):t("Eingang erfassen")}</small></span><span>{state.learning?.control===control.id?t("Taste drücken …"):control.hardware?"":t("Erfassen")}</span>
+                </button>;
+              })}</div>
+              <p className="studio-caption">{model==="sinden"?t("Sinden: Bildschirmrand und Start/Stop bleiben Aufgaben der Herstellersoftware. Tasten können am Bildschirm und außerhalb verschiedene Eingänge senden."):model==="xgunner"?t("X-Gunner: Front-Stick und zwei Seitentasten nach Herstellerfotos. Firmware-Belegung wird an deinem Gerät erfasst."):model==="blamcon"?t("Vyper: Magazinzug, A/B, Stick und Start/Select. Feuerwahl steuert den Rückstoß am Gerät."):t("Reaper: P1 Pfeiltasten / Q, P2 U/V/W/X / S. Münztaste vier Sekunden halten sendet Esc; beide Grifftasten teilen den Reload-Eingang.")}</p>
               <div className="live-stats">
                 <span>
                   <b>

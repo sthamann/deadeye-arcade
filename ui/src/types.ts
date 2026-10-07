@@ -35,6 +35,7 @@ export type Binding = {
   systemId?: string;
   physicalId?: string | null;
   buttonMap?: Record<string, string> | null;
+  controlMap?: Record<string,string> | null;
   feedback?: {
     recoil: boolean;
     rumble: boolean;
@@ -89,7 +90,8 @@ export type State = {
   }[];
   learning?: null | {
     player: number;
-    action: string;
+    action: string | null;
+    control?: string | null;
   };
   games: Game[];
   bindings: Binding[];
@@ -179,7 +181,7 @@ export const empty: State = {
     language: "en",
   },
   bindingStage: null,
-  version: "0.3.3",
+  version: "0.3.4",
   installations: [],
   native: !!window.chrome?.webview,
 };

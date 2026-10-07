@@ -90,7 +90,11 @@ public static class OverlayControls
                     string input = match.Groups[3].Value switch { "mbtn" => I18n.T("Maustaste "), "btn" => I18n.T("Controller-Taste "), "axis" => I18n.T("Achse "), _ => I18n.T("Taste ") };
                     rows.Add(new(int.Parse(match.Groups[1].Value), label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration"));
                 }
-                return new(rows.ToArray(), I18n.T("RetroArch-Konfiguration mit expliziten Zusatzdateien. Core-/Content-Overrides und Remaps sind nicht bestätigt."));
+                var compact=rows.GroupBy(r=>(r.Player,r.Function)).Select(group=> {
+                    var assigned=group.Where(r=>r.Input!=I18n.T("Nicht belegt")).Select(r=>r.Input).Distinct().ToArray();
+                    return group.First() with {Input=assigned.Length==0?I18n.T("Nicht belegt"):string.Join(" / ",assigned)};
+                }).ToArray();
+                return new(compact, I18n.T("RetroArch-Konfiguration mit expliziten Zusatzdateien. Core-/Content-Overrides und Remaps sind nicht bestätigt."));
             }
             return new([], I18n.T("Für dieses System ist die Spielbelegung noch nicht auslesbar. Unten steht deine gespeicherte Gun-/Menübelegung; sie bestätigt keine Spielzuordnung."));
         }
@@ -113,7 +117,9 @@ public static class OverlayControls
             var raw = button.Elements().FirstOrDefault(e => e.Name.LocalName == "RawInputButton");
             if (raw is null || Value(raw, "DeviceType") == "None") return I18n.T("Nicht belegt");
             string device = Value(raw, "DevicePath"); var binding = bindings.FirstOrDefault(b => string.Equals(b.MouseId, device, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, device, StringComparison.OrdinalIgnoreCase));
+            if (string.IsNullOrWhiteSpace(device)) return I18n.T("Nicht belegt");
             string key = Value(raw, "MouseButton") is { Length:>0 } mouse && mouse != "None" ? mouse : Value(raw, "KeyboardKey");
+            if (Value(raw, "DeviceType") == "Mouse" && (key is "" or "None")) key = I18n.T("Zielen / Mausbewegung");
             return (binding is null ? I18n.T("Profilgerät (Gun-Zuordnung offen) · ") : "P" + binding.Player + " · ") + key;
         }
         string label = Value(button, api == "DirectInput" ? "BindNameDi" : api == "XInput" ? "BindNameXi" : "BindName");

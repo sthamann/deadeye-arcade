@@ -2283,3 +2283,8 @@ main {
 
 .language-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
 .language-setting { gap: 24px; flex-wrap: wrap; }
+.gun-scroll {position:fixed;bottom:92px;left:50%;transform:translateX(-50%);z-index:35;display:flex;align-items:center;gap:8px;padding:8px;background:#101927ed;border:1px solid #4d6076;border-radius:16px;box-shadow:0 8px 30px #0009;backdrop-filter:blur(15px)}
+.gun-scroll button{min-width:68px;min-height:60px;padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;background:#263449;border:1px solid #4a5d78;border-radius:10px}
+.gun-scroll small{max-width:110px;padding:0 8px;color:#acbdd3}
+.arcade-app main{padding-bottom:175px}
+@media(max-width:600px){.gun-scroll{bottom:86px;width:calc(100% - 24px);justify-content:center}.gun-scroll small{display:none}.gun-scroll button{min-width:62px}.gun-scroll span{font-size:12px}}

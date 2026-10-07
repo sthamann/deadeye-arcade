@@ -1,11 +1,13 @@
-Reaper Arcade now ships as a Windows Setup executable, with a portable ZIP available too.
+Reaper Arcade 0.3.4 makes gun setup and library navigation easier and improves automatic emulator setup.
 
-- Per-user installation without administrator rights, desktop/Start menu shortcuts and Windows uninstall registration.
-- Included .NET runtime and automatic installation of Microsoft WebView2 when missing.
-- Automatic checks for newer stable GitHub releases at startup and every six hours.
-- Gun-friendly Settings controls for checking, downloading and installing an update, followed by an app restart.
-- SHA-256 and size checks before running the installer, library backup and preservation of settings and gun mappings.
-- English and German update UI. Updates are blocked during a game; automatic checks can be switched off.
-- A GitHub Actions workflow builds installers, portable ZIPs and checksums for version tags.
+- Distinct RS3 Reaper Pro, Sinden, X-Gunner and Blamcon Vyper drawings based on manufacturer references, with model-specific physical controls.
+- Live physical-button highlighting stays independent of action reassignment. Firmware-specific controls can learn their input on the actual device.
+- Large fixed Top/Up/Down targets for aiming and pulling the trigger to scroll. Selecting a cover returns to the featured game and focuses Launch.
+- RS3 factory key maps follow the manufacturer PC diagram, including the stick press and side button; other brands do not inherit RS3 keyboard assumptions.
+- Connected-player RawInput setup for supported TeknoParrot profile controls, preserving special controls and backing up changes.
+- Repairs for stale TeknoParrot primary/secondary executable paths, Model 2 ROM search folders and unavailable PCSX2 memory-card storage.
+- Required-runtime checks include both executable paths in dual-executable TeknoParrot profiles.
+- Improved startup window focus, emulator failure reporting and session cleanup when returning to the frontend.
+- Updated English/German UI and animated documentation screenshots. Windows Setup, portable ZIP and self-updates remain available.
 
-Core and UI checks cover version selection, prerelease/downgrade rejection, untrusted URLs, malformed hashes, verified downloads, corrupt-download preservation and cancellation. Physical aiming, calibration and recoil still require local hardware tests. Games, ROMs, emulators and manufacturer utilities are not bundled. The package is currently unsigned.
+106 core checks and browser navigation/layout/input checks passed. Windows tests reached real game or calibration screens in MAME, Dolphin, RetroArch, PCSX2, TeknoParrot, Supermodel and Blue Estate. See the repository verification report for individual results and unresolved emulator cases. Physical aiming, calibration, buttons, recoil and two-player behavior require tests at the real screen; this release does not certify every title. Drawings are original stylized illustrations, not scanned replicas. Games, ROMs, emulators and manufacturer utilities are not bundled. The installer is currently unsigned.

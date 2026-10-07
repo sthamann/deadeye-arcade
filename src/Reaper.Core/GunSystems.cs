@@ -18,12 +18,30 @@ public static class GunSystems
         : product.Contains("Sinden", StringComparison.OrdinalIgnoreCase) ? "sinden"
         : Regex.IsMatch(product, @"x[ -]?gunner", RegexOptions.IgnoreCase) ? "xgunner"
         : product.Contains("Blamcon", StringComparison.OrdinalIgnoreCase) ? "blamcon" : null;
-    public static Dictionary<string, string> DefaultMap(int player) => new()
+    public static Dictionary<string, string> DefaultMap(int player, string system = "rs3")
     {
-        ["mouse:1"] = "shoot", ["mouse:2"] = "reload", ["mouse:3"] = "secondary",
-        ["key:" + (player == 1 ? 49 : 50)] = "start", ["key:" + (player == 1 ? 53 : 54)] = "coin",
-        ["key:85"] = "up", ["key:86"] = "down", ["key:87"] = "left", ["key:88"] = "right"
-    };
+        var map = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload" };
+        if (system != "rs3") return map;
+        map["mouse:3"]="secondary"; map["key:"+(48+player)]="start"; map["key:"+(52+player)]="coin";
+        map["key:"+(player==1?81:83)]="start"; map["key:"+(player==1?77:78)]="secondary";
+        int[] keys = player==1 ? [38,40,37,39] : [85,86,87,88];
+        string[] directions = ["up","down","left","right"];
+        for(int i=0;i<4;i++) map["key:"+keys[i]]=directions[i];
+        return map;
+    }
+    public static Dictionary<string,string> UpgradeMap(GunBinding binding)
+    {
+        if(binding.ButtonMap is null) return DefaultMap(binding.Player,binding.SystemId);
+        // Upgrade only the exact factory map from <=0.3.3. Preserve every custom map.
+        var old = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload", ["mouse:3"]="secondary", ["key:"+(binding.Player==1?49:50)]="start", ["key:"+(binding.Player==1?53:54)]="coin", ["key:85"]="up", ["key:86"]="down", ["key:87"]="left", ["key:88"]="right" };
+        return binding.SystemId=="rs3" && binding.ButtonMap.Count==old.Count && old.All(p=>binding.ButtonMap.GetValueOrDefault(p.Key)==p.Value) ? DefaultMap(binding.Player) : new(binding.ButtonMap);
+    }
+    public static bool ValidControl(string system,string control) => (system switch {
+        "rs3" => new[]{"trigger","reload","magazine","start","coin","side","up","down","left","right","stick"},
+        "sinden" => new[]{"trigger","pump","front-left","back-left","front-right","back-right","up","down","left","right"},
+        "xgunner" => new[]{"trigger","side-a","side-b","stick","up","down","left","right"},
+        "blamcon" => new[]{"trigger","magazine","a","b","up","down","left","right","select","start"}, _ => Array.Empty<string>()
+    }).Contains(control);
     public static readonly string[] Actions = ["shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right", "none"];
     public static bool ValidToken(string token) => Regex.IsMatch(token, @"^(key:([1-9]\d{0,2})|mouse:[1-5])$") && (!token.StartsWith("key:") || int.Parse(token[4..]) <= 255);
     public static Dictionary<string, string> ValidateMap(Dictionary<string, string> map)

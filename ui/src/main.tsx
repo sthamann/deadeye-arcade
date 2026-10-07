@@ -47,6 +47,7 @@ import {
 } from "./types";
 import "./style.css";
 import { GunStudio, GunHeader } from "./GunStudio";
+import { GunScroll } from "./GunScroll";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
 type Page = "play" | "guns" | "import" | "settings";
@@ -142,6 +143,7 @@ function App() {
     >
   >({});
   const [justEnded, setJustEnded] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
   const stateRef = useRef(state);
   const modalRef = useRef(modal);
   const stepRef = useRef(testStep);
@@ -461,6 +463,13 @@ function App() {
       (filter !== "classic" || g.source === "mame" || g.platform === "MAME") &&
       g.title.toLowerCase().includes(search.toLowerCase()),
   );
+  const selectGame = (id:string) => {
+    setSelected(id);
+    requestAnimationFrame(()=>{
+      window.scrollTo({top:0,behavior:"instant"});
+      heroRef.current?.querySelector<HTMLButtonElement>(".primary")?.focus({preventScroll:true});
+    });
+  };
   const featured =
     allGames.find((g) => g.id === selected) ?? games[0] ?? allGames[0];
   const connected = (player: number) => {
@@ -519,6 +528,7 @@ function App() {
   );
   return (
     <div className="arcade-app">
+      <GunScroll hidden={!!modal||!!state.bindingStage||!!picker||!!keyboard||!!state.learning||session}/>
       <aside
         className="sidebar"
         inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
@@ -633,6 +643,7 @@ function App() {
                 <>
                   <section
                     className="hero"
+                    ref={heroRef}
                     style={
                       {
                         "--game-accent":
@@ -757,7 +768,7 @@ function App() {
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                           onFocus={() => {
-                            if (state.native) setKeyboard("search");
+                            if (state.native && !state.remoteSession) setKeyboard("search");
                           }}
                         />
                       </label>
@@ -819,7 +830,7 @@ function App() {
                           (featured.id === game.id ? "selected" : "")
                         }
                         aria-label={game.title + t(" ausw\u00E4hlen")}
-                        onClick={() => setSelected(game.id)}
+                        onClick={() => selectGame(game.id)}
                         style={
                           {
                             "--game-accent": accents[index % accents.length],

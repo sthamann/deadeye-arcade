@@ -1,6 +1,7 @@
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 using System.Text.Json;
+using System.Xml.Linq;
 
 namespace Reaper.Core;
 
@@ -97,7 +98,8 @@ public static class DependencyScanner
         {
             var visited = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             var roots = new[] { game.Executable }.Concat((game.Helpers ?? []).Select(h => h.Executable))
-                .Concat((game.RequiredFiles ?? []).Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase)));
+                .Concat((game.RequiredFiles ?? []).Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
+                .Concat(ProfileExecutables(game));
             foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase)) Inspect(root, Path.GetDirectoryName(root) ?? "", 0, false);
             void Inspect(string file, string executableDirectory, int depth, bool inheritedOptional)
             {
@@ -149,6 +151,19 @@ public static class DependencyScanner
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or KeyNotFoundException)
                 { uncheckedFiles.Add(game.Title + I18n.T(": .NET-Konfiguration nicht lesbar")); }
             }
+        }
+        IEnumerable<string> ProfileExecutables(GameEntry game)
+        {
+            if (game.Source != "teknoparrot" || !File.Exists(game.SourcePath)) return [];
+            try
+            {
+                var profile = XDocument.Load(game.SourcePath);
+                bool two = profile.Descendants().Any(e => e.Name.LocalName == "HasTwoExecutables" && e.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
+                return profile.Descendants().Where(e => e.Name.LocalName == "GamePath" || (two && e.Name.LocalName == "GamePath2"))
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Value)).Select(e => Path.GetFullPath(e.Value, game.WorkingDirectory)).ToArray();
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Xml.XmlException or ArgumentException)
+            { uncheckedFiles.Add(game.Title + I18n.T(": TeknoParrot-Profil nicht lesbar")); return []; }
         }
         return new(DateTimeOffset.Now, games.Length, inspected.Count, findings.Distinct().ToArray(), uncheckedFiles.Distinct().ToArray());
         bool Compatible(string path, string architecture)
