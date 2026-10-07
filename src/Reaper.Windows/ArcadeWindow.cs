@@ -20,6 +20,13 @@ namespace Reaper.Windows;
 public sealed class ArcadeWindow : Window
 {
     private readonly WebView2 web = new();
+    private readonly AppUpdater updater = new();
+    private AppRelease? availableUpdate;
+    private string updateStatus = "idle", updateError = "";
+    private int updateProgress;
+    private bool checkingUpdate;
+    private DateTimeOffset? updateChecked;
+    private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(6) };
     private readonly RawInput raw = new();
     private readonly ArcadePicker picker;
     private readonly bool remoteSession = GetSystemMetrics(0x1000) != 0 || (Environment.GetEnvironmentVariable("SESSIONNAME")?.StartsWith("RDP-", StringComparison.OrdinalIgnoreCase) ?? false);
@@ -105,6 +112,8 @@ public sealed class ArcadeWindow : Window
             else { Log("exit: gun to desktop"); Close(); }
         };
         timer.Start();
+        updateTimer.Tick += async (_, _) => { if (state.Settings.CheckForUpdates && !session.Active && !busy) await CheckAppUpdate(); };
+        updateTimer.Start();
         Closing += async (_, e) =>
         {
             if (session.Active)
@@ -119,7 +128,7 @@ public sealed class ArcadeWindow : Window
             }
             closing = true; ready = false; Log("exit: desktop");
         };
-        Closed += (_, _) => { CloseOverlay(false); timer.Stop(); gunTimer.Stop(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
+        Closed += (_, _) => { CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
     private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); } return 0; }
     private async Task Initialize()
@@ -177,15 +186,25 @@ public sealed class ArcadeWindow : Window
             gunSignals,
             learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
-            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), hasCoverKey = state.Settings.CoverKey is not null },
+            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), state.Settings.CheckForUpdates, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
-            version = "0.3.2",
+            version = AppUpdater.Current,
+            update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
             remoteSession,
             installations,
             dependencies = DependencyView(),
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
             native = true
         });
+    }
+    private async Task CheckAppUpdate()
+    {
+        if (checkingUpdate || updateStatus is "downloading" or "installing" || closing) return;
+        checkingUpdate = true; updateStatus = "checking"; updateError = ""; SendState();
+        try { availableUpdate = await updater.Check(); updateChecked = DateTimeOffset.UtcNow; updateStatus = availableUpdate is null ? "current" : "available"; }
+        catch (OperationCanceledException) when (closing) { }
+        catch (Exception error) { updateStatus = "error"; updateError = error.Message; }
+        finally { checkingUpdate = false; if (!closing) SendState(); }
     }
     private string? MediaUrl(string? file, bool cover = false)
     {
@@ -400,7 +419,7 @@ public sealed class ArcadeWindow : Window
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException(I18n.T("Bitte zuerst die Dateiauswahl schließen."));
-        if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); return; }
+        if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); return; }
         if (type == "end-game") { await session.End(); return; }
         if (type == "show-overlay") { OpenOverlay(0); overlay?.Arm(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
@@ -410,6 +429,25 @@ public sealed class ArcadeWindow : Window
         switch (type)
         {
 
+            case "check-updates": await CheckAppUpdate(); break;
+            case "update-preference":
+                state = state with { Settings = state.Settings with { CheckForUpdates = payload.GetProperty("enabled").GetBoolean() } }; Persist();
+                if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); break;
+            case "install-update":
+                if (availableUpdate is null || checkingUpdate) throw new InvalidOperationException(I18n.T("Bitte zuerst nach einem Update suchen."));
+                busy = true; updateStatus = "downloading"; updateProgress = 0; updateError = ""; SendState();
+                try
+                {
+                    var release = availableUpdate;
+                    string installer = await updater.Download(release, store.DirectoryPath, new Progress<int>(value => { if (!closing) { updateProgress = value; SendState(); } }));
+                    if (closing) return;
+                    store.Save(state); AppUpdater.Install(installer, store.DirectoryPath);
+                    updateStatus = "installing"; SendState(); Close();
+                }
+                catch (OperationCanceledException) when (closing) { }
+                catch (Exception error) { updateStatus = "error"; updateError = error.Message; }
+                finally { busy = false; if (!closing) SendState(); }
+                break;
             case "check-dependencies": await CheckDependencies(); break;
             case "install-dependencies":
                 {
@@ -618,7 +656,8 @@ public sealed class ArcadeWindow : Window
                     var picker = new SaveFileDialog { Title = I18n.T("Diagnose speichern"), Filter = "JSON|*.json", FileName = "reaper-diagnose.json" }; if (picker.ShowDialog() != true) return;
                     System.IO.File.WriteAllText(picker.FileName, JsonSerializer.Serialize(new
                     {
-                        version = "0.3.2",
+                        version = AppUpdater.Current,
+            update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
             remoteSession,
             installations,
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),

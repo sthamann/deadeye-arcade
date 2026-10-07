@@ -11,6 +11,7 @@ utilities are not bundled with Reaper Arcade.
 | .NET Runtime and WPF | MIT and additional component notices; distributed runtime licenses are included under `licenses/`. [Runtime](https://github.com/dotnet/runtime), [WPF](https://github.com/dotnet/wpf) |
 | Microsoft WebView2 SDK | [Microsoft license](https://www.nuget.org/packages/Microsoft.Web.WebView2). The separate WebView2 Runtime is distributed by Microsoft. |
 | System.IO.Ports / ProtectedData | [MIT, .NET Runtime](https://github.com/dotnet/runtime) |
+| NSIS installer runtime | zlib/libpng license and compression component licenses; included in `licenses/nsis-COPYING.txt`. Unmodified upstream source: [NSIS download](https://nsis.sourceforge.io/Download). |
 | Vite / TypeScript / Playwright | Development tools; not run as Windows processes in the portable app. |
 
 The generic cover placeholders in the UI are original application assets.

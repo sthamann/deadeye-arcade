@@ -563,5 +563,22 @@
   "EINGABETEST": "INPUT TEST",
   "BEDIENPROBE": "UI PREVIEW",
   "Sprache": "Language",
-  "Für Oberfläche, Spielmenü und App-Meldungen.": "For the interface, game menu and app messages."
+  "Für Oberfläche, Spielmenü und App-Meldungen.": "For the interface, game menu and app messages.",
+  "App-Updates": "App updates",
+  "Installierte Version": "Installed version",
+  "Reguläre GitHub-Releases": "Stable GitHub releases",
+  "Automatisch nach Updates suchen": "Check for updates automatically",
+  "Beim Start und alle sechs Stunden. Während eines Spiels wird nichts installiert.": "At startup and every six hours. Nothing is installed while a game is running.",
+  "Noch nicht geprüft.": "Not checked yet.",
+  "Update wird gesucht …": "Checking for updates …",
+  "Kein neueres Installationsrelease verfügbar.": "No newer installation release available.",
+  "Neue Version verfügbar.": "A new version is available.",
+  "Update wird heruntergeladen …": "Downloading update …",
+  "Update wird installiert …": "Installing update …",
+  "Update konnte nicht abgeschlossen werden.": "Update could not be completed.",
+  "Nach Updates suchen": "Check for updates",
+  "Update installieren und neu starten": "Install update and restart",
+  "Das Update wird geprüft. Bibliothek, Gun-Belegung und Einstellungen bleiben erhalten. Die App schließt kurz und startet danach wieder.": "The update is verified. Your library, gun mappings and settings are preserved. The app briefly closes and then restarts.",
+  "Änderungen in dieser Version": "Changes in this version",
+  "Bitte zuerst nach einem Update suchen.": "Please check for an update first."
 }

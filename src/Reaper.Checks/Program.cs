@@ -179,6 +179,28 @@ try
     var joined = GameImporter.Pc(optionalRoot, "Required after optional") with { RequiredFiles = [requiredRoot] };
     Check(DependencyScanner.Scan([joined], root).Findings.Any(f => f.Dll == "msvcr120.dll" && f.Missing && f.Required), "A required import reached after a delay import still blocks a broken launch");
     Throws(() => NativeImports.Read(handoff), "Malformed executable is rejected without loading it");
+    byte[] updateBytes = new byte[2048]; new Random(7).NextBytes(updateBytes);
+    string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(updateBytes)).ToLowerInvariant();
+    string releaseJson = System.Text.Json.JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v0.3.4", body = "Test changes", assets = new[] { new { name = "Reaper-Arcade-0.3.4-Setup-x64.exe", browser_download_url = "https://github.com/sthamann/reaper-arcade/releases/download/v0.3.4/Reaper-Arcade-0.3.4-Setup-x64.exe", digest = "sha256:" + digest, size = updateBytes.Length } } });
+    var release = AppUpdates.Read(releaseJson, new Version(0, 3, 3, 0))!;
+    Check(release.Version == "0.3.4" && release.Sha256 == digest, "Updater selects a newer stable installer and its SHA-256 digest");
+    Check(AppUpdates.Read(releaseJson, new Version(0, 3, 4, 0)) is null && AppUpdates.Read(releaseJson, new Version(0, 4, 0, 0)) is null, "Updater never offers the same version or a downgrade");
+    Check(AppUpdates.Read(releaseJson.Replace("\"prerelease\":false", "\"prerelease\":true"), new Version(0, 3, 3, 0)) is null, "Automatic updates exclude prereleases");
+    Throws(() => AppUpdates.Read(releaseJson.Replace("https://github.com/", "https://example.com/"), new Version(0, 3, 3, 0)), "Updater rejects foreign download addresses");
+    Throws(() => AppUpdates.Read(releaseJson.Replace(digest, "invalid"), new Version(0, 3, 3, 0)), "Updater rejects missing or malformed digests");
+    using var updateClient = new HttpClient(new UpdateFixture(updateBytes));
+    string updateDirectory = Path.Combine(root, "updates");
+    string downloaded = await AppUpdates.Download(updateClient, release, updateDirectory, null);
+    Check(File.ReadAllBytes(downloaded).SequenceEqual(updateBytes), "Verified installer downloads reach the final file");
+    using var corruptClient = new HttpClient(new UpdateFixture(new byte[updateBytes.Length]));
+    bool corruptRejected = false;
+    try { await AppUpdates.Download(corruptClient, release, updateDirectory, null); } catch (InvalidDataException) { corruptRejected = true; }
+    Check(corruptRejected && !File.Exists(downloaded + ".partial") && File.ReadAllBytes(downloaded).SequenceEqual(updateBytes), "A corrupt download is rejected and preserves an earlier verified installer");
+    using var cancel = new CancellationTokenSource(); cancel.Cancel();
+    bool cancelled = false;
+    try { await AppUpdates.Download(updateClient, release, updateDirectory, null, cancel.Token); } catch (OperationCanceledException) { cancelled = true; }
+    Check(cancelled && !File.Exists(downloaded + ".partial"), "Cancelled updates clean partial downloads");
+    Check(new AppSettings().CheckForUpdates && System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}", JsonDefaults.Options)!.CheckForUpdates, "Automatic update checks default on for new and existing libraries");
     if (args.Length > 1)
     {
         var actual = CollectionImporter.Read(args[1]);
@@ -217,5 +239,14 @@ sealed class FixtureHttp(bool ambiguous = false) : HttpMessageHandler
          path.Contains("grids") ? new StringContent("{\"data\":[{\"url\":\"https://cdn2.steamgriddb.com/grid/fixture.png\"}]}") : new ByteArrayContent([137, 80, 78, 71]);
         if (!path.Contains("api")) content.Headers.ContentType = new("image/png");
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+    }
+}
+
+sealed class UpdateFixture(byte[] bytes) : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) });
     }
 }

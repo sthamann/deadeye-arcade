@@ -77,6 +77,7 @@ export type GunSignal = {
   action: string;
 };
 export type State = {
+  update?: { status: string; progress: number; error: string; checkedAt?: string | null; release?: null | {version: string; notes: string; page: string} };
   guns?: PhysicalGun[];
   gunSystems?: GunSystem[];
   gunIssues?: Record<string, string>;
@@ -99,6 +100,7 @@ export type State = {
     fullscreen: boolean;
     hasCoverKey: boolean;
     language: "en" | "de";
+    checkForUpdates?: boolean;
   };
   bindingStage: null | {
     player: number;
@@ -177,7 +179,7 @@ export const empty: State = {
     language: "en",
   },
   bindingStage: null,
-  version: "0.3.2",
+  version: "0.3.3",
   installations: [],
   native: !!window.chrome?.webview,
 };

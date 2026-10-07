@@ -626,6 +626,7 @@ function App() {
           </div>
         )}
         <main>
+          {state.update?.status === "available" && page !== "settings" && <div className="remote-banner"><Download size={20}/><span>{t("Neue Version verfügbar.")} {state.update.release?.version}</span><button className="secondary" onClick={()=>setPage("settings")}>{t("App-Updates")}</button></div>}
           {page === "play" && (
             <>
               {featured ? (
@@ -1125,6 +1126,24 @@ function App() {
                 </h1>
               </div>
               <section className="settings-panel">
+                <div className="setting-block update-panel">
+                  <div className="setting-title"><Download size={20}/><strong>{t("App-Updates")}</strong></div>
+                  <p>{t("Installierte Version")}: {state.version} · {t("Reguläre GitHub-Releases")}</p>
+                  <div className="setting-row">
+                    <div><strong>{t("Automatisch nach Updates suchen")}</strong><p>{t("Beim Start und alle sechs Stunden. Während eines Spiels wird nichts installiert.")}</p></div>
+                    <button className={"toggle " + (state.settings.checkForUpdates !== false ? "on" : "")} role="switch" aria-checked={state.settings.checkForUpdates !== false} aria-label={t("Automatisch nach Updates suchen")} onClick={()=>send("update-preference",{enabled:state.settings.checkForUpdates===false})}><span/></button>
+                  </div>
+                  <p role="status">{t(({idle:"Noch nicht geprüft.",checking:"Update wird gesucht …",current:"Kein neueres Installationsrelease verfügbar.",available:"Neue Version verfügbar.",downloading:"Update wird heruntergeladen …",installing:"Update wird installiert …",error:"Update konnte nicht abgeschlossen werden."} as Record<string,string>)[state.update?.status??"idle"]??"Noch nicht geprüft.")}
+                  {state.update?.release && <> · {state.update.release.version}</>}
+                  {state.update?.status==="downloading" && <> · {state.update.progress}%</>}</p>
+                  {state.update?.error && <p className="hint">{message(state.update.error)}</p>}
+                  <div className="button-row">
+                    <button className="secondary" disabled={session || !!busy || ["checking","downloading","installing"].includes(state.update?.status??"")} onClick={()=>send("check-updates")}><RefreshCw size={20}/>{t("Nach Updates suchen")}</button>
+                    <button className="primary" disabled={session || !!busy || !state.update?.release || ["checking","downloading","installing"].includes(state.update?.status??"")} onClick={()=>send("install-update")}><Download size={20}/>{t("Update installieren und neu starten")}</button>
+                  </div>
+                  <p className="hint">{t("Das Update wird geprüft. Bibliothek, Gun-Belegung und Einstellungen bleiben erhalten. Die App schließt kurz und startet danach wieder.")}</p>
+                  {state.update?.release?.notes && <details><summary>{t("Änderungen in dieser Version")}</summary><p style={{whiteSpace:"pre-wrap"}}>{state.update.release.notes}</p></details>}
+                </div>
                 <div className="setting-row language-setting">
                   <div>
                     <strong>{t("Sprache")}</strong>

@@ -10,6 +10,8 @@
   --panel: #171c26;
   color-scheme: dark;
 }
+.update-panel .button-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.update-panel .button-row button { max-width: 100%; white-space: normal; }
 * {
   box-sizing: border-box;
 }
