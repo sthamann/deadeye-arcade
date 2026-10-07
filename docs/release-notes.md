@@ -5,7 +5,8 @@ Deadeye Arcade 0.3.6 adds integrated RS3 calibration and game-specific input set
 - Resolve Supermodel RawInput mouse and keyboard device numbers on each launch and keep player inputs separate.
 - Display per-title two-player, plugin and patch requirements in Game Details, and read active Dolphin title controls in the in-game menu.
 - Keep preparation available under Remote Desktop while blocking physical screen calibration there.
+- Clear the preparation indicator when a game starts or returns, including failed launches.
 
 Independent Dolphin P2 setup, native calibration accuracy and physical game actions still need hardware verification. Blue Estate's external two-gun patch is not automatically installed. Games, emulators and manufacturer utilities are not bundled. Autostart remains an explicit setting and is off by default.
 
-This is a source candidate pending Windows installation and fresh game-launch verification; see docs/verification-0.3.6.md.
+Windows installation, Dolphin launch, active-profile overlay and return-to-library checks have been completed; see docs/verification-0.3.6.md for their scope and the remaining hardware checks.

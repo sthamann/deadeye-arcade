@@ -806,6 +806,7 @@ public sealed class ArcadeWindow : Window
             foreach (var gesture in gestures.Values) gesture.Reset();
             foreach (var hold in triggerHolds.Values) hold.Reset(); activeGame = game;
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);
+            Send("busy", new { message = "" });
             await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))));
         }
         finally
@@ -813,6 +814,7 @@ public sealed class ArcadeWindow : Window
             foreach (var binding in changed)
             { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = I18n.T("Menümodus konnte nicht wiederhergestellt werden: ") + e.Message }); } }
             busy = false; launching = false; activeGame = null;
+            Send("busy", new { message = "" });
             if (closeRequested) Close(); else SendState();
         }
     }

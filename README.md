@@ -43,9 +43,10 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-The current source prepares **0.3.6**, including the calibration and game-specific
-setup below. The downloadable stable release above is **0.3.5** until the new
-Windows installation and game-launch checks are complete.
+**0.3.6** includes the calibration and game-specific setup below. Windows
+launch, overlay and return-to-library checks are recorded in
+[the verification notes](docs/verification-0.3.6.md); physical aiming and
+independent two-gun gameplay remain separate checks.
 
 - **A fullscreen game library:** search, favorites, platform filters, game details,
   local covers, muted preview videos, screenshots and logos.

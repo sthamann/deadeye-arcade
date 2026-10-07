@@ -1,6 +1,6 @@
-# Verification of the 0.3.6 source candidate
+# Verification of 0.3.6
 
-This records the source candidate, not an installed or physically verified release.
+Software checks and Windows smoke tests are recorded separately from physical gun gameplay.
 
 - 124 core checks passed, including calibration trigger/release sequencing,
   cancellation, ISO/WBFS disc IDs, title-profile installation and preserved
@@ -14,9 +14,30 @@ This records the source candidate, not an installed or physically verified relea
   package and selected-player bridge commands, and Remote Desktop calibration
   restrictions.
 
+## Windows smoke tests (2026-10-07)
+
+- The Windows package was installed with a backup of the previous application
+  and library. Native library, gun-discovery and dependency checks completed.
+- An RS3 P1 was detected with a healthy Windows driver and responded to its
+  serial identity probe. This does not establish physical input or aiming accuracy.
+- Dead Space Extraction launched through Deadeye into Dolphin and rendered its
+  startup and animated game scenes. The disc ID selected the RS3 title profile,
+  which appeared in the in-game menu. Ending the session returned to the library.
+- A preparation indicator that remained visible after Dolphin returned was
+  corrected, rebuilt and retested on Windows. The library and its video preview
+  resumed with the indicator cleared.
+- Time Crisis 5 launched through Deadeye and rendered its attract sequence.
+  Its in-game menu opened, and ending the session returned to the library.
+  Its game-specific input mapping and linked-player operation remain unverified.
+- Selecting a library card scrolled back to the game's launch area. The native
+  Close app control returned to the Windows desktop.
+- Windows autostart remained disabled.
+
+These checks used Remote Desktop with mouse/keyboard navigation. They do not
+demonstrate physical trigger holds, gun-only operation, recoil or independent P2.
+
 ## Outstanding acceptance checks
 
-The new candidate still needs installation and fresh game launches on Windows.
 Its native manufacturer calibration transport needs a physical monitor/gun test,
 followed by the separate aim test. The vendor DLL does not acknowledge firmware
 acceptance; successful calls must not be reported as proven calibration accuracy.
