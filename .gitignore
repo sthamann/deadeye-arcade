@@ -8,3 +8,6 @@ release/
 
 # Local build, recording and migration scratch files
 /work/
+
+.playwright-cli/
+/output/playwright/

@@ -1,13 +1,11 @@
-Reaper Arcade 0.3.4 makes gun setup and library navigation easier and improves automatic emulator setup.
+Deadeye Arcade 0.3.5 introduces the new name and a media-rich project showcase.
 
-- Distinct RS3 Reaper Pro, Sinden, X-Gunner and Blamcon Vyper drawings based on manufacturer references, with model-specific physical controls.
-- Live physical-button highlighting stays independent of action reassignment. Firmware-specific controls can learn their input on the actual device.
-- Large fixed Top/Up/Down targets for aiming and pulling the trigger to scroll. Selecting a cover returns to the featured game and focuses Launch.
-- RS3 factory key maps follow the manufacturer PC diagram, including the stick press and side button; other brands do not inherit RS3 keyboard assumptions.
-- Connected-player RawInput setup for supported TeknoParrot profile controls, preserving special controls and backing up changes.
-- Repairs for stale TeknoParrot primary/secondary executable paths, Model 2 ROM search folders and unavailable PCSX2 memory-card storage.
-- Required-runtime checks include both executable paths in dual-executable TeknoParrot profiles.
-- Improved startup window focus, emulator failure reporting and session cleanup when returning to the frontend.
-- Updated English/German UI and animated documentation screenshots. Windows Setup, portable ZIP and self-updates remain available.
+- Renamed the project and GitHub repository from Reaper Arcade to Deadeye Arcade.
+- Updated the frontend, native window, game menu, installer, shortcuts and update endpoint.
+- Kept the executable, data folder, registry keys and mutex IDs compatible with existing installations.
+- Replaced placeholder README recordings with the running interface displaying game covers, screenshots, logos and playing preview clips.
+- Windows Setup and portable packages use the Deadeye Arcade name.
 
-106 core checks and browser navigation/layout/input checks passed. Windows tests reached real game or calibration screens in MAME, Dolphin, RetroArch, PCSX2, TeknoParrot, Supermodel and Blue Estate. See the repository verification report for individual results and unresolved emulator cases. Physical aiming, calibration, buttons, recoil and two-player behavior require tests at the real screen; this release does not certify every title. Drawings are original stylized illustrations, not scanned replicas. Games, ROMs, emulators and manufacturer utilities are not bundled. The installer is currently unsigned.
+Users of 0.3.4 or earlier should install this Setup once: older clients correctly reject the renamed repository's download address. Future updates use the new endpoint. Libraries, gun bindings, language and autostart preferences are preserved.
+
+Physical aiming, trigger-hold access and game-driven recoil still require tests with real guns. The Model 2 crash and Naomi rendering artifacts recorded in the 0.3.4 verification report remain unresolved. Games, emulators and artwork are not bundled.

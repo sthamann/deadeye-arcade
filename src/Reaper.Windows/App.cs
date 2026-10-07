@@ -10,7 +10,7 @@ public static class App
     public static void Main(string[] args)
     {
         using var mutex = new Mutex(true, "Local\\ReaperArcade-v1", out bool first);
-        if (!first) { Environment.ExitCode = 1; if (args.Length == 0) MessageBox.Show(I18n.T("Reaper Arcade ist bereits geöffnet."), "Reaper Arcade"); return; }
+        if (!first) { Environment.ExitCode = 1; if (args.Length == 0) MessageBox.Show(I18n.T("Deadeye Arcade ist bereits geöffnet."), "Deadeye Arcade"); return; }
         if (args.Length > 0)
         {
             string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
@@ -49,8 +49,8 @@ public static class App
             return;
         }
         var app = new Application();
-        app.DispatcherUnhandledException += (_, e) => { MessageBox.Show(e.Exception.Message, "Reaper Arcade"); e.Handled = true; };
+        app.DispatcherUnhandledException += (_, e) => { MessageBox.Show(e.Exception.Message, "Deadeye Arcade"); e.Handled = true; };
         try { app.Run(new ArcadeWindow()); }
-        catch (Exception e) { MessageBox.Show(e.Message, I18n.T("Reaper Arcade konnte nicht starten")); }
+        catch (Exception e) { MessageBox.Show(e.Message, I18n.T("Deadeye Arcade konnte nicht starten")); }
     }
 }

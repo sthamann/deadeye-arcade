@@ -177,7 +177,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('button',{name:'Spielmenü öffnen',exact:true}).dispatchEvent('click');
  assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='show-overlay')),'Running session offers the native game overlay command');
  await native.evaluate(()=>window.fixture.emit('session',{status:'ended'}));
- const updateFixture={native:true,remoteSession:true,installations:[],version:'0.3.2',games:[],bindings:[],devices:[],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'de',checkForUpdates:true},bindingStage:null,update:{status:'available',progress:0,error:null,release:{version:'0.3.3',notes:'Verified release',page:'https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.3'}}};
+ const updateFixture={native:true,remoteSession:true,installations:[],version:'0.3.2',games:[],bindings:[],devices:[],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'de',checkForUpdates:true},bindingStage:null,update:{status:'available',progress:0,error:null,release:{version:'0.3.3',notes:'Verified release',page:'https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.3'}}};
  if(await native.getByRole('button',{name:'Zur Bibliothek',exact:false}).isVisible()) await native.getByRole('button',{name:'Zur Bibliothek',exact:false}).click();
  await native.evaluate(s=>window.fixture.emit('state',s),updateFixture);
  await native.getByRole('button',{name:'Einstellungen',exact:true}).click();

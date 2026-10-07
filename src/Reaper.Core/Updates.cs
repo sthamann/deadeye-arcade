@@ -7,7 +7,7 @@ namespace Reaper.Core;
 public sealed record AppRelease(string Version, string Url, string Sha256, long Size, string Notes, string Page);
 public static class AppUpdates
 {
-    public const string Repository = "sthamann/reaper-arcade";
+    public const string Repository = "sthamann/deadeye-arcade";
     public const string Endpoint = "https://api.github.com/repos/" + Repository + "/releases/latest";
     public static Version ParseVersion(string text)
     {
@@ -21,7 +21,7 @@ public static class AppUpdates
         string tag = r.GetProperty("tag_name").GetString()!;
         var version = ParseVersion(tag);
         if (version <= current) return null;
-        string number = version.ToString(3), name = $"Reaper-Arcade-{number}-Setup-x64.exe";
+        string number = version.ToString(3), name = $"Deadeye-Arcade-{number}-Setup-x64.exe";
         var assets = r.GetProperty("assets").EnumerateArray().Where(a => a.GetProperty("name").GetString() == name).ToArray();
         if (assets.Length != 1) return null;
         var asset = assets[0]; string url = asset.GetProperty("browser_download_url").GetString()!;
@@ -43,7 +43,7 @@ public static class AppUpdates
     public static async Task<string> Download(HttpClient client, AppRelease release, string directory, IProgress<int>? progress, CancellationToken cancellation = default)
     {
         Directory.CreateDirectory(directory);
-        string path = Path.Combine(directory, $"Reaper-Arcade-{release.Version}-Setup-x64.exe"), partial = path + ".partial";
+        string path = Path.Combine(directory, $"Deadeye-Arcade-{release.Version}-Setup-x64.exe"), partial = path + ".partial";
         try
         {
             using var response = await client.GetAsync(release.Url, HttpCompletionOption.ResponseHeadersRead, cancellation);

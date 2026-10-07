@@ -25,8 +25,8 @@ try {
     $staging=Join-Path $projectRoot 'release/package-0.3'
     if(Test-Path $staging) { Remove-Item $staging -Recurse -Force }
     New-Item -ItemType Directory -Path $staging -Force | Out-Null
-    Copy-Item release/windows-x64 -Destination (Join-Path $staging 'Reaper-Arcade') -Recurse
-    Compress-Archive -Path (Join-Path $staging 'Reaper-Arcade') -DestinationPath "release/Reaper-Arcade-$version-Windows-x64.zip" -Force
+    Copy-Item release/windows-x64 -Destination (Join-Path $staging 'Deadeye-Arcade') -Recurse
+    Compress-Archive -Path (Join-Path $staging 'Deadeye-Arcade') -DestinationPath "release/Deadeye-Arcade-$version-Windows-x64.zip" -Force
     if(-not $SkipInstaller){ & "$PSScriptRoot/package-installer.ps1" -Version $version }
 }
 finally { Pop-Location }

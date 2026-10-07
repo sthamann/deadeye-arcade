@@ -403,7 +403,7 @@ export function GunStudio({
               )}
               <p className="studio-caption">
                 {t(
-                  "Diese Belegung steuert das Reaper-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Start + Coin halten bleibt der unabh\u00E4ngige Notausgang.",
+                  "Diese Belegung steuert das Deadeye-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Start + Coin halten bleibt der unabh\u00E4ngige Notausgang.",
                 )}
               </p>
               <button

@@ -225,7 +225,7 @@ try
     Throws(() => NativeImports.Read(handoff), "Malformed executable is rejected without loading it");
     byte[] updateBytes = new byte[2048]; new Random(7).NextBytes(updateBytes);
     string digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(updateBytes)).ToLowerInvariant();
-    string releaseJson = System.Text.Json.JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v0.3.4", body = "Test changes", assets = new[] { new { name = "Reaper-Arcade-0.3.4-Setup-x64.exe", browser_download_url = "https://github.com/sthamann/reaper-arcade/releases/download/v0.3.4/Reaper-Arcade-0.3.4-Setup-x64.exe", digest = "sha256:" + digest, size = updateBytes.Length } } });
+    string releaseJson = System.Text.Json.JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v0.3.4", body = "Test changes", assets = new[] { new { name = "Deadeye-Arcade-0.3.4-Setup-x64.exe", browser_download_url = "https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.4/Deadeye-Arcade-0.3.4-Setup-x64.exe", digest = "sha256:" + digest, size = updateBytes.Length } } });
     var release = AppUpdates.Read(releaseJson, new Version(0, 3, 3, 0))!;
     Check(release.Version == "0.3.4" && release.Sha256 == digest, "Updater selects a newer stable installer and its SHA-256 digest");
     Check(AppUpdates.Read(releaseJson, new Version(0, 3, 4, 0)) is null && AppUpdates.Read(releaseJson, new Version(0, 4, 0, 0)) is null, "Updater never offers the same version or a downgrade");

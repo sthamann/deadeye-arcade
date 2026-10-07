@@ -536,11 +536,11 @@ function App() {
         <button
           className="brand"
           onClick={() => setPage("play")}
-          aria-label={t("Reaper Arcade Start")}
+          aria-label={t("Deadeye Arcade Start")}
         >
           <Crosshair size={30} />
           <span>
-            {t("REAPER")}
+            {t("DEADEYE")}
             <small>{t("ARCADE")}</small>
           </span>
         </button>
@@ -568,7 +568,7 @@ function App() {
             {state.native ? t("Windows verbunden") : t("Bedienvorschau")}
           </div>
           <span>
-            {t("Reaper Arcade \u00B7") + " "}
+            {t("Deadeye Arcade \u00B7") + " "}
             {state.version}
           </span>
         </div>
@@ -1246,7 +1246,7 @@ function App() {
                   </div>
                   <p>
                     {t(
-                      "Reaper pr\u00FCft automatisch beim \u00D6ffnen, nach dem Import und vor dem Spielstart. Fehlende Visual-C++-, DirectX- und .NET-8/9/10-Laufzeiten werden passenden Microsoft-Paketen zugeordnet.",
+                      "Deadeye pr\u00FCft automatisch beim \u00D6ffnen, nach dem Import und vor dem Spielstart. Fehlende Visual-C++-, DirectX- und .NET-8/9/10-Laufzeiten werden passenden Microsoft-Paketen zugeordnet.",
                     )}
                   </p>
                   <div className="inline-actions">
@@ -1272,7 +1272,7 @@ function App() {
                   </div>
                   <p>
                     {t(
-                      "Download und Signaturpr\u00FCfung erfolgen automatisch. Im Microsoft-Installer best\u00E4tigst du die Lizenz und gegebenenfalls die Windows-Abfrage. Anschlie\u00DFend pr\u00FCft Reaper erneut.",
+                      "Download und Signaturpr\u00FCfung erfolgen automatisch. Im Microsoft-Installer best\u00E4tigst du die Lizenz und gegebenenfalls die Windows-Abfrage. Anschlie\u00DFend pr\u00FCft Deadeye erneut.",
                     )}
                   </p>
                   {state.dependencies && (

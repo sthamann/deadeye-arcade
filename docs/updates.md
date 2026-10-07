@@ -1,7 +1,7 @@
 # Windows installation and updates
 
 The NSIS Setup executable installs per user, by default under
-`%LOCALAPPDATA%\Programs\Reaper Arcade`. It includes the self-contained .NET app,
+`%LOCALAPPDATA%\Programs\Deadeye Arcade`. It includes the self-contained .NET app,
 local web UI, license notices and Microsoft's Evergreen WebView2 bootstrapper.
 WebView2 is installed only when its runtime registry entry is missing. The build
 verifies Microsoft's Authenticode signature before packaging the bootstrapper.
@@ -10,7 +10,7 @@ Libraries, settings, covers and media stay in `%LOCALAPPDATA%\ReaperArcade`, out
 the program directory. Uninstall deletes only files shipped by the installer and
 keeps user data. Setup never enables autostart; an existing app autostart entry is
 updated to the installed executable. Installation refuses to overwrite a running
-Reaper process. For an app-requested update, Setup waits for Reaper to close and then
+Deadeye process. For an app-requested update, Setup waits for Deadeye to close and then
 restarts the installed app.
 
 ## Update path
@@ -23,7 +23,7 @@ restarts the installed app.
    download host and verifies SHA-256. A failed download removes its partial file and
    preserves an earlier verified installer.
 4. The app saves settings and backs up its library, launches Setup with the current
-   program directory and closes. Setup installs and reopens Reaper in that directory.
+   program directory and closes. Setup installs and reopens Deadeye in that directory.
 
 Automatic checks run at startup and every six hours while idle. Installing an update
 requires the Settings button and is blocked during a game. Checks can be disabled;

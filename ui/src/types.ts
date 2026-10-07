@@ -181,7 +181,7 @@ export const empty: State = {
     language: "en",
   },
   bindingStage: null,
-  version: "0.3.4",
+  version: "0.3.5",
   installations: [],
   native: !!window.chrome?.webview,
 };

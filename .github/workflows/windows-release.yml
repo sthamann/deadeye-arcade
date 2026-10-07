@@ -34,7 +34,7 @@ jobs:
           $version=$project.Project.PropertyGroup.Version
           $tag="v$version"
           gh release view $tag 2>$null
-          if($LASTEXITCODE -ne 0){gh release create $tag --target $env:GITHUB_SHA --title "Reaper Arcade $version" --notes-file docs/release-notes.md}
+          if($LASTEXITCODE -ne 0){gh release create $tag --target $env:GITHUB_SHA --title "Deadeye Arcade $version" --notes-file docs/release-notes.md}
           if($LASTEXITCODE -ne 0){throw 'Release creation failed'}
-          gh release upload $tag "release/Reaper-Arcade-$version-Setup-x64.exe" "release/Reaper-Arcade-$version-Windows-x64.zip" "release/SHA256SUMS-$version.txt" --clobber
+          gh release upload $tag "release/Deadeye-Arcade-$version-Setup-x64.exe" "release/Deadeye-Arcade-$version-Windows-x64.zip" "release/SHA256SUMS-$version.txt" --clobber
           if($LASTEXITCODE -ne 0){throw 'Release upload failed'}

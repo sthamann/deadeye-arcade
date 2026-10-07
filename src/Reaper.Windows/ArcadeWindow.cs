@@ -74,7 +74,7 @@ public sealed class ArcadeWindow : Window
     public ArcadeWindow()
     {
         picker = new ArcadePicker(Send);
-        Title = "Reaper Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21));
+        Title = "Deadeye Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21));
         // A native control remains usable independently of browser dialogs and loading states.
         var layout = new Grid();
         layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });

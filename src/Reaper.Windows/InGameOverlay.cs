@@ -18,7 +18,7 @@ public sealed class InGameOverlay : Window
     public InGameOverlay(GameEntry game, GameControls controls, IEnumerable<GunBinding> bindings, Action<string> command)
     {
         this.command = command;
-        Title = I18n.T("Reaper · Spielmenü"); WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
+        Title = I18n.T("Deadeye · Spielmenü"); WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
         WindowState = WindowState.Maximized; Topmost = true; ShowInTaskbar = false;
         Background = Brush(12, 15, 21); Foreground = Brushes.White;
         var root = new Grid { Margin = new Thickness(36) };
@@ -27,7 +27,7 @@ public sealed class InGameOverlay : Window
         root.RowDefinitions.Add(new() { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new() { Height = GridLength.Auto });
         var title = new StackPanel();
-        title.Children.Add(Text(I18n.T("REAPER · SPIELMENÜ"), 16, Brush(255, 132, 73)));
+        title.Children.Add(Text(I18n.T("DEADEYE · SPIELMENÜ"), 16, Brush(255, 132, 73)));
         title.Children.Add(Text(game.Title, 34, Brushes.White));
         title.Children.Add(Text(game.Platform + " · " + game.Source + I18n.T("   |   Das Spiel wird nicht automatisch pausiert."), 16, Brush(182, 192, 206)));
         root.Children.Add(title);

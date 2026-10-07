@@ -32,11 +32,11 @@ $install=Join-Path $Root 'Frontend\ReaperArcade'
 $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
 $backup=Join-Path $Root ('Setup\Backups\ReaperArcade-'+$stamp)
 New-Item -ItemType Directory -Path $backup -Force | Out-Null
-if(Get-Process -Name ReaperArcade -ErrorAction SilentlyContinue) { throw 'Bitte Reaper Arcade vor der Installation schließen.' }
+if(Get-Process -Name ReaperArcade -ErrorAction SilentlyContinue) { throw 'Bitte Deadeye Arcade vor der Installation schließen.' }
 if(Test-Path -LiteralPath $data) { Copy-Item -LiteralPath $data -Destination (Join-Path $backup 'UserData') -Recurse }
 $staging=Join-Path $backup 'Extracted'
 Expand-Archive -LiteralPath $Package -DestinationPath $staging
-$packageRoot=Join-Path $staging 'Reaper-Arcade'
+$packageRoot=Join-Path $staging 'Deadeye-Arcade'
 if(-not (Test-Path -LiteralPath (Join-Path $packageRoot 'ReaperArcade.exe'))) { throw 'Das Paket enthält keine ReaperArcade.exe.' }
 if(Test-Path -LiteralPath $install) { Move-Item -LiteralPath $install -Destination (Join-Path $backup 'Application') }
 New-Item -ItemType Directory -Path (Split-Path $install) -Force | Out-Null
@@ -70,9 +70,9 @@ $json=Join-Path $Handoff 'spiele.json'
 $import=Start-Process -FilePath $exe -ArgumentList @('--import-collection',('"'+$json+'"')) -Wait -PassThru
 if($import.ExitCode -ne 0) { throw 'Bibliotheksimport fehlgeschlagen; library-import-error.txt im Reaper-Benutzerordner prüfen. Sicherung ist vorhanden.' }
 $shell=New-Object -ComObject WScript.Shell
-foreach($directory in @([Environment]::GetFolderPath('Desktop'),(Join-Path ([Environment]::GetFolderPath('Programs')) 'Reaper Arcade'))) {
+foreach($directory in @([Environment]::GetFolderPath('Desktop'),(Join-Path ([Environment]::GetFolderPath('Programs')) 'Deadeye Arcade'))) {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
-    $shortcut=$shell.CreateShortcut((Join-Path $directory 'Reaper Arcade.lnk'));$shortcut.TargetPath=$exe;$shortcut.WorkingDirectory=$install;$shortcut.Save()
+    $shortcut=$shell.CreateShortcut((Join-Path $directory 'Deadeye Arcade.lnk'));$shortcut.TargetPath=$exe;$shortcut.WorkingDirectory=$install;$shortcut.Save()
 }
 Copy-Item -LiteralPath (Join-Path $data 'library-import-report.json') -Destination (Join-Path $logs 'reaper-games.json') -Force
 $report=Get-Content -LiteralPath (Join-Path $data 'library-import-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json

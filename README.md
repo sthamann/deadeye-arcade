@@ -1,4 +1,4 @@
-# Reaper Arcade
+# Deadeye Arcade
 
 **Your lightguns. Your games. One Windows arcade.**
 
@@ -7,29 +7,39 @@ set up player inputs, check required runtimes, and return from a game without
 reaching for a keyboard.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-86d9b0)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/reaper-arcade/releases)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.4](https://github.com/sthamann/reaper-arcade/releases/download/v0.3.4/Reaper-Arcade-0.3.4-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/reaper-arcade/releases/tag/v0.3.4)
+**[Download Windows Setup 0.3.5](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.5/Deadeye-Arcade-0.3.5-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.5)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
 > the ten-second trigger gesture and game-driven recoil still require local
-> hardware tests. Reaper does not mark a game as playable just because its files exist.
+> hardware tests. Deadeye does not mark a game as playable just because its files exist.
 
 Use the fixed **Up / Down** buttons to scroll by aiming and pulling the trigger. Selecting a cover returns to the featured game's launch button. Gun Studio now shows model-specific physical controls, with independent live highlights and input capture. [Hardware references and exact control behavior](docs/HARDWARE-CONTROLS.md).
 
 ## See it in action
 
-![Animated library walkthrough](docs/images/library.gif)
+![Deadeye Arcade library with real covers and a game-video preview](docs/images/deadeye-library.png)
 
-*Recorded from the running UI with its optional sample library and original cover
-placeholders. Sample titles are not installed games; a new real library starts empty.*
+![Recorded library navigation with running game-video previews](docs/images/deadeye-library.gif)
 
-![Animated gun setup and English / German switch](docs/images/gun-studio-language.gif)
+**[Download the full-resolution UI video](docs/images/deadeye-library.mp4)**
 
-*Gun Studio and language switching in the browser preview. The recording does not
-simulate a connected gun or a successful hardware test.*
+*Captured from the running frontend with a curated selection of game artwork and
+preview clips. The video plays inside the app; these are UI recordings, not mockups.
+Original game-media files are not bundled as library assets.*
+
+![Screenshot preview and game-cover library](docs/images/deadeye-details.png)
+
+*Blue Estate screenshot reference: [official Steam store](https://store.steampowered.com/app/305380/Blue_Estate_The_Game/). Game artwork belongs to its respective owners.*
+
+![Gun Studio with model-specific controls](docs/images/deadeye-gun-studio.png)
+
+![Recorded Gun Studio and language switching](docs/images/deadeye-gun-studio.gif)
+
+*Gun Studio is shown in browser preview without simulating connected hardware.*
 
 ## What's inside
 
@@ -62,9 +72,9 @@ inputs or audio may continue while the menu is open.
 
 ## Get started on Windows
 
-1. Download and run **Reaper Arcade Setup** above. It installs for your Windows user
+1. Download and run **Deadeye Arcade Setup** above. It installs for your Windows user
    without administrator rights and adds desktop and Start menu shortcuts.
-2. Open Reaper Arcade. The .NET runtime is included; Setup installs Microsoft
+2. Open Deadeye Arcade. The .NET runtime is included; Setup installs Microsoft
    Edge WebView2 Runtime if it is missing (an Internet connection is then required).
 3. Open **My Guns**. Connect your gun, inspect P1/P2 detection, and prepare its
    software. An RS3's COM player ID is used for automatic assignment.
@@ -92,14 +102,20 @@ original language.
 
 ## Install and update
 
-Setup registers Reaper Arcade in Windows Installed Apps. Uninstall removes app files
+**Upgrading from Reaper Arcade 0.3.4 or earlier:** install the new Deadeye Setup
+once. The repository rename changes the download address, which older versions
+reject by design. Your library and settings are retained; subsequent versions use
+the new update endpoint. The executable and existing data/registry IDs remain
+`ReaperArcade` for upgrade compatibility.
+
+Setup registers Deadeye Arcade in Windows Installed Apps. Uninstall removes app files
 and shortcuts while keeping your library, settings and media. The optional portable
-ZIP remains available under [Releases](https://github.com/sthamann/reaper-arcade/releases).
+ZIP remains available under [Releases](https://github.com/sthamann/deadeye-arcade/releases).
 
 The app checks **stable GitHub releases** at startup and every six hours. When a newer
 installer is available, it shows an update notice. Open **Settings → App updates →
 Install update and restart**. The download is checked against GitHub's SHA-256 digest
-and expected size before the installer starts. Reaper closes, updates in place and
+and expected size before the installer starts. Deadeye closes, updates in place and
 reopens. A library backup is saved before installation; gun mappings, language and
 autostart preferences are preserved. Updates cannot be installed during a game.
 Failed or interrupted downloads leave the running app intact. Automatic checks can
@@ -124,7 +140,7 @@ portable ZIP and SHA-256 checksums are generated and uploaded to GitHub Releases
 | Dolphin / RetroArch | Launch paths from collection handoffs; read supported control configuration | Dedicated automatic import adapters and title/core-specific overrides |
 | Other systems | Executable discovery for several emulators/tools; manual or handoff launch paths | Dedicated import/input adapters and per-title tests |
 
-RS3 recoil and grip rumble are separate mechanisms. Reaper can send test pulses;
+RS3 recoil and grip rumble are separate mechanisms. Deadeye can send test pulses;
 there is **no documented continuous RS3 force slider**. Hardware switches and the
 specified power supply determine mechanical recoil. Helpers such as DemulShooter
 and Hook of the Reaper can be launched with a session, but still need appropriate
@@ -151,6 +167,8 @@ special DLL search paths, drivers, older .NET Framework requirements and vendor
 packages may need additional setup. Unknown DLLs are never downloaded from DLL portals.
 
 ## Verification
+
+[0.3.5 branding, media and upgrade checks](docs/verification-0.3.5.md).
 
 - **106 core checks:** imports, file readiness, preservation after reload, player
   isolation, trigger hold timing, control-profile parsing, dependency detection,
@@ -217,6 +235,6 @@ Further implementation notes: [architecture](docs/architecture.md),
 
 ## License
 
-Reaper Arcade's application code is licensed under the **[MIT License](LICENSE)**.
+Deadeye Arcade's application code is licensed under the **[MIT License](LICENSE)**.
 Third-party runtimes and components retain their own terms; see
 [THIRD-PARTY.md](THIRD-PARTY.md) and the packaged `licenses/` folder.

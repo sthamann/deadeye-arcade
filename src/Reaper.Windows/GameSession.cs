@@ -109,7 +109,7 @@ public sealed class GameSession
         {
             var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(game.Executable));
             bool running = previous.Length > 0; foreach (var p in previous) p.Dispose();
-            if (running) throw new InvalidOperationException(I18n.T("Bitte die bereits geöffnete TeknoParrot-Oberfläche schließen. Danach kann Reaper Arcade die eigene Spielsitzung starten."));
+            if (running) throw new InvalidOperationException(I18n.T("Bitte die bereits geöffnete TeknoParrot-Oberfläche schließen. Danach kann Deadeye Arcade die eigene Spielsitzung starten."));
         }
         if (game.Source == "mame")
         {

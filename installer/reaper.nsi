@@ -12,15 +12,15 @@ Unicode true
 !ifndef OUTPUT
 !error "OUTPUT is required"
 !endif
-Name "Reaper Arcade"
+Name "Deadeye Arcade"
 OutFile "${OUTPUT}"
-InstallDir "$LOCALAPPDATA\Programs\Reaper Arcade"
+InstallDir "$LOCALAPPDATA\Programs\Deadeye Arcade"
 InstallDirRegKey HKCU "Software\ReaperArcade\Installer" "Directory"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 VIProductVersion "${VERSION}.0"
-VIAddVersionKey "ProductName" "Reaper Arcade"
-VIAddVersionKey "FileDescription" "Reaper Arcade Windows installer"
+VIAddVersionKey "ProductName" "Deadeye Arcade"
+VIAddVersionKey "FileDescription" "Deadeye Arcade Windows installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "Copyright 2026 Stefan Hamann"
 !define MUI_ABORTWARNING
@@ -33,8 +33,8 @@ VIAddVersionKey "LegalCopyright" "Copyright 2026 Stefan Hamann"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "German"
-LangString CloseApp ${LANG_ENGLISH} "Please close Reaper Arcade before installing."
-LangString CloseApp ${LANG_GERMAN} "Bitte Reaper Arcade vor der Installation schließen."
+LangString CloseApp ${LANG_ENGLISH} "Please close Deadeye Arcade before installing."
+LangString CloseApp ${LANG_GERMAN} "Bitte Deadeye Arcade vor der Installation schließen."
 LangString RuntimeFailed ${LANG_ENGLISH} "WebView2 could not be installed. Check your Internet connection and run Setup again."
 LangString RuntimeFailed ${LANG_GERMAN} "WebView2 konnte nicht installiert werden. Internetverbindung prüfen und Setup erneut starten."
 Var Restart
@@ -75,7 +75,7 @@ Function .onInstSuccess
     Exec '"$INSTDIR\ReaperArcade.exe"'
   ${EndIf}
 FunctionEnd
-Section "Reaper Arcade"
+Section "Deadeye Arcade"
   ; Bootstrapper is bundled; only a missing runtime needs an Internet connection.
   SetRegView 32
   ReadRegStr $0 HKLM "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
@@ -103,16 +103,20 @@ Section "Reaper Arcade"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\ReaperArcade\Installer" "Directory" "$INSTDIR"
   WriteRegStr HKCU "Software\ReaperArcade\Installer" "Version" "${VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayName" "Reaper Arcade"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayName" "Deadeye Arcade"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "Publisher" "Stefan Hamann"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "NoRepair" 1
-  CreateDirectory "$SMPROGRAMS\Reaper Arcade"
-  CreateShortcut "$SMPROGRAMS\Reaper Arcade\Reaper Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
-  CreateShortcut "$DESKTOP\Reaper Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
+  ; Retain data, mutex, registry and executable IDs for in-place upgrades.
+  Delete "$DESKTOP\Reaper Arcade.lnk"
+  Delete "$SMPROGRAMS\Reaper Arcade\Reaper Arcade.lnk"
+  RMDir "$SMPROGRAMS\Reaper Arcade"
+  CreateDirectory "$SMPROGRAMS\Deadeye Arcade"
+  CreateShortcut "$SMPROGRAMS\Deadeye Arcade\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
+  CreateShortcut "$DESKTOP\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
   ; Never enable autostart. Update an existing app-owned entry only.
   ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ReaperArcade"
   ${If} $0 != ""
@@ -133,9 +137,9 @@ Section "Uninstall"
   !include "${UNINSTALL_FILES}"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR"
-  Delete "$DESKTOP\Reaper Arcade.lnk"
-  Delete "$SMPROGRAMS\Reaper Arcade\Reaper Arcade.lnk"
-  RMDir "$SMPROGRAMS\Reaper Arcade"
+  Delete "$DESKTOP\Deadeye Arcade.lnk"
+  Delete "$SMPROGRAMS\Deadeye Arcade\Deadeye Arcade.lnk"
+  RMDir "$SMPROGRAMS\Deadeye Arcade"
   SetRegView 64
   DeleteRegKey HKCU "Software\ReaperArcade\Installer"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade"
