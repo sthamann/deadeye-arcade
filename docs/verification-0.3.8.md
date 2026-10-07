@@ -8,6 +8,8 @@ The UI suite checks selected game descriptions, edition years, original hardware
 
 - The enrichment CLI updated the configured library on Windows, with presentation fields and actual nonempty local cover, preview-video, screenshot and logo files confirmed by its media audit.
 - The Windows frontend rendered an English game description, edition year and original hardware in both the featured area and Game Details. The preview video advanced between observations, and the native Close app button returned to Windows.
+- The public GitHub installer was downloaded on Windows, its SHA-256 matched the published release digest, and installation registration reported version 0.3.8. English, fullscreen, disabled autostart and automatic update checks were retained. A comparison against the prior library preserved launch routes, helpers, favorites, player bindings and settings.
+- Every configured preview video was probed on Windows. Legacy MPEG-4 clips were converted into separate H.264 previews, with their original files retained; the final scan reported H.264 for the complete video set.
 - Newly added media were decoded or image-verified locally before transfer. Preview clips were encoded as H.264 MP4 for WebView2. Source-title checks found incorrectly named original assets; replacements use matching title and platform references.
 
 This is media and frontend verification. It does not certify aiming, recoil, independent P2 input or every game launch. Earlier game-specific results and open issues are recorded in [0.3.7 verification](verification-0.3.7.md) and the [compatibility guide](compatibility.md). Personal media, collection manifests and source-storage paths are not part of the public release.
