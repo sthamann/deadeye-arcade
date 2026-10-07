@@ -18,4 +18,5 @@ $lines+=@(Get-ChildItem $payload -Directory -Recurse | Sort-Object { $_.FullName
 $output=Join-Path $root "release/Reaper-Arcade-$Version-Setup-x64.exe"
 & $Compiler '/INPUTCHARSET' 'UTF8' "/DVERSION=$Version" "/DPAYLOAD=$payload" "/DOUTPUT=$output" "/DBOOTSTRAPPER=$bootstrap" "/DUNINSTALL_FILES=$manifest" (Join-Path $root 'installer/reaper.nsi')
 if($LASTEXITCODE -ne 0){throw 'Installer build failed'}
-Get-ChildItem (Join-Path $root "release/Reaper-Arcade-$Version-*") -File | ForEach-Object { ((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()+'  '+$_.Name) } | Set-Content (Join-Path $root "release/SHA256SUMS-$Version.txt") -Encoding ascii
+$sums=@(Get-ChildItem (Join-Path $root "release/Reaper-Arcade-$Version-*") -File | ForEach-Object { ((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()+'  '+$_.Name) })
+[IO.File]::WriteAllText((Join-Path $root "release/SHA256SUMS-$Version.txt"), ($sums -join "`n")+"`n", [Text.Encoding]::ASCII)

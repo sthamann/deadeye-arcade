@@ -160,6 +160,10 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
   switching, cold restart in both languages, localized native exit button and
   CarnEvil/MAME in-game menu. Library entries and saved gun bindings remained intact;
   autostart stayed off. [language verification](docs/verification-0.3.2.md).
+- **Installer and self-update:** the GitHub Windows workflow built and published
+  0.3.3. A controlled older Windows build downloaded that public release through
+  the app, installed it and restarted as 0.3.3; library entries and gun mappings
+  were preserved. [Installer/update verification](docs/verification-0.3.3.md).
 - **Windows game-session checks:** CarnEvil/MAME menu open, resume, restart and exit
   back to the frontend. Earlier Windows checks reached the title/menu screens
   of Dead Space Extraction/Dolphin and Blue Estate.
