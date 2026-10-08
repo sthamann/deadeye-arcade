@@ -97,7 +97,8 @@ public static class DolphinSetup
         {
             // Keep this latency preset local to Extraction, not every Dolphin game.
             WriteMerged(perGame,"Video_Hardware",new Dictionary<string,string>{["VSync"]="False"});
-            WriteMerged(perGame,"Video_Settings",new Dictionary<string,string>{["InternalResolution"]="3",["MSAA"]="1",["ShaderCompilationMode"]="1",["WaitForShadersBeforeStarting"]="True"});
+            // Dolphin: 1 = Exclusive (synchronous), 2 = Hybrid (asynchronous) Ubershaders.
+            WriteMerged(perGame,"Video_Settings",new Dictionary<string,string>{["InternalResolution"]="3",["MSAA"]="1",["ShaderCompilationMode"]="2",["WaitForShadersBeforeStarting"]="True"});
         }
         WriteMerged(Path.Combine(user,"Config","Dolphin.ini"),"Display",new Dictionary<string,string>{["Fullscreen"]="True",["RenderToMain"]="True"});
         WriteMerged(Path.Combine(user,"Config","GFX.ini"),"Settings",new Dictionary<string,string>{["AspectRatio"]="3"});

@@ -1,13 +1,7 @@
-Deadeye Arcade 0.3.13 shows your controls when a game starts.
+Deadeye Arcade 0.3.14 corrects the Dolphin shader preset for Dead Space Extraction.
 
-- Display a passive gun diagram and per-game control legend for ten seconds, with a countdown and progress bar.
-- Start the countdown after the actual game window is visible and in front, rather than while its launcher is still loading.
-- Number physical buttons and show the actions read from the active MAME, TeknoParrot, Dolphin or RetroArch configuration.
-- Respect learned physical controls. Other gun models do not inherit RS3 keyboard defaults; unmatched inputs remain unconfirmed.
-- Preserve button combinations, including negation. Dead Space Extraction shows its named actions such as Kinesis, Stasis, reload and weapon selection without duplicate Wii controls.
-- Keep the game in focus and pass mouse clicks through the introduction. Close it on timeout, foreground change, game end or opening the interactive game menu.
-- Retain the existing ten-second trigger menu for resume, restart, end game and the detailed controls reference.
+- Select Hybrid Ubershaders (Dolphin configuration value 2) instead of the more demanding Exclusive Ubershaders (value 1).
+- Keep shader preparation before launch, absolute cursor input, the existing title-specific accuracy profile and the startup controls introduction.
+- Add a regression through the real profile setup path, including repeated configuration.
 
-The introduction uses an ordinary Windows overlay. Exclusive fullscreen presentation can cover it; use windowed or borderless presentation in that case. It does not pause gameplay. Physical aiming and independent Dolphin P2 operation still need local hardware verification.
-
-Games, third-party patches and media are not bundled. English is the first-run default and German is available.
+This corrects a graphics configuration error. It does not increase the gun camera resolution or establish measured physical tracking improvement. Gun accuracy, latency and independent Dolphin P2 input still need local hardware verification.

@@ -1,0 +1,11 @@
+# Verification: 0.3.14
+
+The installed Dolphin 5.0-21168 UI saved `ShaderCompilationMode = 2` when selecting Hybrid Ubershaders. The frontend previously wrote `1` for Dead Space Extraction, selecting Exclusive Ubershaders instead. [Dolphin's enum](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/VideoCommon/VideoConfig.h) confirms the mapping. [Dolphin's Ubershaders explanation](https://dolphin-emu.org/blog/2017/07/30/ubershaders/) explains the tradeoff: Hybrid uses Ubershaders while compiling specialized shaders in the background; Exclusive uses the more expensive Ubershaders throughout.
+
+A new regression failed on the previous code and passed after the correction. It exercises `DolphinSetup.Configure` and reads the resulting per-game file. Existing checks preserve title-specific aim values, absolute cursor input, unrelated overrides, backups and idempotence. All 165 core checks passed. The Windows build completed without warnings or errors.
+
+The research motivating this correction also considered [this Reaper user report](https://www.reddit.com/r/lightgunshooters/comments/1i1me7a/retro_shooter_reapers_a_warning/). Its camera-resolution explanation is an unverified hypothesis. Small positional steps on the Windows desktop and slow game rendering are different symptoms. The frontend observes Raw Input; it does not rewrite an emulator's aim coordinates. Adding smoothing to its cursor would not improve independent game input.
+
+The [manufacturer manual](https://retroshooter.com/wp-content/uploads/2026/02/Retro-Shooter-Reaper-User-Manual-2026.pdf) documents hardware calibration in 16:9, a separate mode for 4:3 pillarboxing, and interference from sunlight. Those controls are distinct from a shader preset. No gun tracking-resolution or smoothing command is listed in that manual. No compatible public RS3 tracking firmware update was identified in the sources checked.
+
+The correction is configuration validation, not a measurement of physical accuracy or end-to-end input latency. A stationary gun test and a slow horizontal sweep at the physical display remain necessary to separate jitter, positional quantization and display delay. Remote Desktop refresh rates must not be treated as physical-monitor measurements.

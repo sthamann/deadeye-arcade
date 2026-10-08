@@ -10,7 +10,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.13](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.13/Deadeye-Arcade-0.3.13-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.13)
+**[Download Windows Setup 0.3.14](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.14/Deadeye-Arcade-0.3.14-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.14)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -42,6 +42,11 @@ Original game-media files are not bundled as library assets.*
 *Gun Studio is shown in browser preview without simulating connected hardware.*
 
 ## What's inside
+
+**0.3.14** corrects Dead Space Extraction's Dolphin shader preset to Hybrid
+Ubershaders. The previous numeric value selected the more demanding Exclusive
+mode. This addresses a configuration error; physical aiming latency and accuracy
+still need a local gun test. [Verification notes](docs/verification-0.3.14.md).
 
 **0.3.13** adds a ten-second controls introduction over the game window.
 It shows your gun model, numbered physical buttons, and actions from the active
