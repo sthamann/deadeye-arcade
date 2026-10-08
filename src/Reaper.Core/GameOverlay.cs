@@ -40,6 +40,7 @@ public static class OverlayControls
     {
         try
         {
+            if (TimeCrisis5Controls.Supports(game)) return TimeCrisis5Controls.Read(game, bindings);
             if (MultiplayerSetup.SupportsHouseDead2Remake(game)) return MultiplayerSetup.ReadCompactGunAssignments(MultiplayerSetup.HouseDead2RemakeConfigPath(), bindings);
             if (Rpcs3Setup.IsRpcs3(game)) return Rpcs3Setup.Read(game, bindings);
             if (SupermodelSetup.IsSupermodel(game)) return SupermodelSetup.Read(game, bindings, enumeration ?? []);

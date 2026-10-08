@@ -54,6 +54,52 @@ try
     Check(GameLaunchCheck.Read(healthGame,root) is null,"Another game's launch report cannot confirm this game");
     string multiRoot=Path.Combine(root,"multiplayer");Directory.CreateDirectory(multiRoot);
     string helperExe=Path.Combine(multiRoot,"DemulShooterX64.exe");File.WriteAllText(helperExe,"");
+    var usbGun=new PhysicalGun("usb-p1","RS3","rs3","USB",["physical-mouse"],"physical-mouse","keyboard","COM3",true,[],false);
+    GunBinding remoteGun=new(1,"PHYSICAL-MOUSE",SystemId:"rs3");
+    var keyboardOnly=new InputDevice("keyboard","RS3","keyboard",true);
+    Check(GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun]).Single()==remoteGun && !GunConnections.CanIndexMice([remoteGun],[keyboardOnly]),"A present exact USB mouse keeps named-device assignments when RDP hides RawInput, without inventing an index");
+    Check(GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[]).Length==0 && GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun with {DriverHealthy=false}]).Length==0,"Unplugged or unhealthy USB interfaces cannot retain a connected-player assignment");
+    Check(GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun with {MouseId="other-mouse"}]).Length==0 && GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun with {SystemId="sinden"}]).Length==0,"A keyboard, another mouse or another gun model cannot stand in for the assigned USB mouse");
+    var rawMouse=new InputDevice("physical-mouse","RS3","mouse",true);
+    Check(GunConnections.ForConfiguration([remoteGun],[rawMouse],[]).Length==1 && GunConnections.CanIndexMice([remoteGun],[rawMouse]),"The ordinary local RawInput path still permits actual mouse-index configuration");
+    string tcHelper=Path.Combine(multiRoot,"Deadeye-RS3-Controls.ahk");
+    File.WriteAllText(tcHelper,"""
+#NoEnv
+#SingleInstance Ignore
+#Persistent
+SendMode Input
+SetWorkingDir %A_ScriptDir%
+WinWait, ahk_exe TimeCrisisGame-Win64-Shipping.exe,,30
+if ErrorLevel
+    ExitApp
+SetTimer, GameEnded, 500
+return
+GameEnded:
+Process, Exist, TimeCrisisGame-Win64-Shipping.exe
+if !ErrorLevel
+    ExitApp
+return
+#IfWinActive ahk_exe TimeCrisisGame-Win64-Shipping.exe
+5::SendInput, +t
+1::SendInput, +t
+M::SendInput, o
+Q::SendInput, +h
+MButton::t
+RButton::y
+#IfWinActive
+""");
+    string tcExe=Path.Combine(multiRoot,"TimeCrisisGame-Win64-Shipping.exe");
+    var tcGame=multiGameForTc();
+    GameEntry multiGameForTc() => new("tc5-check","Time Crisis 5","ES3",tcExe,["-playside=1"],multiRoot,"custom",multiRoot,Helpers:[new(Path.Combine(multiRoot,"AutoHotkeyU64.exe"),[tcHelper],multiRoot),new(helperExe,["-target=es3","-rom=tc5"],multiRoot)]);
+    File.WriteAllText(Path.Combine(multiRoot,"config.ini"),"P1Mode = RAWINPUT\nP1DeviceName = physical-mouse\n");
+    var tcControls=OverlayControls.Read(tcGame,root,[remoteGun]);
+    Check(tcControls.Rows.Length==7 && tcControls.Rows.Single(r=>r.Expression=="P1|mouse:2").Function=="Rechtes Pedal" && tcControls.Rows.All(r=>r.Player==1),"Time Crisis 5 legend reads the actual reviewed helper pedals and never invents a linked P2 cabinet");
+    Check(StartupControls.ForPlayer(tcControls,remoteGun with {SystemId="rs3"}).Any(h=>h.ControlIds.Contains("trigger")&&h.Resolved),"Time Crisis 5 trigger resolves only through the configured DemulShooter mouse");
+    Check(TimeCrisis5Controls.Read(tcGame with {Arguments=["-playside=2"]},[remoteGun]).Rows.Length==0 && TimeCrisis5Controls.Read(tcGame with {Helpers=[..tcGame.Helpers!,tcGame.Helpers![0]]},[remoteGun]).Rows.Length==0,"An alternate cabinet side or ambiguous duplicate helper cannot claim the P1 Time Crisis 5 legend");
+    File.WriteAllText(Path.Combine(multiRoot,"config.ini"),"P1Mode = RAWINPUT\nP1DeviceName = DEADEYE_DISCONNECTED_P1\n");
+    Check(TimeCrisis5Controls.Read(tcGame,[remoteGun]).Rows.All(r=>r.Expression!="P1|mouse:1"),"An unassigned DemulShooter channel cannot claim a working Time Crisis 5 trigger");
+    File.AppendAllText(tcHelper,"\nRButton::x\n");
+    Check(OverlayControls.Read(tcGame,root,[remoteGun]).Rows.Length==0,"A modified game helper cannot inherit the old plausible pedal legend");
     string multiConfig=Path.Combine(multiRoot,"config.ini");File.WriteAllText(multiConfig,";user custom config\r\nP1DeviceName = old-one\r\nP2DeviceName = old-two\r\nP2DeviceName = duplicate\r\nOutputEnabled = True\r\n");
     var multiGame=new GameEntry("multi","Operation Wolf Returns","PC",helperExe,[],multiRoot,"custom",multiRoot,Helpers:[new(helperExe,["-target=windows","-rom=opwolfr"],multiRoot)]);
     GunBinding p1=new(1,@"\\?\HID#VID_0483&PID_5750&MI_00&COL01#p1",SystemId:"rs3");

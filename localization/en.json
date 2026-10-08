@@ -755,5 +755,11 @@
   "Startprüfung benötigt Aufmerksamkeit": "Launch check needs attention",
   "Schießen / Menü bestätigen": "Shoot / Confirm menu",
   "Nachladen / Menü zurück": "Reload / Back in menu",
-  "Belegung des vorhandenen MultiLightgunPlugin 2.0. Mehrspielermodus im Spiel einschalten; unabhängige Treffer und Wiederbeleben mit beiden Guns sind vor Ort zu prüfen.": "Bindings from the installed MultiLightgunPlugin 2.0. Enable multiplayer inside the game; independent aiming and revival with both guns still require a test at the screen."
+  "Belegung des vorhandenen MultiLightgunPlugin 2.0. Mehrspielermodus im Spiel einschalten; unabhängige Treffer und Wiederbeleben mit beiden Guns sind vor Ort zu prüfen.": "Bindings from the installed MultiLightgunPlugin 2.0. Enable multiplayer inside the game; independent aiming and revival with both guns still require a test at the screen.",
+  "Waffenwechsel": "Switch weapon",
+  "Cursor ein-/ausblenden": "Toggle crosshair",
+  "Linkes Pedal": "Left pedal",
+  "Rechtes Pedal": "Right pedal",
+  "Time Crisis 5: Belegung aus dem geprüften Spielhelfer. Start und Pedale sind spielspezifisch; zwei Spieler benötigen verlinkte Automaten. Physische Eingaben sind noch zu prüfen.": "Time Crisis 5: mappings read from the reviewed game helper. Start and pedals are game-specific; two players require linked cabinets. Physical inputs still need testing.",
+  "Time Crisis 5: Spielhelfer fehlt oder wurde verändert. Seine Tastenbelegung kann nicht bestätigt werden.": "Time Crisis 5: the game helper is missing or modified. Its controls cannot be confirmed."
 }

@@ -79,7 +79,7 @@ public static class GunDiscovery
             string system = GunSystems.Identify(identified.Name)!;
             result.Add(new(group.Key, identified.Name, system, I18n.T("Windows USB-Produktname + Container-ID"), matched.Select(d => d.Id).ToArray(),
                 matched.FirstOrDefault(d => d.Kind == "mouse")?.Id, matched.FirstOrDefault(d => d.Kind == "keyboard")?.Id,
-                group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Distinct().ToArray(), inputs.Any(d => matched.Any(m => Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
+                group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Distinct().ToArray(), inputs.Any(d => d.Kind == "mouse" && matched.Any(m => m.Kind == "mouse" && Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
         }
         return result.ToArray();
     }

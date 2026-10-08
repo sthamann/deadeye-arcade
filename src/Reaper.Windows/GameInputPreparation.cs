@@ -19,11 +19,13 @@ internal sealed class GameInputPreparation : IAsyncDisposable
         try
         {
             using var raw = new RawInput(); raw.Refresh();
-            setup.Players = bindings.Where(b => raw.Devices.Any(d => d.Kind == "mouse" && d.Id.Equals(b.MouseId, StringComparison.OrdinalIgnoreCase))).ToArray();
-            setup.Game = RetroArchSetup.Configure(game, data, setup.Players, raw.MouseOrder);
+            setup.Players = GunConnections.ForConfiguration(bindings, raw.Devices, GunDiscovery.Scan(raw.Devices));
+            bool indexAvailable = GunConnections.CanIndexMice(setup.Players, raw.Devices);
+            setup.Game = indexAvailable ? RetroArchSetup.Configure(game, data, setup.Players, raw.MouseOrder) : game;
             setup.Game = Rpcs3Setup.Configure(setup.Game, setup.Players);
-            SupermodelSetup.Configure(game, setup.Players, raw.Devices);
-            if (FlycastSetup.IsFlycast(game))
+            if (indexAvailable) SupermodelSetup.Configure(game, setup.Players, raw.Devices);
+            else setup.Log("Physical USB guns are present but their RawInput mice are hidden in this session. Device-name assignments retained; mouse-index profiles require a local launch.");
+            if (indexAvailable && FlycastSetup.IsFlycast(game))
                 FlycastSetup.Configure(game, setup.Players, raw.Devices,
                     raw.Devices.ToDictionary(d => d.Id, d => InputDeviceNames.Name(d.Id) ?? (d.Kind == "mouse" ? "Mouse" : "Keyboard"), StringComparer.OrdinalIgnoreCase));
             if (DolphinSetup.IsDolphin(game) && setup.Players.Any(b => b.Player == 1 && b.SystemId == "rs3"))
