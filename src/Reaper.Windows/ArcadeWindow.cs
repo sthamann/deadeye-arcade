@@ -114,6 +114,7 @@ public sealed class ArcadeWindow : Window
         raw.Packet += Input; raw.DevicesChanged += () =>
         {
             var connected = raw.Devices.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            aim.RetainDevices(connected);
             foreach (var hold in triggerHolds.Values) hold.RetainDevices(connected);
             buttonTestHold.RetainDevices(connected);
             if (buttonTestRelease && !buttonTestHold.Pressed) buttonTestRelease = false;
@@ -122,7 +123,7 @@ public sealed class ArcadeWindow : Window
             if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); }
         };
         gunTimer.Tick += async (_, _) => { gunTimer.Stop(); if (!busy && !session.Active) await DiscoverGuns(); else { gunTimer.Start(); } };
-        session.GameWindowReady += handle => Dispatcher.Invoke(() => ShowStartupControls(handle));
+        session.GameWindowReady += handle => Dispatcher.BeginInvoke(new Action(() => ShowStartupControls(handle)));
         session.Changed += status => Dispatcher.Invoke(() =>
         {
             emergencyExit?.Dispose(); emergencyExit = null;
@@ -241,6 +242,7 @@ public sealed class ArcadeWindow : Window
         Send("state", new
         {
             games = state.Games.Select(g => g with { Cover = MediaUrl(g.Cover, true), PreviewVideo = MediaUrl(g.PreviewVideo), Screenshot = MediaUrl(g.Screenshot), Logo = MediaUrl(g.Logo) }),
+            gameChecks = state.Games.ToDictionary(g=>g.Id,g=>GameLaunchCheck.Read(g,store.DirectoryPath)),
             gameCompatibility = state.Games.ToDictionary(g=>g.Id,g=>GameCompatibility.Read(g,state.Bindings.Count(b=>guns.Any(gun=>gun.MouseId==b.MouseId)))),
             bindings = state.Bindings,
             devices = raw.Devices,
@@ -284,6 +286,10 @@ public sealed class ArcadeWindow : Window
     private void Log(string message) { System.IO.File.AppendAllText(logPath, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine); }
     private void Input(RawPacket packet)
     {
+        session.Input(packet);
+        // Button-only packets often have no absolute coordinates. Retain each
+        // gun's own last aim instead of clicking at the shared Windows cursor.
+        if (packet.Kind == "mouse") aim.Remember(packet.DeviceId, packet.Absolute, packet.X, packet.Y, packet.VirtualDesktop);
         if(calibration is not null)
         {
             try { calibration.Input(packet); }
@@ -366,15 +372,17 @@ public sealed class ArcadeWindow : Window
                 }
             }
         }
-        if (session.Active || remoteSession || learningPlayer is not null || binding is not null && (buttonTestPlayer is not null || buttonTestRelease)) return;
+        if (session.Active || remoteSession || learningPlayer is not null || binding is not null && buttonTestRelease) return;
+        bool testing = binding is not null && buttonTestPlayer == binding.Player;
+        if (testing && packet.Kind != "mouse") return;
         long now = Environment.TickCount64;
         if (packet.Kind == "mouse" && packet.Buttons == 0 && now - lastMove < 30) return;
         if (packet.Kind == "mouse") lastMove = now;
-        if (binding is not null && packet.Kind == "mouse")
+        if (binding is not null && packet.Kind == "mouse" && !testing)
             foreach (var signal in Signals(packet).Where(s => s.Down))
             {
                 string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
-                if (action is not ("shoot" or "reload" or "none")) Send("menu-action", new { action });
+                if (action is not ("shoot" or "reload" or "none")) Send("menu-action", new { action, player = binding.Player });
             }
         // No global shared cursor is used for absolute lightgun packets.
         if (packet.Kind == "mouse")
@@ -385,7 +393,8 @@ public sealed class ArcadeWindow : Window
                 foreach (var signal in Signals(packet).Where(s => s.Down))
                 {
                     string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
-                    if (action == "shoot") menuButtons |= 1; if (action == "reload") menuButtons |= 4;
+                    if (testing ? signal.Token == (binding.ControlMap?.GetValueOrDefault("trigger") ?? "mouse:1") : action == "shoot") menuButtons |= 1;
+                    if (!testing && action == "reload") menuButtons |= 4;
                 }
             var client = web.PointFromScreen(point);
             Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), buttons = menuButtons });
@@ -398,9 +407,9 @@ public sealed class ArcadeWindow : Window
         CloseStartupControls();
         overlayOpener = player;
         foreach (var hold in triggerHolds.Values.Where(h => h.Pressed)) hold.Consume();
-        var controls = OverlayControls.Read(activeGame, store.DirectoryPath, state.Bindings);
+        var controls = OverlayControls.Read(activeGame, store.DirectoryPath, state.Bindings,raw.Devices);
         session.HideForOverlay();
-        overlay = new InGameOverlay(activeGame, controls, state.Bindings, action => _ = OverlayCommand(action));
+        overlay = new InGameOverlay(activeGame, controls, state.Bindings, action => _ = OverlayCommand(action),session.GameWindow);
         overlay.Closed += (_, _) => { if (overlay is not null) { overlay = null; session.RestoreFromOverlay(); } };
         overlay.Show(); Log("overlay: opened P" + player);
     }
@@ -414,7 +423,7 @@ public sealed class ArcadeWindow : Window
         if(!session.Active || activeGame is null || overlay is not null || closing) return;
         CloseStartupControls();
         try {
-            var controls=OverlayControls.Read(activeGame,store.DirectoryPath,state.Bindings);
+            var controls=OverlayControls.Read(activeGame,store.DirectoryPath,state.Bindings,raw.Devices);
             var window=new StartupOverlay(activeGame,controls,state.Bindings,handle,session.HasGameForeground);
             startupOverlay=window;
             window.Closed+=(_,_)=> {if(startupOverlay==window)startupOverlay=null;Log("startup controls: closed");};
@@ -444,12 +453,13 @@ public sealed class ArcadeWindow : Window
         catch (Exception error) { Log("overlay error: " + error.Message); Send("error", new { message = error.Message }); }
         finally { overlayAction = false; }
     }
-    private static Point PacketPoint(RawPacket packet)
+    private readonly GunAim aim = new();
+    private Point PacketPoint(RawPacket packet)
     {
-        if (!packet.Absolute) { GetCursorPos(out var point); return new(point.X, point.Y); }
-        int left = packet.VirtualDesktop ? GetSystemMetrics(76) : 0, top = packet.VirtualDesktop ? GetSystemMetrics(77) : 0;
-        int width = GetSystemMetrics(packet.VirtualDesktop ? 78 : 0), height = GetSystemMetrics(packet.VirtualDesktop ? 79 : 1);
-        return new(left + packet.X / 65535.0 * (width - 1), top + packet.Y / 65535.0 * (height - 1));
+        if (!aim.TryGet(packet.DeviceId, out var position)) { GetCursorPos(out var point); return new(point.X, point.Y); }
+        int left = position.VirtualDesktop ? GetSystemMetrics(76) : 0, top = position.VirtualDesktop ? GetSystemMetrics(77) : 0;
+        int width = GetSystemMetrics(position.VirtualDesktop ? 78 : 0), height = GetSystemMetrics(position.VirtualDesktop ? 79 : 1);
+        return new(left + position.X / 65535.0 * (width - 1), top + position.Y / 65535.0 * (height - 1));
     }
     private static IEnumerable<(string Token, bool Down)> Signals(RawPacket packet)
     {
@@ -878,45 +888,28 @@ public sealed class ArcadeWindow : Window
     }
     private async Task Launch(GameEntry game)
     {
-        _ = LaunchRules.Prepare(game);
-        busy = true;
-        DependencyReport launchDependencies;
-        try { launchDependencies = await Task.Run(() => RuntimeInstaller.Scan([game])); }
-        finally { busy = false; }
-        if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
-        {
-            await CheckDependencies();
-            Send("dependency-blocked", new { message = I18n.T("Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten.") });
-            return;
-        }
-        busy = true; launching = true; var changed = new List<GunBinding>();
+        // Reserve the entire launch, including dependency checks and helper setup.
+        if (launching || session.Active || closing || closeRequested) return;
+        busy = true; launching = true;
         try
         {
-            raw.Refresh(); SupermodelSetup.Configure(game,state.Bindings,raw.Devices);
-            if(DolphinSetup.IsDolphin(game) && state.Bindings.Any(b=>b.Player==1 && b.SystemId=="rs3" && guns.Any(g=>g.MouseId==b.MouseId)))
+            _ = LaunchRules.Prepare(game);
+            Send("busy", new { message = I18n.T("Spiel wird gestartet …") });
+            var launchDependencies = await Task.Run(() => RuntimeInstaller.Scan([game]));
+            if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
             {
-                Send("busy",new {message=I18n.T("Dolphin-Spielprofil wird für RS3 vorbereitet …")});
-                var pack=await DolphinAccuracyPackage.Prepare(store.DirectoryPath);
-                if(!DolphinSetup.Configure(game,pack,state.Bindings)) Send("notice",new {message=I18n.T("Für diese Spielregion liegt kein geprüftes Dolphin-Profil vor. Bestehende Belegung wird verwendet.")});
+                await CheckDependencies();
+                Send("dependency-blocked", new { message = I18n.T("Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten.") });
+                return;
             }
-            foreach (var binding in state.Bindings.Where(b => b.SystemId == "rs3" && b.SerialPort is not null && guns.Any(g => g.Id == b.PhysicalId || g.MouseId == b.MouseId)))
-            {
-                changed.Add(binding);
-                await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect }));
-                // Keep a second physical mouse from steering P1's shared Dolphin cursor.
-                // P2 remains pending until its independent DirectInput controls are verified.
-                if(DolphinSetup.IsDolphin(game) && binding.Player==2) await serial.Command(binding.SerialPort!,binding.Player,["ZJ"]);
-            }
+            raw.Refresh();
             foreach (var gesture in gestures.Values) gesture.Reset();
             foreach (var hold in triggerHolds.Values) hold.Reset(); activeGame = game;
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);
-            Send("busy", new { message = "" });
             await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))));
         }
         finally
         {
-            foreach (var binding in changed)
-            { try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); } catch (Exception e) { Log("restore: " + e.Message); Send("error", new { message = I18n.T("Menümodus konnte nicht wiederhergestellt werden: ") + e.Message }); } }
             busy = false; launching = false; activeGame = null;
             Send("busy", new { message = "" });
             if (closeRequested) Close(); else SendState();

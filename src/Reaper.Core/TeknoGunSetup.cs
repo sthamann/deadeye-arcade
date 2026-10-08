@@ -25,11 +25,14 @@ public static class TeknoGunSetup
                 if(prefix.Success){number=int.Parse(prefix.Groups[1].Success?prefix.Groups[1].Value:prefix.Groups[2].Value);control=prefix.Groups[3].Value;}
                 else if(suffix.Success){number=int.Parse(suffix.Groups[2].Value);control=suffix.Groups[1].Value;}
                 else if(Regex.IsMatch(name,@"^(Coin|Coin Chute|Credits?) ?[12]$",RegexOptions.IgnoreCase)){number=name[^1]-'0';control="Coin";}
-                else if(name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit"){number=1;control="Coin";}
+                else if(name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute"){number=1;control="Coin";}
+                else if(name is "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload"){number=1;control=name;}
                 else continue;
                 if(number!=player.Player)continue;
                 bool aim=control is "Light Gun" or "Gun" or "Spray Controller" or "Proton Pack" or "Touch" or "Light Whip";
-                string? action=control switch {"Start" or "Start Button"=>"start","Coin" or "Credits"=>"coin","Gun Trigger" or "Trigger" or "Shoot" or "Vacuum Button" or "Touch/Click"=>"shoot","Reload" or "Pump Reload" or "Pump"=>"reload","Grenade" or "Grenades" or "Action" or "Action Button" or "Gun Button" or "Special"=>"secondary",_=>null};
+                string? action=control switch {"Start" or "Start Button"=>"start","Coin" or "Credits"=>"coin","Gun Trigger" or "Trigger" or "Trigger Left" or "Shoot" or "Vacuum Button" or "Touch/Click"=>"shoot","Reload" or "Trigger Right" or "Pump Reload" or "Pump"=>"reload","Grenade" or "Grenades" or "Action" or "Action Button" or "Gun Button" or "Special"=>"secondary",_=>null};
+                // Extermination uses the reload/right-mouse control for its flame weapon.
+                if(control=="Flame" && document.Root?.Element("EmulationProfile")?.Value=="AliensExtermination") action="reload";
                 string? token=aim?null:map.Where(p=>p.Value==action).Select(p=>p.Key).FirstOrDefault();
                 if(!aim&&(token is null||!GunSystems.ValidToken(token)))continue;
                 bool keyboard=token?.StartsWith("key:")==true;

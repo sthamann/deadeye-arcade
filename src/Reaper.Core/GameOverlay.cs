@@ -36,10 +36,12 @@ public static class OverlayControls
     { 13 => "Enter", 27 => "Escape", 32 => I18n.T("Leertaste"), 37 => I18n.T("Links"), 38 => I18n.T("Oben"), 39 => I18n.T("Rechts"), 40 => I18n.T("Unten"), _ => I18n.T("Taste ") + key };
     public static string ActionName(string action) => action switch
     { "shoot" => I18n.T("Abzug / Schießen"), "reload" => I18n.T("Nachladen / Zurück"), "secondary" => I18n.T("Zweite Aktion"), "start" => "Start", "coin" => I18n.T("Münze"), "up" => I18n.T("Oben"), "down" => I18n.T("Unten"), "left" => I18n.T("Links"), "right" => I18n.T("Rechts"), _ => action };
-    public static GameControls Read(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
+    public static GameControls Read(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings, IEnumerable<InputDevice>? enumeration = null)
     {
         try
         {
+            if (Rpcs3Setup.IsRpcs3(game)) return Rpcs3Setup.Read(game, bindings);
+            if (SupermodelSetup.IsSupermodel(game)) return SupermodelSetup.Read(game, bindings, enumeration ?? []);
             if (game.Source == "mame")
             {
                 string path = Path.Combine(dataDirectory, "controllers", "reaper.cfg");
@@ -55,7 +57,7 @@ public static class OverlayControls
                     .FirstOrDefault(e => Value(e, "FieldName") == "Input API") is { } field ? Value(field, "FieldValue") : I18n.T("Unbekannt");
                 var rows = doc.Descendants().Where(e => e.Name.LocalName == "JoystickButtons" && e.Elements().Any(c => c.Name.LocalName == "ButtonName"))
                     .Where(e => Value(e, "HideWith" + api) != "true")
-                    .Select(e => new ControlRow(Player(Value(e, "InputMapping")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
+                    .Select(e => new ControlRow(Player(Value(e, "InputMapping"), Value(e, "ButtonName")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
                 return new(rows, I18n.T("Aus dem gestarteten TeknoParrot-Profil gelesen. Helfer wie DemulShooter können weitere Zuordnungen vornehmen."));
             }
             if (Path.GetFileName(game.Executable).Contains("dolphin", StringComparison.OrdinalIgnoreCase))
@@ -63,16 +65,24 @@ public static class OverlayControls
                 var profile=DolphinSetup.ProfilePath(game);
                 if(profile is not null && File.Exists(profile))
                 {
-                    var rows=new List<ControlRow>();bool active=false;
-                    foreach(string line in File.ReadLines(profile))
+                    var rows=new List<ControlRow>();
+                    for(int player=1;player<=2;player++)
                     {
+                        string? playerProfile=DolphinSetup.ProfilePath(game,player);
+                        if(playerProfile is null||!File.Exists(playerProfile))continue;
+                        string settings=Path.Combine(DolphinSetup.UserDirectory(game),"GameSettings",DolphinSetup.DiscId(game)+".ini");
+                        if(DolphinSetup.Value(File.ReadAllText(settings),"Controls","WiimoteSource"+(player-1))!="1")continue;
+                        bool active=false;
+                        foreach(string line in File.ReadLines(playerProfile))
+                        {
                         var item=line.Trim();if(item.StartsWith('['))active=item=="[Profile]";
                         if(!active || item.Split('=',2) is not {Length:2} pair || string.IsNullOrWhiteSpace(pair[1]))continue;
                         string key=pair[0].Trim();
                         if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/Buttons/") || key.StartsWith("Nunchuk/Stick/") || key is "Tilt/Left" or "Shake/X" or "Nunchuk/Shake/X")
-                            rows.Add(new(1,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(profile),pair[1].Trim()));
+                            rows.Add(new(player,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(playerProfile),pair[1].Trim()));
+                        }
                     }
-                    return new(rows.ToArray(),I18n.T("Aktives Dolphin-Titelprofil. P1 ist vorbereitet; P2 benötigt eine separat zugeordnete DirectInput-Gun. Zwei Desktop-Mäuse sind keine unabhängigen Spieler."));
+                    return new(rows.ToArray(),rows.Any(r=>r.Player==2)?I18n.T("Aktive Dolphin-Titelprofile mit getrennten P1-/P2-Gun-Eingängen. Spielinterne Kalibrierung und gemeinsames Spielen benötigen noch einen Test am Bildschirm."):I18n.T("Aktives Dolphin-Titelprofil. P1 ist vorbereitet; P2 benötigt eine separat zugeordnete DirectInput-Gun. Zwei Desktop-Mäuse sind keine unabhängigen Spieler."));
                 }
                 string? path = DolphinConfig(game);
                 if (path is not null)
@@ -96,6 +106,8 @@ public static class OverlayControls
                     if (game.Arguments[i] is "-c" or "--config") { paths.Clear(); paths.Add(Path.GetFullPath(game.Arguments[++i], game.WorkingDirectory)); }
                     else if (game.Arguments[i] is "--appendconfig") paths.AddRange(game.Arguments[++i].Split('|').Select(p => Path.GetFullPath(p, game.WorkingDirectory)));
                 var values = new Dictionary<string, string>();
+                string managed = RetroArchSetup.ProfilePath(game, dataDirectory);
+                if (File.Exists(managed)) paths.Add(managed);
                 foreach (var path in paths.Where(File.Exists)) foreach (string line in File.ReadLines(path))
                 {
                     var pair = line.Split('=', 2); if (pair.Length == 2 && !pair[0].TrimStart().StartsWith('#')) values[pair[0].Trim()] = pair[1].Trim().Trim('"');
@@ -103,13 +115,16 @@ public static class OverlayControls
                 var rows = new List<ControlRow>();
                 foreach (var pair in values)
                 {
-                    var match = Regex.Match(pair.Key, @"^input_player([12])_(gun_trigger|gun_reload|gun_aux_a|gun_aux_b|gun_start|gun_select|a|b|start|select)(?:_(mbtn|btn|axis))?$");
+                    var match = Regex.Match(pair.Key, @"^input_player([1-4])_(gun_trigger|gun_reload|gun_aux_a|gun_aux_b|gun_aux_c|gun_start|gun_select|gun_offscreen_shot|gun_dpad_up|gun_dpad_down|gun_dpad_left|gun_dpad_right|a|b|start|select)(?:_(mbtn|btn|axis))?$");
                     if (!match.Success) continue;
-                    string label = match.Groups[2].Value switch { "gun_trigger" => I18n.T("Abzug"), "gun_reload" => I18n.T("Nachladen"), "gun_aux_a" or "a" => "A", "gun_aux_b" or "b" => "B", "gun_start" or "start" => "Start", _ => I18n.T("Select / Münze (Core abhängig)") };
+                    string label = match.Groups[2].Value switch { "gun_trigger" => I18n.T("Abzug"), "gun_reload" or "gun_offscreen_shot" => I18n.T("Nachladen"), "gun_aux_a" or "a" => "A", "gun_aux_b" or "b" => "B", "gun_aux_c" => "C", "gun_start" or "start" => "Start", "gun_select" or "select" => I18n.T("Select / Münze (Core abhängig)"), _ => match.Groups[2].Value.Replace("gun_dpad_", "D-Pad ") };
                     string input = match.Groups[3].Value switch { "mbtn" => I18n.T("Maustaste "), "btn" => I18n.T("Controller-Taste "), "axis" => I18n.T("Achse "), _ => I18n.T("Taste ") };
                     // Controller/axis numbers have no confirmed physical gun identity.
-                    string? token = match.Groups[3].Value == "" ? StartupControls.KeyToken(pair.Value) : null;
-                    rows.Add(new(int.Parse(match.Groups[1].Value), label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration",token));
+                    int port = int.Parse(match.Groups[1].Value);
+                    int player = int.TryParse(values.GetValueOrDefault("deadeye_player" + port + "_physical"), out int physical) ? physical : port;
+                    if(player is not (1 or 2)) continue;
+                    string? token = match.Groups[3].Value switch { "" => StartupControls.KeyToken(pair.Value), "mbtn" when Regex.IsMatch(pair.Value, "^[1-5]$") => "mouse:" + pair.Value, _ => null };
+                    rows.Add(new(player, label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration",token is null ? null : "P" + player + "|" + token));
                 }
                 var compact=rows.GroupBy(r=>(r.Player,r.Function)).Select(group=> {
                     var assigned=group.Where(r=>r.Input!=I18n.T("Nicht belegt")).Select(r=>r.Input).Distinct().ToArray();
@@ -133,8 +148,18 @@ public static class OverlayControls
         return key;
     }
     private static string Value(XElement e, string name) => e.Elements().FirstOrDefault(c => c.Name.LocalName == name)?.Value ?? "";
-    private static int Player(string name) => Regex.Match(name, @"^(?:P|Player\s*)([12])", RegexOptions.IgnoreCase) is { Success:true } m ? int.Parse(m.Groups[1].Value)
-        : Regex.Match(name, @"^(?:COIN|START|Coin|Service)([12])$", RegexOptions.IgnoreCase) is { Success:true } n ? int.Parse(n.Groups[1].Value) : 0;
+    private static int Player(string name, string label = "")
+    {
+        // Keep P3/P4 distinct even when the frontend only displays two guns.
+        // Some vendor InputMapping values still say P1 for an explicitly named P2
+        // control. Its visible player label takes precedence over that stale field.
+        var match = Regex.Match(label, @"^(?:Player\s*|P)([1-9]\d*)\b", RegexOptions.IgnoreCase);
+        if (!match.Success) match = Regex.Match(label, @"^(?:Coin Chute|Coin|Start)\s*([1-9]\d*)\b| P([1-9]\d*)$", RegexOptions.IgnoreCase);
+        if (match.Success) return int.Parse(match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value);
+        match = Regex.Match(name, @"^(?:P|Player\s*)([1-9]\d*)", RegexOptions.IgnoreCase);
+        if (!match.Success) match = Regex.Match(name, @"^(?:COIN|START|Service)([1-9]\d*)$", RegexOptions.IgnoreCase);
+        return match.Success && int.TryParse(match.Groups[1].Value, out int player) ? player : 0;
+    }
     private static string MameLabel(string name) => name.StartsWith("COIN") ? I18n.T("Münze") : name.StartsWith("START") ? "Start" : Regex.Replace(name, @"^P[12]_", "").Replace("BUTTON", I18n.T("Taste ")).Replace("JOYSTICK_", I18n.T("Steuerkreuz "));
     private static string MameInput(string sequence)
     {

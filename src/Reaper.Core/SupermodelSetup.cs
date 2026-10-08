@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Reaper.Core;
 
 public static class SupermodelSetup
@@ -32,6 +34,41 @@ public static class SupermodelSetup
             values["InputStart"+player]=Button("start");values["InputCoin"+player]=Button("coin");
             values["InputAutoTrigger"+suffix]="1";
         }
-        DolphinSetup.WriteMerged(Path.Combine(game.WorkingDirectory,"Config","Supermodel.ini"),"Global",values);return true;
+        string path=Path.Combine(game.WorkingDirectory,"Config","Supermodel.ini");
+        DolphinSetup.WriteMerged(path,"Global",values);
+        // A title section overrides Global. Replace its input routes as well, while
+        // preserving calibration, video, NVRAM and other title-specific settings.
+        string set=SetName(game);
+        if(set.Length>0) DolphinSetup.WriteMerged(path,set,values);
+        return true;
+    }
+
+    private static string SetName(GameEntry game) => Path.GetFileNameWithoutExtension(game.SourcePath.Replace('\\','/'));
+    public static GameControls Read(GameEntry game,IEnumerable<GunBinding> bindings,IEnumerable<InputDevice> enumeration)
+    {
+        string path=Path.Combine(game.WorkingDirectory,"Config","Supermodel.ini");
+        if(!File.Exists(path)) return new([],I18n.T("Spielprofil konnte nicht gelesen werden. Die Gun-/Menübelegung bleibt verfügbar."));
+        string text=File.ReadAllText(path),set=SetName(game);
+        var mice=DeviceNumbers(enumeration,"mouse");var keys=DeviceNumbers(enumeration,"keyboard");
+        var rows=new List<ControlRow>();
+        foreach(var binding in bindings.Where(b=>b.Player is 1 or 2))
+        {
+            string suffix=binding.Player==1?"":"2";
+            foreach(var pair in new[]{("InputTrigger"+suffix,"Trigger"),("InputOffscreen"+suffix,"Offscreen / Reload"),
+                ("InputAnalogTriggerLeft"+suffix,"Left trigger (analog gun)"),("InputAnalogTriggerRight"+suffix,"Right trigger (analog gun)"),
+                ("InputStart"+binding.Player,"Start"),("InputCoin"+binding.Player,"Coin")})
+            {
+                string value=(DolphinSetup.Value(text,set,pair.Item1)??DolphinSetup.Value(text,"Global",pair.Item1)??"NONE").Trim('"');
+                string? token=null;
+                var mouse=Regex.Match(value,@"^MOUSE(\d+)_(LEFT_BUTTON|RIGHT_BUTTON|MIDDLE_BUTTON)$");
+                var key=Regex.Match(value,@"^KEY(\d+)_([A-Z0-9]+)$");
+                if(mouse.Success && mice.GetValueOrDefault(binding.MouseId)==int.Parse(mouse.Groups[1].Value))
+                    token="mouse:"+(mouse.Groups[2].Value switch {"LEFT_BUTTON"=>1,"RIGHT_BUTTON"=>2,_=>3});
+                else if(key.Success && binding.KeyboardId is not null && keys.GetValueOrDefault(binding.KeyboardId)==int.Parse(key.Groups[1].Value))
+                    token=StartupControls.KeyToken(key.Groups[2].Value);
+                rows.Add(new(binding.Player,pair.Item2,value,"Supermodel · "+(set.Length>0?set:"Global"),token is null?null:"P"+binding.Player+"|"+token));
+            }
+        }
+        return new(rows.ToArray(),I18n.T("Aktive Supermodel-Belegung mit titelbezogenen Overrides. Unbekannte Geräte bleiben unbestätigt."));
     }
 }

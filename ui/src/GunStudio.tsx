@@ -253,6 +253,7 @@ export function GunStudio({
             {[1, 2].map((p) => (
               <button
                 key={p}
+                data-test-navigation
                 className={player === p ? "selected" : ""}
                 onClick={() => setPlayer(p)}
               >
@@ -289,6 +290,7 @@ export function GunStudio({
           ].map(([id, name]) => (
             <button
               key={id}
+              data-test-navigation
               className={tab === id ? "selected" : ""}
               onClick={() => setTab(id)}
             >
@@ -301,8 +303,8 @@ export function GunStudio({
             <div className="gun-live-panel">
               <div className="setup-note button-test-note">
                 <strong>{buttonTesting ? t("Tastentest · nur Anzeige") : t("Gun steuert das Menü")}</strong>
-                <p>{buttonTesting ? t("Tasten werden nur angezeigt. Abzug 10 Sekunden halten und loslassen, um wieder das Menü zu bedienen. Mit der Maus kannst du den Test auch beenden.") : t("Zum Belegen eine Zeile auswählen. Für reine Tastenanzeige den Tastentest starten.")}</p>
-                <button className="secondary" onClick={() => setButtonTesting(v => !v)}>{buttonTesting ? t("Tastentest beenden") : t("Tastentest starten")}</button>
+                <p>{buttonTesting ? t("Tasten werden nur angezeigt. Auf Spielerwechsel, Einrichtung oder „Tastentest beenden“ schießen, um weiterzugehen. Die andere Gun kann das Menü bedienen.") : t("Zum Belegen eine Zeile auswählen. Für reine Tastenanzeige den Tastentest starten.")}</p>
+                <button className="secondary" data-test-navigation onClick={() => setButtonTesting(v => !v)}>{buttonTesting ? t("Tastentest beenden") : t("Tastentest starten")}</button>
                 <p className="studio-caption">{t("Eigene Gun-Funktionen wie LED-Wechsel oder Maus-/Joystick-Umschaltung laufen in der Firmware und bleiben aktiv.")}</p>
               </div>
               <div className="live-heading">

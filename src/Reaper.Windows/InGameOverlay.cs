@@ -15,13 +15,13 @@ public sealed class InGameOverlay : Window
     private int selected;
     private bool busy;
     private bool armed;
-    public InGameOverlay(GameEntry game, GameControls controls, IEnumerable<GunBinding> bindings, Action<string> command)
+    public InGameOverlay(GameEntry game, GameControls controls, IEnumerable<GunBinding> bindings, Action<string> command, nint gameWindow = 0)
     {
         this.command = command;
         Title = I18n.T("Deadeye · Spielmenü"); WindowStyle = WindowStyle.None; ResizeMode = ResizeMode.NoResize;
-        WindowState = WindowState.Maximized; Topmost = true; ShowInTaskbar = false;
-        Background = Brush(12, 15, 21); Foreground = Brushes.White;
-        var root = new Grid { Margin = new Thickness(36) };
+        WindowStartupLocation = WindowStartupLocation.Manual; Width = 1280; Height = 720; Topmost = true; ShowInTaskbar = false;
+        AllowsTransparency = true; Background = new SolidColorBrush(Color.FromArgb(200,12,15,21)); Foreground = Brushes.White;
+        var root = new Grid { Margin = new Thickness(28), Width = 1224, Height = 664 };
         root.RowDefinitions.Add(new() { Height = GridLength.Auto });
         root.RowDefinitions.Add(new() { Height = GridLength.Auto });
         root.RowDefinitions.Add(new() { Height = new GridLength(1, GridUnitType.Star) });
@@ -45,19 +45,34 @@ public sealed class InGameOverlay : Window
             panel.Children.Add(Text(I18n.T("Belegung im Spielprofil"), 19, Brushes.White));
             var rows = controls.Rows.Where(r => r.Player == player || r.Player == 0).ToArray();
             if (rows.Length == 0) panel.Children.Add(Text(I18n.T("Keine bestätigte Spielbelegung verfügbar"), 16, Brush(182, 192, 206)));
-            foreach (var row in rows) AddRow(panel, row.Function, row.Input);
-            panel.Children.Add(Text(I18n.T("Gespeicherte Gun-/Menübelegung"), 19, Brush(255, 132, 73)));
             if (binding is not null)
-                foreach (var entry in binding.ButtonMap ?? GunSystems.DefaultMap(player)) AddRow(panel, OverlayControls.ActionName(entry.Value), OverlayControls.InputName(entry.Key));
+            {
+                var hints = StartupControls.ForPlayer(controls,binding);
+                var hardware = StartupControls.Hardware(binding);
+                panel.Children.Add(StartupOverlay.GunDiagram(binding,hints,110));
+                var legend = new UniformGrid { Columns = 2 };
+                foreach (var hint in hints.Where(h=>h.Resolved))
+                {
+                    var item = new StackPanel { Margin = new Thickness(3,3,10,3) };
+                    string numbers = string.Join(" · ",hint.ControlIds.Select(id=>Array.FindIndex(hardware,c=>c.Id==id)+1));
+                    item.Children.Add(Text(numbers+"  "+hint.Function,17,Brushes.White));
+                    item.Children.Add(Text(hint.Input,14,Brush(182,192,206)));
+                    legend.Children.Add(item);
+                }
+                panel.Children.Add(legend);
+                foreach (var hint in hints.Where(h=>!h.Resolved)) AddRow(panel,hint.Function,hint.Input);
+            }
+            else foreach (var row in rows) AddRow(panel,row.Function,row.Input);
             var border = new Border { Background = Brush(24, 31, 43), CornerRadius = new CornerRadius(18), Margin = new Thickness(6), Child = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
             players.Children.Add(border);
         }
         Grid.SetRow(players, 2); root.Children.Add(players);
         var footer = new StackPanel { Margin = new Thickness(0, 18, 0, 0) };
         footer.Children.Add(Text(controls.Note, 15, Brush(182, 192, 206)));
-        footer.Children.Add(Text(I18n.T("Abzug mindestens 10 Sekunden halten → Menü. Danach loslassen und auf eine Aktion schießen. Start bestätigt · Steuerkreuz wählt · Nachladen / Escape zurück."), 16, Brushes.White));
-        Grid.SetRow(footer, 3); root.Children.Add(footer); Content = root;
-        Loaded += (_, _) => { Activate(); Select(0); };
+        footer.Children.Add(Text(I18n.T("Start + Münze 2 Sekunden halten → Spiel beenden. F12 beendet ebenfalls. Abzug 10 Sekunden halten → Menü. Loslassen und Aktion wählen."), 16, Brushes.White));
+        Grid.SetRow(footer, 3); root.Children.Add(footer); Content = new Viewbox { Stretch = Stretch.Uniform, Child = root };
+        SourceInitialized += (_, _) => OverlayPlacement.Place(this,gameWindow,false);
+        Loaded += (_, _) => { OverlayPlacement.Place(this,gameWindow,false); Activate(); Select(0); };
         PreviewKeyDown += (_, e) =>
         {
             // Actual gun packets are dispatched by the launcher. Native keyboard is a fallback.

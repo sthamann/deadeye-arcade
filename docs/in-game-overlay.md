@@ -1,22 +1,37 @@
-# Spielmenü in Reaper Arcade 0.3.1
+# Game menu and startup controls
 
-Während einer von Reaper gestarteten Spielsitzung den gespeicherten Abzug von P1 oder P2 mindestens zehn Sekunden ohne Unterbrechung halten. Das native Vollbildmenü öffnet sich. Erst loslassen, dann eine Aktion auswählen. Kurze Schüsse werden nicht aufaddiert; Tastatur-Wiederholungen verlängern oder verkürzen die Schwelle nicht. Ein gehaltenes Signal öffnet das Menü einmal und muss vor dem nächsten Versuch losgelassen werden. Neue Spielsitzungen und getrennte Geräte setzen den Haltezustand zurück.
+When a recognized game window appears, Deadeye shows the available game-specific
+button legend for ten seconds. The compact native window shows each assigned gun
+and highlights physical controls whose active profile mapping can be resolved.
+Scroll for longer lists. Unknown or unsupported mappings remain visibly unresolved.
 
-Die drei großen Aktionen sind **Weiter spielen**, **Neu starten** und **Spiel beenden**. Mit der Gun darauf zielen und den Abzug drücken. Die gespeicherten Steuerkreuzaktionen wählen alternativ eine Aktion; Start bestätigt, Nachladen kehrt zum Spiel zurück. F10 öffnet das Menü als Tastaturalternative, Escape schließt es und F12 beendet weiterhin die eigene Spielsitzung. Der Launcher bietet während einer Sitzung außerdem „Spielmenü öffnen“ an.
+Hold **Start + Coin for about two seconds** to end the current Deadeye game session.
+This emergency path runs independently of the web interface. Release both buttons
+before using the combination again. In the frontend, the same combination closes
+the app. **F12** is the keyboard alternative. A ten-second trigger hold can open the
+game menu when the gun continues reporting a held trigger; some games or device
+modes interfere with that signal, so use Start + Coin for recovery.
 
-Für beide Spieler erscheinen Modell, Spielprofilbelegung und die separat gekennzeichnete Gun-/Menübelegung. Die Tastenpositionen und Bezeichnungen der Gun sind von ihren gespeicherten Eingangssignalen abhängig; die Spielprofilbelegung stammt aus folgenden Dateien:
+**F10** opens the game menu. Its three actions are **Resume**, **Restart** and
+**End game**. Aim and shoot to select, or navigate with the assigned direction
+buttons and confirm with Start. Reload or Escape returns to the game. Both guns
+can navigate using their own last absolute aim position.
 
-- **MAME:** der beim Start erzeugte Reaper-Controller, einschließlich Münze, Start und Taste 1/2/3. Individuelle MAME-Spielkonfigurationen können ihn überschreiben; die Anzeige bestätigt keinen laufenden Zustand aus MAME.
-- **TeknoParrot:** das gestartete UserProfile, mit den echten ButtonName-Bezeichnungen und der gewählten RawInput-/DirectInput-/XInput-Belegung. RawInput-Geräte werden gegen die gespeicherten Guns geprüft. Unbekannte Profilgeräte bleiben als offene Zuordnung sichtbar. Externe Helfer können zusätzliche Belegungen vornehmen.
-- **Dolphin/Wii:** WiimoteNew.ini aus dem expliziten Benutzerordner, Portable-Modus oder Standardbenutzerordner. A, B, Plus/Minus und Steuerkreuz werden getrennt für P1/P2 gelesen. Titelprofile und Kommandozeilen-Overrides sind noch nicht aufgelöst.
-- **RetroArch:** retroarch.cfg beziehungsweise explizit übergebene Konfiguration und Zusatzdateien. Gun-Aktionen, A/B, Start und Select werden angezeigt. Core-/Content-Overrides und Remaps sind noch nicht aufgelöst.
+Available mappings are read from active TeknoParrot profiles, Dolphin title
+profiles, RetroArch configuration additions, recent standalone RPCS3 Raw Mouse
+and PS Move files, and the managed MAME controller file. Helpers, emulator remaps
+and game-specific overrides can change the final behavior; unresolved paths do
+not receive invented assignments.
 
-Andere Systeme erhalten keine erfundenen Spielbelegungen. Die Anzeige erklärt dann, dass nur die gespeicherte Gun-/Menübelegung vorliegt. Keine Emulator-Konfiguration wird für die Anzeige verändert.
+Opening the menu keeps the game behind a translucent menu window. Exclusive
+fullscreen renderers may require a game-specific borderless mode for reliable
+composition. **It does not pause the game.** Background timers, audio or inputs
+may continue. The Dolphin bridge suppresses its game buttons while the menu is open.
+Restart closes the owned session and helpers before launching the same entry.
+Other applications are not terminated.
 
-Das Spielmenü ist ein eigenes natives Windows-Fenster. Beim Öffnen werden nur Fenster der von Reaper erkannten eigenen Spielprozesse minimiert; „Weiter spielen“ stellt sie wieder her. Das macht auch den Wechsel aus exklusivem Vollbild möglich. **Es ist keine Spielpause:** Timer, Ton und gegebenenfalls Hintergrund-Eingaben des Spiels können weiterlaufen. Ein Neustart beendet zuerst die eigene Sitzung und ihre Helfer vollständig, stellt den Menümodus wieder her und startet danach denselben Bibliothekseintrag erneut. Andere Anwendungen werden nicht beendet.
-
-Die Zehn-Sekunden-Schwelle, vorzeitiges Loslassen, Wiederholungen, erneutes Scharfschalten und Spielertrennung sind durch Kernprüfungen abgedeckt. Der Auslöser über die echte Gun bleibt ein lokaler Hardwaretest, weil Remote Desktop ihre Eingaben auf dem getesteten PC ausblendet.
-
-Am 7. Oktober 2026 wurde auf einem Windows-PC eine echte CarnEvil-/MAME-Sitzung aus Reaper gestartet: F10 öffnete das Menü mit der P1-RS3- und MAME-Belegung, „Weiter spielen“ stellte CarnEvil wieder her, „Neu starten“ startete denselben Eintrag erneut, und „Spiel beenden“ kehrte ins Frontend zurück. Das Windows-Aktivitätsprotokoll bestätigt die Folge `launch → opened → resume → opened → restart → launch → opened → end`. Andere Emulatoren sind damit noch nicht im Spiel getestet.
-
-Quellen für Profilformate: [TeknoParrot JoystickMapping](https://github.com/teknogods/TeknoParrotUI/blob/master/TeknoParrotUi.Common/JoystickMapping.cs), [Dolphin Wiimote](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/Core/HW/WiimoteEmu/WiimoteEmu.cpp). Windows kann die Vordergrundaktivierung beschränken: [SetForegroundWindow](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setforegroundwindow). Kein injizierter DirectX-/Vulkan-Hook wird verwendet.
+The menu uses a scrollable layout and positions itself within the current
+monitor's bounds. Device probing preserves the existing frontend Raw Input
+registration. Session cleanup releases the launcher even if input restoration
+fails. Real trigger holds, aiming and simultaneous physical buttons still require
+a test at the connected monitor; Remote Desktop input is not that hardware test.

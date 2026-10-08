@@ -44,6 +44,7 @@ public static class StartupControls
     public static string? KeyToken(string key)
     {
         key=key.ToUpperInvariant();
+        if(Regex.IsMatch(key,@"^NUM[0-9]$")) key=key[3..];
         if(Regex.IsMatch(key,@"^D[0-9]$")) key=key[1..];
         if(key.Length==1 && (key[0] is >= '0' and <= '9' or >= 'A' and <= 'Z'))return "key:"+(int)key[0];
         int code=key switch {"RETURN" or "ENTER"=>13,"ESCAPE" or "ESC"=>27,"SPACE"=>32,"LEFT"=>37,"UP"=>38,"RIGHT"=>39,"DOWN"=>40,_=>0};
@@ -56,7 +57,10 @@ public static class StartupControls
         // Nunchuk weapon selection, for example. Prefer its named game function.
         bool titleFunctions=rows.Any(r=>r.Function==I18n.T("Kinesis / Benutzen (A)"));
         if(titleFunctions) rows=rows.Where(r=>!r.Function.StartsWith("Buttons/") && !r.Function.StartsWith("D-Pad/")).ToArray();
-        return rows.Select(row=>Resolve(row,binding)).DistinctBy(r=>(r.Function,r.Input)).ToArray();
+        return rows.Select(row=>Resolve(row,binding)).DistinctBy(r=>(r.Function,r.Input))
+            .OrderByDescending(r=>r.Resolved)
+            .ThenBy(r=>r.ControlIds.Contains("trigger")?0:r.ControlIds.Contains("reload")?1:r.ControlIds.Contains("magazine")?2:r.ControlIds.Contains("start")?3:r.ControlIds.Contains("coin")?4:5)
+            .ToArray();
     }
     public static StartupControlHint Resolve(ControlRow row,GunBinding binding)
     {
@@ -76,6 +80,17 @@ public static class StartupControls
         string label;
         if(GunSystems.ValidToken(expression)) label=Replace(expression,expression);
         else if(row.Evidence.StartsWith("Dolphin")) {
+            const string bridgePattern=@"`(L2|Cross|Square|Circle|R3|Options|Share|Pad [NSEW])`";
+            if(Regex.IsMatch(expression,bridgePattern))
+            {
+                string unknown=Regex.Replace(Regex.Replace(expression,bridgePattern,""),@"[\s&!|()]","");
+                if(unknown.Length>0) return new(row.Function,row.Input,[],false);
+                label=Regex.Replace(expression,bridgePattern,m=>{
+                    var control=hardware.FirstOrDefault(h=>DolphinGunBridge.Input(h.Id)==m.Groups[1].Value);
+                    return Replace(control?.Token,m.Value);
+                }).Replace(" & !",I18n.T(" ohne ")).Replace(" & "," + ").Replace(" | ",I18n.T(" oder "));
+                return known && ids.Count>0?new(row.Function,label,ids.Distinct().ToArray(),true):new(row.Function,row.Input,[],false);
+            }
             // Match a whole supported expression. A foreign device qualifier or unknown
             // operator invalidates the mapping; do not turn it into a guessed button.
             const string pattern=@"`Click ([0-4])`|`(D[0-9]|[A-Za-z0-9])`|\b(LEFT|UP|RIGHT|DOWN|RETURN|SPACE)\b";

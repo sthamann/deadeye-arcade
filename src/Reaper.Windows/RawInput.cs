@@ -12,6 +12,7 @@ public sealed class RawInput : IDisposable
     public event Action<RawPacket>? Packet;
     public event Action? DevicesChanged;
     public List<InputDevice> Devices { get; private set; } = [];
+    public List<string> MouseOrder { get; private set; } = [];
     [StructLayout(LayoutKind.Sequential)] private struct DeviceList { public nint Device; public uint Type; }
     [StructLayout(LayoutKind.Sequential)] private struct Registration { public ushort Page, Usage; public uint Flags; public nint Window; }
     [StructLayout(LayoutKind.Sequential)] private struct Header { public uint Type, Size; public nint Device, WParam; }
@@ -24,6 +25,7 @@ public sealed class RawInput : IDisposable
     [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW")] private static extern uint DeviceInfoBytes(nint device, uint command, nint data, ref uint size);
     [DllImport("hid.dll")] private static extern int HidP_GetUsages(int type, ushort page, ushort collection, [Out] ushort[] usages, ref uint count, nint preparsed, byte[] report, uint length);
     private readonly Dictionary<nint, string> names = [];
+    private bool registered;
     private readonly Dictionary<string, HashSet<ushort>> hidButtons = new(StringComparer.OrdinalIgnoreCase);
     private const uint DeviceName = 0x20000007;
     public void Register(nint window)
@@ -31,6 +33,7 @@ public sealed class RawInput : IDisposable
         // INPUTSINK observes the guns during a game; it does not inject or steal game inputs.
         Registration[] registration = [new() { Page = 1, Usage = 2, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 6, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 4, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 5, Flags = 0x2100, Window = window }];
         if (!RegisterRawInputDevices(registration, (uint)registration.Length, (uint)Marshal.SizeOf<Registration>())) throw new Win32Exception(Marshal.GetLastWin32Error());
+        registered = true;
         Refresh();
     }
     public void Refresh()
@@ -39,14 +42,17 @@ public sealed class RawInput : IDisposable
         if (GetRawInputDeviceList(null, ref count, size) == uint.MaxValue) return;
         var list = new DeviceList[count];
         uint found = GetRawInputDeviceList(list, ref count, size); if (found == uint.MaxValue) return;
-        names.Clear(); List<InputDevice> devices = [];
+        names.Clear(); MouseOrder = []; List<InputDevice> devices = [];
         foreach (var d in list.Take((int)found))
         {
+            int mouseIndex = MouseOrder.Count;
+            if (d.Type == 0) MouseOrder.Add("");
             uint chars = 0; GetRawInputDeviceInfo(d.Device, DeviceName, null, ref chars);
             if (chars == 0) continue;
             var text = new StringBuilder((int)chars + 1);
             if (GetRawInputDeviceInfo(d.Device, DeviceName, text, ref chars) == uint.MaxValue) continue;
             string id = text.ToString(); names[d.Device] = id;
+            if (d.Type == 0) MouseOrder[mouseIndex] = id;
             string product = "";
             using (var handle = CreateFile(id, 0, 3, 0, 3, 0, 0))
             {
@@ -114,6 +120,8 @@ public sealed class RawInput : IDisposable
     }
     public void Dispose()
     {
+        if (!registered) return;
+        registered = false;
         Registration[] off = [new() { Page = 1, Usage = 2, Flags = 1 }, new() { Page = 1, Usage = 6, Flags = 1 }, new() { Page = 1, Usage = 4, Flags = 1 }, new() { Page = 1, Usage = 5, Flags = 1 }];
         RegisterRawInputDevices(off, (uint)off.Length, (uint)Marshal.SizeOf<Registration>());
     }

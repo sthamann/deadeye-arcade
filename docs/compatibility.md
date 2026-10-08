@@ -31,18 +31,21 @@ The profiles are separately downloaded GPL-3.0 assets with their license preserv
 Existing unrelated Dolphin settings are retained and changed INIs are backed up.
 Unsupported disc IDs retain their existing configuration.
 
-RS3 P1 uses the Windows mouse plus the gun's keyboard buttons. Existing GUN4IR
-P2 mappings are not treated as RS3 mappings. An independently verified DirectInput
-RS3 P2 profile is still required for two players. If an RS3 P2 is connected during
-Dolphin launch, Deadeye temporarily switches it into joystick mode so it cannot
-move P1's shared mouse pointer; the second emulated Wii Remote stays disabled until
-its independent mapping has been verified. Menu mouse mode is restored afterward.
+With two connected RS3 guns and a supported disc profile, Deadeye creates two
+independent inputs through Dolphin's native DSU backend. A loopback-only bridge
+carries each gun's absolute aim and buttons into its own emulated Wii Remote.
+It requires no virtual-controller driver and retains the guns' mouse/keyboard mode.
+The per-player profiles and startup legend use the actual connected devices.
+With one RS3 gun, P1 uses the existing mouse/keyboard profile. Unknown disc IDs
+retain their existing settings rather than receiving a guessed two-player profile.
+The bridge's transport and separate player subscriptions have automated checks;
+physical aiming and simultaneous gameplay still require a test at the monitor.
 The [Dolphin guide](https://www.sindenwiki.org/wiki/Dolphin) and
 [DemulShooter's Dolphin guide](https://github.com/argonlefou/DemulShooter/wiki/Dolphin)
 include version-specific alternatives; an old Dolphin 5.0 hook is not presumed to
 work with a current Dolphin build.
 
-### Dead Space Extraction P1
+### Dead Space Extraction
 
 Use the standard Wii Remote with a Nunchuk. The generated RS3 mapping is:
 
@@ -56,18 +59,34 @@ Use the standard Wii Remote with a Nunchuk. The generated RS3 mapping is:
 | Coin, brief hold | Tilt / alternate fire |
 | Stick click | Wii Remote shake / glow worm |
 | Grip + side | Nunchuk shake / melee |
-| Stick directions | Nunchuk stick / weapon selection |
+| Stick directions | Nunchuk stick / weapon selection, using the title accuracy profile's orientation |
 
 Learned physical button assignments are used when available. Avoid long Coin or
 stick holds: the RS3 firmware reserves these for Escape and LED functions. This
 mapping needs a physical tutorial/gameplay test, including aiming, held buttons
 and simultaneous actions, before the game is marked tested.
 
+## RPCS3 / PlayStation Move
+
+Recent official RPCS3 builds support separate Raw Mouse inputs for PS Move.
+Deadeye configures `raw_mouse.yml`, `gem_mouse.yml` and the existing title-specific
+configuration for connected guns. It retains unrelated settings and backs up
+changed files. Older builds without this input backend retain their settings.
+This setup applies to standalone RPCS3; it does not replace TeknoParrot's bundled
+arcade RPCS3. Complete the game's calibration for each player before playing.
+
+## Launch checks in the frontend
+
+Game Details shows the most recent native launch check, whether a game window was
+observed, and whether its owned processes ended cleanly. A successful launch check
+is not a full playthrough or proof of physical gun inputs. Failed launches retain
+their observed error and check time instead of acquiring a gameplay-verified label.
+
 ## Other game paths
 
 | Game / emulator | Setup behavior and remaining limitation |
 | --- | --- |
-| Supermodel / The Lost World | Rebuilds independent RawInput mouse and keyboard numbers from the live device list at each launch. Unconnected players receive no phantom joystick mapping. Physical P2 gameplay remains to test. |
+| Supermodel / The Lost World | Rebuilds independent RawInput mouse and keyboard numbers from the live device list at each launch, including title overrides. The startup legend resolves those actual assignments. Physical P2 gameplay remains to test. |
 | Silent Hill Arcade in TeknoParrot | Uses the existing TeknoParrot profile and its separate RawInput devices. The standalone No-Cursor/DemulShooter patch is a different launch path and must not be layered over it blindly. [Guide](https://www.sindenwiki.org/wiki/Silent_Hill_Arcade). |
 | The House of the Dead Remake | Requires an ArcadePlugin matching the game build. Multiplayer also needs its multiplayer input mode and DemulShooterX64 with `-target=windows -rom=hotdra`. Existing files alone do not confirm plugin mode or two-gun readiness. [Plugin source](https://github.com/argonlefou/HotdRemake_ArcadePlugin), [game guide](https://www.sindenwiki.org/wiki/The_House_of_the_Dead_Remake). |
 | Blue Estate | Requires a matching unofficial 32-bit patch in the executable's directory, Raw Mode and fullscreen. Deadeye updates the VID/PID assignments for an installed patch and rejects duplicate identities. Patch installation requires source and game-build review; it is not distributed with Deadeye. Focus changes and hotplug are unsupported by the patch. [Guide](https://www.sindenwiki.org/wiki/Blue_Estate). |
@@ -78,6 +97,13 @@ and simultaneous actions, before the game is marked tested.
 
 Game Details shows these requirements together with whether a second gun is
 currently detected. A real game test remains separate from configuration status.
+
+### PS2 limitation
+
+The existing GunCon2 mouse path uses a shared Windows pointer. Two connected RS3
+guns alone do not provide independent PS2 players. A validated per-device axis or
+controller integration and each game's own calibration are still required. This
+is explicitly identified in Game Details; PS2 two-gun gameplay is not marked ready.
 
 ## Installed multiplayer helpers
 

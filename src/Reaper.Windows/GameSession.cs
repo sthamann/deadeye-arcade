@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
+using System.Text;
 using Reaper.Core;
 
 namespace Reaper.Windows;
@@ -13,6 +14,16 @@ public sealed class GameSession
     private string targetExecutable = "";
     private readonly object sync = new();
     private Task? ending;
+    private int reserved;
+    private nint job;
+    private nint gameWindow;
+    private DolphinGunBridge? bridge;
+    public void Input(RawPacket packet)
+    {
+        var current=bridge;
+        if(packet.Kind=="mouse") current?.Mouse(packet.DeviceId,packet.Absolute,packet.X,packet.Y,packet.Buttons);
+        else if(packet.Kind=="keyboard") current?.Key(packet.DeviceId,packet.Key,packet.Down);
+    }
     private readonly List<(nint Handle, int Show)> overlayWindows = [];
     public bool Active { get; private set; }
     public event Action<string>? Changed;
@@ -26,11 +37,78 @@ public sealed class GameSession
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(nint handle);
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(nint hwnd, int command);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint hwnd, StringBuilder name, int maximum);
+    private static bool IsRenderWindow(nint handle)
+    {
+        var name = new StringBuilder(256); GetClassName(handle, name, name.Capacity);
+        return name.ToString() is not ("#32770" or "ConsoleWindowClass" or "CASCADIA_HOSTING_WINDOW_CLASS");
+    }
     [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsZoomed(nint hwnd);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint handle,out uint processId);
+    [StructLayout(LayoutKind.Sequential)] private struct BasicLimits
+    { public long ProcessTime, JobTime; public uint Flags; public nuint MinWorkingSet, MaxWorkingSet; public uint ActiveProcessLimit; public nuint Affinity; public uint Priority, Scheduling; }
+    [StructLayout(LayoutKind.Sequential)] private struct IoCounters
+    { public ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes; }
+    [StructLayout(LayoutKind.Sequential)] private struct ExtendedLimits
+    { public BasicLimits Basic; public IoCounters Io; public nuint ProcessMemory, JobMemory, PeakProcessMemory, PeakJobMemory; }
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern nint CreateJobObject(nint attributes,string? name);
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool SetInformationJobObject(nint job,int info,ref ExtendedLimits limits,uint size);
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool AssignProcessToJobObject(nint job,nint process);
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool QueryInformationJobObject(nint job,int info,nint buffer,uint size,out uint returned);
+    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool TerminateJobObject(nint job,uint exitCode);
+    public nint GameWindow => gameWindow;
+    public bool GameWindowAvailable
+    {
+        get
+        {
+            if (gameWindow == 0 || !IsWindowVisible(gameWindow) || !IsRenderWindow(gameWindow)) return false;
+            GetWindowThreadProcessId(gameWindow, out var id);
+            return LiveProcesses().Contains((int)id);
+        }
+    }
+    public int[] LiveProcesses()
+    {
+        KeyValuePair<int,DateTime>[] list; lock(sync) list=owned.ToArray();
+        return list.Where(pair => {
+            try {using var process=Process.GetProcessById(pair.Key);return !process.HasExited && process.StartTime==pair.Value;}
+            catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return false;}
+        }).Select(pair=>pair.Key).ToArray();
+    }
+    public object InspectProcesses() => new {
+        targetExecutable,
+        processes=LiveProcesses().Select(id=> {
+            try {using var p=Process.GetProcessById(id);return new {id,p.ProcessName,path=p.MainModule?.FileName,window=p.MainWindowHandle.ToInt64(),p.MainWindowTitle};}
+            catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",path=(string?)null,window=0L,MainWindowTitle=e.Message};}
+        }).ToArray()
+    };
+    private void CreateSessionJob(Process process)
+    {
+        job=CreateJobObject(0,null);
+        var limits=new ExtendedLimits {Basic=new BasicLimits {Flags=0x2000}}; // KILL_ON_JOB_CLOSE
+        if(job==0 || !SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf<ExtendedLimits>()) || !AssignProcessToJobObject(job,process.Handle))
+        {
+            int error=Marshal.GetLastWin32Error();
+            try {process.Kill(true);} catch(InvalidOperationException) {}
+            if(job!=0) {CloseHandle(job);job=0;}
+            throw new System.ComponentModel.Win32Exception(error,"Cannot supervise the game process tree.");
+        }
+    }
+    private HashSet<int> JobProcesses()
+    {
+        var result=new HashSet<int>();
+        if(job==0) return result;
+        const int bytes=65536; var buffer=Marshal.AllocHGlobal(bytes);
+        try {
+            if(QueryInformationJobObject(job,3,buffer,bytes,out _)) {
+                int count=Math.Min(Marshal.ReadInt32(buffer,4),(bytes-8)/IntPtr.Size);
+                for(int i=0;i<count;i++) result.Add((int)Marshal.ReadIntPtr(buffer,8+i*IntPtr.Size));
+            }
+        } finally {Marshal.FreeHGlobal(buffer);}
+        return result;
+    }
     public bool HasGameForeground()
     {
         if(!Active || overlayVisible || ending is not null) return false;
@@ -41,19 +119,14 @@ public sealed class GameSession
     }
     public void HideForOverlay()
     {
+        bridge?.Pause(true);
         overlayVisible = true; overlayWindows.Clear();
-        KeyValuePair<int, DateTime>[] list; lock (sync) list = owned.ToArray();
-        foreach (var pair in list)
-            try
-            {
-                using var p = Process.GetProcessById(pair.Key);
-                if (p.HasExited || p.StartTime != pair.Value || p.MainWindowHandle == 0 || IsIconic(p.MainWindowHandle)) continue;
-                var handle = p.MainWindowHandle; overlayWindows.Add((handle, IsZoomed(handle) ? 3 : 9)); ShowWindowAsync(handle, 6);
-            }
-            catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        // Keep the game behind the translucent menu. Minimizing it destroys the
+        // requested overlay effect and can make old renderers lose their device.
     }
     public void RestoreFromOverlay()
     {
+        bridge?.Pause(false);
         overlayVisible = false;
         if (Active) foreach (var window in overlayWindows) { ShowWindowAsync(window.Handle, window.Show); SetForegroundWindow(window.Handle); }
         // A launcher can own a visible status window. Finish with the actual game in front.
@@ -67,6 +140,7 @@ public sealed class GameSession
             }
             catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
         overlayWindows.Clear();
+        if(Active && gameWindow!=0) SetForegroundWindow(gameWindow);
     }
     private static List<(int Id, int Parent)> Snapshot()
     {
@@ -77,13 +151,17 @@ public sealed class GameSession
     }
     public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
-        if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
-        _ = LaunchRules.Prepare(game);
-        var players = bindings.ToArray();
-        MultiplayerSetup.Configure(game, players);
+        if (Interlocked.CompareExchange(ref reserved,1,0)!=0) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         var helpers = new List<Process>();
+        GameInputPreparation? input = null;
         try
         {
+            _ = LaunchRules.Prepare(game);
+            input = await GameInputPreparation.Prepare(game, dataDirectory, bindings);
+            bridge=input.Bridge;
+            game = input.Game;
+            var players = input.Players;
+            MultiplayerSetup.Configure(game, players);
             foreach (var helper in game.Helpers ?? [])
             {
                 var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(helper.Executable));
@@ -109,14 +187,19 @@ public sealed class GameSession
                 catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                 helper.Dispose();
             }
-            Active = false; Changed?.Invoke("ended");
+            lock(sync) { if(job!=0) {CloseHandle(job);job=0;} }
+            bridge=null;
+            try {if(input is not null) await input.DisposeAsync();}
+            finally {Active=false;gameWindow=0;Interlocked.Exchange(ref reserved,0);Changed?.Invoke("ended");}
         }
     }
     private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
         if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         EmulatorSetup.ConfigurePaths(game);
+        LocalRuntimeSetup.Configure(game);
         TeknoGunSetup.Configure(game,bindings);
+        GamePresentation.Prepare(game);
         var info = LaunchRules.Prepare(game);
         if(SupermodelSetup.IsSupermodel(game) && bindings.Any()) info.ArgumentList.Add("-input-system=rawinput");
         if (game.Source == "teknoparrot")
@@ -144,6 +227,7 @@ public sealed class GameSession
         targetExecutable = target;
         var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayVisible = false; overlayWindows.Clear();
         using var process = Process.Start(info) ?? throw new IOException(I18n.T("Das Spiel konnte nicht gestartet werden."));
+        CreateSessionJob(process);
         lock (sync) owned[process.Id] = process.StartTime;
         Active = true; Changed?.Invoke("running");
         bool targetSeen = game.Source != "teknoparrot", descendantSeen = false;
@@ -159,15 +243,16 @@ public sealed class GameSession
                 var snapshot = Snapshot();
                 lock (sync)
                 {
+                    var jobProcesses=JobProcesses();
                     // Include only new processes from this session's tree or the exact configured game executable.
-                    foreach (var item in snapshot.Where(p => !existing.Contains(p.Id) && !owned.ContainsKey(p.Id)))
+                    foreach (var item in snapshot.Where(p => jobProcesses.Contains(p.Id) && !existing.Contains(p.Id) && !owned.ContainsKey(p.Id)))
                     {
                         try
                         {
                             using var candidate = Process.GetProcessById(item.Id);
                             if (candidate.StartTime < started.AddSeconds(-1)) continue;
                             bool exact = string.Equals(candidate.MainModule?.FileName, target, StringComparison.OrdinalIgnoreCase);
-                            if (owned.ContainsKey(item.Parent) || exact && DateTime.Now - started < TimeSpan.FromSeconds(15))
+                            if (jobProcesses.Contains(item.Id))
                             {
                                 owned[item.Id] = candidate.StartTime;
                                 if (item.Id != process.Id) descendantSeen = true;
@@ -198,18 +283,23 @@ public sealed class GameSession
                     // Count the ten seconds only after a stable foreground game window exists.
                     if(!legendShown && !overlayVisible && ending is null)
                     {
-                        var foreground=GetForegroundWindow();
-                        GetWindowThreadProcessId(foreground,out uint foregroundPid);
-                        bool ready=false;
-                        if(owned.TryGetValue((int)foregroundPid,out var expectedStart))
+                        nint readyWindow=0;
+                        foreach(var pair in owned.ToArray())
                             try {
-                                using var candidate=Process.GetProcessById((int)foregroundPid);
-                                ready=!candidate.HasExited && candidate.StartTime==expectedStart && IsWindowVisible(foreground) && !IsIconic(foreground)
-                                    && (string.Equals(candidate.MainModule?.FileName,target,StringComparison.OrdinalIgnoreCase) || game.Source=="steam" && foregroundPid!=process.Id);
+                                using var candidate=Process.GetProcessById(pair.Key);
+                                if(candidate.HasExited || candidate.StartTime!=pair.Value) continue;
+                                var handle=candidate.MainWindowHandle;
+                                if(handle==0 || !IsWindowVisible(handle) || IsIconic(handle) || !IsRenderWindow(handle)) continue;
+                                if(string.Equals(candidate.MainModule?.FileName,target,StringComparison.OrdinalIgnoreCase)
+                                    || game.Source=="teknoparrot" && IsTeknoRuntime(candidate)
+                                    || game.Source!="teknoparrot" && pair.Key!=process.Id) {readyWindow=handle;break;}
                             } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
-                        if(!ready) legendWindow=0;
-                        else if(legendWindow!=foreground) {legendWindow=foreground;legendSince=Environment.TickCount64;}
-                        else if(Environment.TickCount64-legendSince>=750) {legendShown=true;GameWindowReady?.Invoke(foreground);}
+                        if(readyWindow==0) legendWindow=0;
+                        else if(legendWindow!=readyWindow) {legendWindow=readyWindow;legendSince=Environment.TickCount64;}
+                        else if(Environment.TickCount64-legendSince>=750) {
+                            legendShown=true;gameWindow=readyWindow;GamePresentation.Apply(game,readyWindow);
+                            SetForegroundWindow(readyWindow);GameWindowReady?.Invoke(readyWindow);
+                        }
                     }
                     if (children > 0) lastChild = DateTime.Now;
                     if (targetSeen && liveTarget == 0 && (game.Source == "teknoparrot" || children == 0)) break;
@@ -224,7 +314,7 @@ public sealed class GameSession
         }
         finally
         {
-            if (game.Source == "teknoparrot") await End();
+            await End();
             // The owning wrapper releases this session's helpers before returning to the menu.
         }
     }
@@ -242,6 +332,7 @@ public sealed class GameSession
         // Launchers may reopen their library while the game closes. Include children
         // observed during the grace period, while retaining PID/start-time ownership.
         lock (sync) list = owned.ToArray();
+        lock(sync) {if(job!=0) TerminateJobObject(job,0);}
         foreach (var pair in list.Reverse())
         {
             try { using var p = Process.GetProcessById(pair.Key); if (!p.HasExited && p.StartTime == pair.Value) p.Kill(); }
@@ -249,4 +340,8 @@ public sealed class GameSession
         }
         stop = true;
     }
+    private static bool IsTeknoRuntime(Process process) => process.ProcessName.Equals("BudgieLoader",StringComparison.OrdinalIgnoreCase)
+        || process.ProcessName.Equals("elfldr2",StringComparison.OrdinalIgnoreCase)
+        || process.ProcessName.Equals("linuxloader",StringComparison.OrdinalIgnoreCase)
+        || process.ProcessName.Equals("Play",StringComparison.OrdinalIgnoreCase) && process.MainWindowTitle.StartsWith("Play! - [",StringComparison.Ordinal);
 }

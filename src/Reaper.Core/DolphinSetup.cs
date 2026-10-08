@@ -27,11 +27,11 @@ public static class DolphinSetup
         string id=Encoding.ASCII.GetString(header,0,6);
         return Regex.IsMatch(id,"^[A-Z0-9]{6}$")?id:null;
     }
-    public static string? ProfilePath(GameEntry game)
+    public static string? ProfilePath(GameEntry game,int player=1)
     {
         string? id=DiscId(game); if(id is null) return null;
         string ini=Path.Combine(UserDirectory(game),"GameSettings",id+".ini");if(!File.Exists(ini)) return null;
-        string? name=Value(File.ReadAllText(ini),"Controls","WiimoteProfile1");
+        string? name=Value(File.ReadAllText(ini),"Controls","WiimoteProfile"+player);
         return name is not null && Regex.IsMatch(name,"^[A-Za-z0-9_-]+$")?Path.Combine(UserDirectory(game),"Config","Profiles","Wiimote",name+".ini"):null;
     }
     public static string? Value(string text,string section,string key)
@@ -76,7 +76,7 @@ public static class DolphinSetup
         if(File.Exists(file)&&!File.Exists(file+".before-deadeye-input")) File.Copy(file,file+".before-deadeye-input");
         string temporary=file+".deadeye-new";File.WriteAllText(temporary,text);File.Move(temporary,file,true);
     }
-    public static bool Configure(GameEntry game,string pack,IEnumerable<GunBinding> bindings)
+    public static bool Configure(GameEntry game,string pack,IEnumerable<GunBinding> bindings,int? bridgePort=null)
     {
         if(!IsDolphin(game) || !bindings.Any(b=>b.Player==1&&b.SystemId=="rs3"))return false;
         string? id=DiscId(game);if(id is null)return false;
@@ -90,9 +90,26 @@ public static class DolphinSetup
         Directory.CreateDirectory(Path.GetDirectoryName(profile)!);
         // Accuracy pack remains a separately installed GPL-3.0 asset, including its license.
         string license=Path.Combine(pack,"LICENSE");if(File.Exists(license))File.Copy(license,Path.Combine(Path.GetDirectoryName(profile)!,"Deadeye-accuracy-pack-LICENSE.txt"),true);
-        File.WriteAllText(profile,Merge(File.ReadAllText(source),"Profile",ReaperButtons(id,bindings.First(b=>b.Player==1 && b.SystemId=="rs3"))));
+        bool dual=bridgePort.HasValue && bindings.Any(b=>b.Player==2&&b.SystemId=="rs3");
+        string sourceText=File.ReadAllText(source);
+        var p1Buttons=ReaperButtons(id,bindings.First(b=>b.Player==1 && b.SystemId=="rs3"));
+        RetainAim(profile,p1Buttons);
+        if(dual) p1Buttons=BridgeButtons(p1Buttons,bindings.First(b=>b.Player==1));
+        File.WriteAllText(profile,Merge(sourceText,"Profile",p1Buttons));
         string perGame=Path.Combine(user,"GameSettings",id+".ini");
-        WriteMerged(perGame,"Controls",new Dictionary<string,string> { ["WiimoteSource0"]="1",["WiimoteSource1"]="0",["WiimoteSource2"]="0",["WiimoteSource3"]="0",["WiimoteProfile1"]=managed,["PadType0"]="0",["PadType1"]="0",["PadType2"]="0",["PadType3"]="0" });
+        var gameControls=new Dictionary<string,string> { ["WiimoteSource0"]="1",["WiimoteSource1"]=dual?"1":"0",["WiimoteSource2"]="0",["WiimoteSource3"]="0",["WiimoteProfile1"]=managed,["PadType0"]="0",["PadType1"]="0",["PadType2"]="0",["PadType3"]="0" };
+        if(dual)
+        {
+            string second=managed+"_P2",secondPath=Path.Combine(Path.GetDirectoryName(profile)!,second+".ini");
+            var p2Buttons=ReaperButtons(id,bindings.First(b=>b.Player==2));RetainAim(secondPath,p2Buttons);
+            File.WriteAllText(secondPath,Merge(sourceText,"Profile",BridgeButtons(p2Buttons,bindings.First(b=>b.Player==2))));
+            gameControls["WiimoteProfile2"]=second;
+            string dsu=Path.Combine(user,"Config","DSUClient.ini");
+            string entries=File.Exists(dsu)?Value(File.ReadAllText(dsu),"Server","Entries")??"":"";
+            entries=string.Join(';',entries.Split(';').Where(e=>!string.IsNullOrWhiteSpace(e)&&!e.StartsWith(DolphinGunBridge.DeviceName+":")))+";";
+            WriteMerged(dsu,"Server",new Dictionary<string,string>{["Enabled"]="True",["Entries"]=entries.TrimStart(';')+DolphinGunBridge.DeviceName+":127.0.0.1:"+bridgePort+";"});
+        }
+        WriteMerged(perGame,"Controls",gameControls);
         if (id.StartsWith("RZJ"))
         {
             // Keep this latency preset local to Extraction, not every Dolphin game.
@@ -101,14 +118,37 @@ public static class DolphinSetup
             WriteMerged(perGame,"Video_Settings",new Dictionary<string,string>{["InternalResolution"]="3",["MSAA"]="1",["ShaderCompilationMode"]="2",["WaitForShadersBeforeStarting"]="True"});
         }
         WriteMerged(Path.Combine(user,"Config","Dolphin.ini"),"Display",new Dictionary<string,string>{["Fullscreen"]="True",["RenderToMain"]="True"});
+        WriteMerged(Path.Combine(user,"Config","Dolphin.ini"),"Core",new Dictionary<string,string>{["BackgroundInput"]="True"});
         WriteMerged(Path.Combine(user,"Config","GFX.ini"),"Settings",new Dictionary<string,string>{["AspectRatio"]="3"});
         return true;
+    }
+    private static void RetainAim(string profile,Dictionary<string,string> values)
+    {
+        if(!File.Exists(profile))return;
+        foreach(string key in new[]{"IR/Vertical Offset","IR/Total Yaw","IR/Total Pitch","IR/Dead Zone"})
+            if(Value(File.ReadAllText(profile),"Profile",key) is string value) values[key]=value;
+    }
+    public static Dictionary<string,string> BridgeButtons(Dictionary<string,string> values,GunBinding binding)
+    {
+        var hardware=StartupControls.Hardware(binding);
+        string Replace(Match match)
+        {
+            string? token=match.Groups[1].Success?"mouse:"+(int.Parse(match.Groups[1].Value)+1):StartupControls.KeyToken(match.Groups[2].Success?match.Groups[2].Value:match.Groups[3].Value);
+            string? input=DolphinGunBridge.Input(hardware.FirstOrDefault(h=>h.Token==token&&token is not null)?.Id??"");
+            return input is null?throw new ArgumentException("Unknown Dolphin physical input: "+match.Value):"`"+input+"`";
+        }
+        var result=values.ToDictionary(p=>p.Key,p=>p.Value);
+        foreach(string key in result.Keys.ToArray()) if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/") || key.StartsWith("Shake/") || key.StartsWith("Tilt/"))
+            result[key]=Regex.Replace(result[key],@"`Click ([0-4])`|`(D[0-9]|[A-Za-z0-9])`|\b(LEFT|UP|RIGHT|DOWN|RETURN|SPACE)\b",Replace);
+        result["Device"]="DSUClient/"+(binding.Player-1)+"/"+DolphinGunBridge.DeviceName;
+        result["IR/Left"]="`Accel Left`";result["IR/Right"]="`Accel Right`";result["IR/Up"]="`Accel Up`";result["IR/Down"]="`Accel Down`";
+        result["IR/Dead Zone"]="0";result["IR/Relative Input"]="False";return result;
     }
     public static Dictionary<string,string> ReaperButtons(string id,GunBinding? binding=null)
     {
         string Input(string control,string fallback)
         {
-            string token=binding?.ControlMap?.GetValueOrDefault(control)??fallback;
+            string token=(binding is null?null:StartupControls.Hardware(binding).FirstOrDefault(h=>h.Id==control)?.Token)??fallback;
             if(!GunSystems.ValidToken(token)) throw new ArgumentException("Invalid RS3 physical control mapping.");
             if(token.StartsWith("mouse:")) return "`Click "+(int.Parse(token[6..])-1)+"`";
             int key=int.Parse(token[4..]);return key switch {>=48 and <=90=>"`"+(char)key+"`",37=>"LEFT",38=>"UP",39=>"RIGHT",40=>"DOWN",13=>"RETURN",32=>"SPACE",_=>throw new ArgumentException("Dolphin cannot map this key automatically.")};
@@ -119,7 +159,8 @@ public static class DolphinSetup
         {
             // Standard Wii Remote + Nunchuk layout. A shared desktop mouse cannot isolate P2.
             values["Nunchuk/Buttons/Z"]=reload;values["Nunchuk/Buttons/C"]=side;
-            foreach(string direction in new[]{"Up","Down","Left","Right"}) values["Nunchuk/Stick/"+direction]=values["D-Pad/"+direction];
+            // Extraction's accuracy profile rotates the Nunchuk weapon-selection axes.
+            foreach(var pair in new Dictionary<string,string>{["Up"]="Left",["Down"]="Right",["Left"]="Down",["Right"]="Up"}) values["Nunchuk/Stick/"+pair.Key]=values["D-Pad/"+pair.Value];
             values["Tilt/Left"]=coin;
             foreach(string axis in new[]{"X","Y","Z"}) {values["Shake/"+axis]=stick;values["Nunchuk/Shake/"+axis]=reload+" & "+side;}
             values["Nunchuk/Buttons/Z"]=reload+" & !"+side; values["Nunchuk/Buttons/C"]=side+" & !"+reload;

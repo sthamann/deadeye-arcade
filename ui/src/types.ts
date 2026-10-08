@@ -118,6 +118,7 @@ export type State = {
   remoteSession?: boolean;
   calibrationTool?: string | null;
   calibrationPrepared?: boolean;
+  gameChecks?: Record<string,{title:string;notes:string[]}|null>;
   gameCompatibility?: Record<string,{twoPlayer:string;notes:string[]}|null>;
   installations: {
     kind: string;

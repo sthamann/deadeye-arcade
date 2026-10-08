@@ -112,6 +112,16 @@ remain explicit. [Verification notes](docs/verification-0.3.13.md).
 The in-game menu does **not automatically pause the game**. Background game timers,
 inputs or audio may continue while the menu is open.
 
+## Input and launch improvements in 0.3.18
+
+Supported two-gun Dolphin profiles use separate native DSU inputs. RetroArch and
+Flycast receive explicit physical-device assignments, and recent standalone RPCS3
+builds receive Raw Mouse / PS Move bindings. Game sessions supervise their own
+process tree to prevent duplicate launches and clean up games and helpers on exit.
+The startup legend reads available active profiles and labels unresolved controls.
+See [compatibility and calibration](docs/compatibility.md) for each system's limits.
+A successful launch check is not a full gameplay or two-player certification.
+
 ## Get started on Windows
 
 1. Download and run **Deadeye Arcade Setup** above. It installs for your Windows user

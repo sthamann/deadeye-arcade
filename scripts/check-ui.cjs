@@ -56,9 +56,9 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
   }}};
  });
  await native.goto(url);await native.getByRole('button',{name:'Lightguns einrichten'}).waitFor();
- const clickRaw=async(name)=>{
-  const box=await native.getByRole('button',{name,exact:true}).boundingBox();assert(box);
-  await native.evaluate(({x,y})=>window.fixture.emit('input',{deviceId:'gun-1',kind:'mouse',player:1,x:x/window.innerWidth,y:y/window.innerHeight,buttons:1}),{x:box.x+box.width/2,y:box.y+box.height/2});
+ const clickRaw=async(name,player=1)=>{
+  const target=native.getByRole('button',{name,exact:true});await target.scrollIntoViewIfNeeded();const box=await target.boundingBox();assert(box);
+  await native.evaluate(({x,y,player})=>window.fixture.emit('input',{deviceId:'gun-'+player,kind:'mouse',player,x:x/window.innerWidth,y:y/window.innerHeight,buttons:1}),{x:box.x+box.width/2,y:box.y+box.height/2,player});
  };
  await clickRaw('Einstellungen');
  await native.getByRole('button',{name:'English',exact:true}).evaluate(b=>b.click());
@@ -87,6 +87,26 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.waitForFunction(()=>document.querySelector('.gun-hotspot.pressed'));
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'shoot'}));
  await native.waitForFunction(()=>!document.querySelector('.gun-hotspot.pressed'));
+ // The selected gun can reach setup and end its own test. P2 remains independently usable.
+ await clickRaw('Einrichtung & Prüfung');
+ await native.getByRole('button',{name:'P1 am Bildschirm kalibrieren',exact:true}).waitFor();
+ await clickRaw('Tasten & Live-Eingabe');
+ await clickRaw('Tastentest beenden');
+ await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
+ await clickRaw('Tastentest starten');
+ await clickRaw('Einstellungen',2);
+ await native.getByRole('textbox',{name:'SteamGridDB API Schlüssel'}).waitFor();
+ await clickRaw('Meine Guns',2);
+ const singleGunState=await native.evaluate(()=>window.fixture.lastState);
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,bindings:[...window.fixture.lastState.bindings,{player:2,mouseId:'gun-2',keyboardId:'key-2',serialPort:'COM4',systemId:'rs3',physicalId:'physical-2',softwareConfigured:true}],guns:[...window.fixture.lastState.guns,{id:'physical-2',name:'3A-3H Retro Shooter 2',systemId:'rs3',mouseId:'gun-2',keyboardId:'key-2',port:'COM4',inputIds:['gun-2','key-2'],driverHealthy:true,issues:[],identityEvidence:'Fixture container'}]}));
+ await clickRaw(/^P2\s*Verbunden$/,2);
+ await native.waitForFunction(()=>window.fixture.sent.at(-1)?.type==='button-test'&&window.fixture.sent.at(-1)?.payload.player===2);
+ await clickRaw('Einrichtung & Prüfung',2);
+ await clickRaw('P2 am Bildschirm kalibrieren',2);
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='calibrate-rs3'&&m.payload.player===2)),'P2 trigger reaches its own physical calibration command');
+ await clickRaw(/^P1\s*Verbunden$/,1);
+ await clickRaw('Tasten & Live-Eingabe',1);
+ await native.evaluate(s=>window.fixture.emit('state',s),singleGunState);
  // Attaching RDP during a physical button test must restore trusted mouse clicks.
  await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:true}));
  await native.getByRole('button',{name:'Tastentest beenden',exact:true}).click();
@@ -262,6 +282,11 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('button',{name:'Spieldetails',exact:true}).click();
  await native.locator('.game-facts').getByText('Erscheinungsjahr',{exact:true}).waitFor();
  await native.locator('.game-facts').getByText('Original-Hardware',{exact:true}).waitFor();
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,settings:{...window.fixture.lastState.settings,language:'de'},gameChecks:Object.fromEntries(window.fixture.lastState.games.map(g=>[g.id,{title:'Startprüfung benötigt Aufmerksamkeit',notes:['Kein Spielfenster in der Beobachtungszeit erkannt.','Treffer, Rückstoß und gleichzeitiges Spielen mit beiden Guns benötigen weiterhin einen Test am angeschlossenen Bildschirm.']}]))}));
+ await native.getByText('Startprüfung benötigt Aufmerksamkeit',{exact:true}).waitFor();
+ await native.getByText('Kein Spielfenster in der Beobachtungszeit erkannt.',{exact:true}).waitFor();
+ assert.equal(await native.getByText('Start und Beenden geprüft',{exact:true}).count(),0,'Failed native launch evidence cannot appear as a successful game check');
+
  await native.getByRole('button',{name:'Dialog schließen',exact:true}).click();
  if(process.env.REAPER_VIDEO_FIXTURE){
   const {readFileSync}=require('node:fs');

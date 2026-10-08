@@ -145,7 +145,7 @@ function App() {
   const [justEnded, setJustEnded] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const stateRef = useRef(state);
-  const buttonTestRef = useRef(false);
+  const buttonTestRef = useRef<number | null>(null);
   const modalRef = useRef(modal);
   const stepRef = useRef(testStep);
   const errorsRef = useRef(testErrors);
@@ -157,7 +157,8 @@ function App() {
   };
   const send = (type: string, payload: unknown = {}) => {
     if (type === "button-test") {
-      buttonTestRef.current = typeof (payload as {player?:unknown}).player === "number";
+      const player = (payload as {player?:unknown}).player;
+      buttonTestRef.current = typeof player === "number" ? player : null;
       if (!window.chrome?.webview) return;
     }
     if (type === "set-language") {
@@ -270,11 +271,11 @@ function App() {
       }
       if (type === "gun-input") setGunSignal(payload);
       if (type === "button-test-ended") {
-        buttonTestRef.current = false;
+        buttonTestRef.current = null;
         window.dispatchEvent(new Event("deadeye-button-test-ended"));
       }
       if (type === "menu-action") {
-        if (buttonTestRef.current) return;
+        if (buttonTestRef.current !== null && (payload.player === undefined || payload.player === buttonTestRef.current)) return;
         const keys: Record<string, string> = {
           start: "Enter",
           coin: "Escape",
@@ -296,11 +297,8 @@ function App() {
         if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
-        if (buttonTestRef.current && input.player > 0) {
-          if (input.kind === "mouse" && input.x !== undefined && input.y !== undefined)
-            setAim({x:input.x,y:input.y,player:input.player});
-          return;
-        }
+        const testing = input.player === buttonTestRef.current;
+        if (testing && input.kind !== "mouse") return;
         if (input.kind === "keyboard" && input.down) {
           const keys: Record<string, string> = {
             start: "Enter",
@@ -344,15 +342,15 @@ function App() {
               (!button || button.classList.contains("test-target"))
             )
               handleShot(input.x, input.y, input.player);
-            else if (button && !button.disabled && !button.closest("[inert]"))
+            else if (button && !button.disabled && !button.closest("[inert]") && (!testing || button.hasAttribute("data-test-navigation")))
               button.click();
             else if (
-              hit instanceof HTMLInputElement ||
-              hit instanceof HTMLSelectElement
+              !testing && (hit instanceof HTMLInputElement ||
+              hit instanceof HTMLSelectElement)
             )
               hit.focus();
           }
-          if ((input.buttons ?? 0) & 4 && input.player > 0)
+          if ((input.buttons ?? 0) & 4 && input.player > 0 && !testing)
             document.dispatchEvent(
               new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
             );
@@ -370,7 +368,7 @@ function App() {
     };
     document.addEventListener("click", legacy, true);
     const testLegacy = (event: Event) => {
-      if (buttonTestRef.current && !stateRef.current.remoteSession) {
+      if (buttonTestRef.current !== null && !stateRef.current.remoteSession && (event.isTrusted || event.type === "contextmenu" || event.type === "auxclick")) {
         event.preventDefault(); event.stopImmediatePropagation();
       }
     };
@@ -1723,6 +1721,11 @@ function App() {
                       ". Zwei eingerichtete Guns sind noch separat zu pr\u00FCfen.",
                     )}
                   </p>
+                )}
+                {state.gameChecks?.[modal.game.id] && (
+                  <div className="setup-warning"><strong>{message(state.gameChecks[modal.game.id]!.title)}</strong>
+                    {state.gameChecks[modal.game.id]!.notes.map((note,i)=><p key={i}>{message(note)}</p>)}
+                  </div>
                 )}
                 {state.gameCompatibility?.[modal.game.id] && (
                   <div className="setup-warning"><strong>{message(state.gameCompatibility[modal.game.id]!.twoPlayer)}</strong>

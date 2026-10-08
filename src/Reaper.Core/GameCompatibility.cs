@@ -8,10 +8,12 @@ public static class GameCompatibility
     public static GameCompatibilityInfo? Read(GameEntry game,int connectedPlayers)
     {
         string gunStatus=connectedPlayers<2?I18n.T("P2-Gun fehlt · gemeinsamer Spieltest offen"):I18n.T("Zwei Guns erkannt · gemeinsamer Spieltest offen");
-        if(DolphinSetup.IsDolphin(game)) return new(I18n.T("P1-Profil beim Start · unabhängige P2-Konfiguration offen"),[
-            I18n.T("Dolphin verwendet für P1 die gemeinsame Windows-Maus. P2 braucht eine eigene DirectInput-Gun samt geprüfter Belegung; ein GUN4IR-Profil passt nicht zur RS3."),
+        if(DolphinSetup.IsDolphin(game)) return new(I18n.T("Dolphin-Titelprofil beim Start · Spieltest offen"),[
+            I18n.T("Bei zwei RS3-Guns und einem unterstützten Titelprofil erstellt die App getrennte DSU-Eingänge für beide Wiimotes. Die Guns bleiben im Maus-/Tastaturmodus; es wird kein zusätzlicher Controller-Treiber benötigt."),
             game.Title.Contains("Dead Space",StringComparison.OrdinalIgnoreCase)?I18n.T("Dead Space: Standard-Wiimote mit Nunchuk wählen. Abzug: B; Magazin: A/Kinesis; Griff: Z/Nachladen; Seite: C/Stasis; Start: Pause; Coin kurz halten: Alternativfeuer; Stick klicken: Glow Worm; Griff + Seite: Nahkampf; Stickrichtungen: Waffenwahl."):I18n.T("USA-Titelprofile werden über die tatsächliche Disc-ID installiert. Andere Regionen behalten ihre vorhandene Belegung."),
-            I18n.T("Bei RS3-P2 schaltet die App während Dolphin auf Joystick um, damit P2 nicht den P1-Mauszeiger bewegt. Das zweite Wiimote-Profil bleibt bis zur geprüften Einrichtung deaktiviert."),gunStatus]);
+            I18n.T("Mit einer RS3-Gun wird das P1-Mausprofil verwendet. Für unbekannte Titelregionen und andere Gun-Modelle bleibt die bestehende Belegung erhalten; eine getrennte P2-Zuordnung wird nicht vorausgesetzt."),gunStatus]);
+        if(Path.GetFileName(game.Executable).StartsWith("pcsx2",StringComparison.OrdinalIgnoreCase)) return new(I18n.T("PS2 · unabhängige P2-Eingabe noch nicht bestätigt"),[
+            I18n.T("Die vorhandene GunCon2-Mauskonfiguration verwendet einen gemeinsamen Windows-Zeiger. Zwei angeschlossene Guns sind dadurch noch keine unabhängigen Spieler. Eine passende getrennte Achsen-/Controller-Konfiguration und die Kalibrierung im Spiel sind erforderlich."),gunStatus]);
         if(game.Title.Contains("Blue Estate",StringComparison.OrdinalIgnoreCase))
         {
             bool installed=new[]{"BlueEstate_Fix.dll","MultiMouseLib.dll","d3d9.dll"}.All(n=>File.Exists(Path.Combine(game.WorkingDirectory,n)));

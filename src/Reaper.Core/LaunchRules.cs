@@ -9,8 +9,11 @@ public static class LaunchRules
     public static ProcessStartInfo Prepare(GameEntry game)
     {
         if (game.Source == "teknoparrot") {
-            RepairTeknoParrotPath(game); game=Validate(game);
+            RepairTeknoParrotPath(game);
         }
+        // Imports can retain needs-setup after files or paths have been repaired.
+        // Recheck the actual files for every system before refusing a launch.
+        game=Validate(game);
         if (game.Source == "demo") throw new InvalidOperationException(I18n.T("Vorschauspiele können nicht gestartet werden."));
         if (game.Status == "needs-setup") throw new InvalidOperationException(I18n.T("Die Spieleinrichtung ist noch unvollständig."));
         var issues = Issues(game);

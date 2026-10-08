@@ -38,12 +38,7 @@ public sealed class StartupOverlay : Window
         AllowsTransparency=true; Background=Brushes.Transparent; Topmost=true;
         ShowActivated=false; ShowInTaskbar=false; Focusable=false; IsHitTestVisible=false;
         WindowStartupLocation=WindowStartupLocation.Manual;
-        var monitor=new MonitorInfo {Size=Marshal.SizeOf<MonitorInfo>()};
-        if(!GetMonitorInfo(MonitorFromWindow(gameWindow,2),ref monitor)) throw new IOException("Cannot locate game monitor.");
-        double dpi=Math.Max(96,GetDpiForWindow(gameWindow))/96d;
-        double screenWidth=(monitor.Monitor.Right-monitor.Monitor.Left)/dpi,screenHeight=(monitor.Monitor.Bottom-monitor.Monitor.Top)/dpi;
-        Width=Math.Min(1320,screenWidth-48); Height=Math.Min(720,screenHeight*.67);
-        Left=monitor.Monitor.Left/dpi+24; Top=monitor.Monitor.Bottom/dpi-Height-24;
+        Width=1320; Height=720;
         var panel=new StackPanel {Margin=new Thickness(26)};
         var header=new DockPanel(); countdown=Text("10s",20,Accent); countdown.HorizontalAlignment=HorizontalAlignment.Right;
         DockPanel.SetDock(countdown,Dock.Right); header.Children.Add(countdown);
@@ -71,8 +66,9 @@ public sealed class StartupOverlay : Window
             // also protects against keyboard/accessibility focus and clicks.
             SetWindowLongPtr(handle,-20,GetWindowLongPtr(handle,-20)|0x08000000|0x00000020|0x00000080);
             source=HwndSource.FromHwnd(handle); source.AddHook(Hook);
+            OverlayPlacement.Place(this,gameWindow,true);
         };
-        Loaded+=(_,_)=> {elapsed.Restart();timer.Start();};
+        Loaded+=(_,_)=> {OverlayPlacement.Place(this,gameWindow,true);elapsed.Restart();timer.Start();};
         timer.Tick+=(_,_)=> {
             long remaining=StartupControls.DurationMilliseconds-elapsed.ElapsedMilliseconds;
             if(remaining<=0||!gameForeground()) {Close();return;}
@@ -112,7 +108,7 @@ public sealed class StartupOverlay : Window
         body.Children.Add(rows);panel.Children.Add(body);
         return new Border {Background=ColorBrush("#1b2939"),CornerRadius=new CornerRadius(12),Margin=new Thickness(5),Child=panel};
     }
-    private static UIElement GunDiagram(GunBinding binding,StartupControlHint[] hints)
+    internal static UIElement GunDiagram(GunBinding binding,StartupControlHint[] hints, double height = 230)
     {
         var canvas=new Canvas {Width=560,Height=290};
         using var resource=typeof(StartupOverlay).Assembly.GetManifestResourceStream("Reaper.Windows.GunArtwork.json")!;
@@ -127,7 +123,7 @@ public sealed class StartupOverlay : Window
             var marker=new Border {Width=24,Height=24,CornerRadius=new CornerRadius(12),Background=used?Accent:ColorBrush("#263c52"),BorderBrush=ColorBrush("#d1e0f0"),BorderThickness=new Thickness(1),Child=new TextBlock {Text=(i+1).ToString(),FontSize=12,FontWeight=FontWeights.Bold,Foreground=used?ColorBrush("#102031"):Muted,HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center}};
             Canvas.SetLeft(marker,control.X-12);Canvas.SetTop(marker,control.Y-12);canvas.Children.Add(marker);
         }
-        return new Viewbox {Height=230,Stretch=Stretch.Uniform,Child=canvas};
+        return new Viewbox {Height=height,Stretch=Stretch.Uniform,Child=canvas};
     }
     private record ArtworkPath(string d,string fill,string stroke,string width);
     private static SolidColorBrush ColorBrush(string hex)=>new((Color)ColorConverter.ConvertFromString(hex));
