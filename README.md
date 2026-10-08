@@ -10,7 +10,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.12](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.12/Deadeye-Arcade-0.3.12-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.12)
+**[Download Windows Setup 0.3.13](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.13/Deadeye-Arcade-0.3.13-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.13)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -43,12 +43,11 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-**0.3.12** adds a pure live button test in Gun Studio. Connected guns highlight
-controls without triggering menu actions. Hold the selected gun’s trigger for ten
-seconds and release it to return to menu control. RS3 calibration uses the
-manufacturer module; the separate aim test checks accuracy without changing it.
-[Verification notes](docs/verification-0.3.12.md) explain software coverage and
-physical validation limits.
+**0.3.13** adds a ten-second controls introduction over the game window.
+It shows your gun model, numbered physical buttons, and actions from the active
+profile. The game keeps its input focus and the introduction disappears automatically.
+Learned physical controls and button combinations are respected; unconfirmed mappings
+remain explicit. [Verification notes](docs/verification-0.3.13.md).
 
 - **Multiplayer helper setup:** writes the actual connected gun IDs before launching installed DemulShooter helpers. Unassigned channels cannot pick up nameless Remote Desktop mice. Blue Estate uses distinct VID/PID assignments for an already installed, matching patch; HOTD 2 Remake has its own plugin requirements.
 - **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
@@ -58,6 +57,7 @@ physical validation limits.
 - **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper
   system selection; grouped USB devices, P1/P2 status, live button diagrams and
   learnable menu bindings.
+- **Controls at launch:** a passive gun diagram and per-game button legend appear for ten seconds after the game window becomes visible. A countdown shows when it will disappear. Windowed and borderless game presentation is supported; exclusive fullscreen may cover desktop overlays.
 - **An in-game menu:** hold the assigned trigger for **at least 10 seconds**, release
   it, then shoot **Resume game**, **Restart game** or **End game**. D-pad navigation
   and Start confirmation are available too.

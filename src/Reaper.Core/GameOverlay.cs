@@ -25,7 +25,7 @@ public sealed class TriggerHold
     public void Reset() { down.Clear(); since = null; consumed = false; }
 }
 
-public record ControlRow(int Player, string Function, string Input, string Evidence);
+public record ControlRow(int Player, string Function, string Input, string Evidence, string? Expression = null);
 public record GameControls(ControlRow[] Rows, string Note);
 
 public static class OverlayControls
@@ -45,7 +45,7 @@ public static class OverlayControls
                 string path = Path.Combine(dataDirectory, "controllers", "reaper.cfg");
                 var doc = XDocument.Load(path);
                 var rows = doc.Descendants("port").Select(p => new ControlRow(
-                    Player((string?)p.Attribute("type") ?? ""), MameLabel((string?)p.Attribute("type") ?? ""), MameInput(p.Element("newseq")?.Value ?? I18n.T("Nicht belegt")), "Reaper-MAME-Controller")).ToArray();
+                    Player((string?)p.Attribute("type") ?? ""), MameLabel((string?)p.Attribute("type") ?? ""), MameInput(p.Element("newseq")?.Value ?? I18n.T("Nicht belegt")), "Reaper-MAME-Controller", p.Element("newseq")?.Value)).ToArray();
                 return new(rows, I18n.T("Startbelegung aus reaper.cfg. Individuelle MAME-Spielbelegungen können sie überschreiben."));
             }
             if (game.Source == "teknoparrot")
@@ -55,7 +55,7 @@ public static class OverlayControls
                     .FirstOrDefault(e => Value(e, "FieldName") == "Input API") is { } field ? Value(field, "FieldValue") : I18n.T("Unbekannt");
                 var rows = doc.Descendants().Where(e => e.Name.LocalName == "JoystickButtons" && e.Elements().Any(c => c.Name.LocalName == "ButtonName"))
                     .Where(e => Value(e, "HideWith" + api) != "true")
-                    .Select(e => new ControlRow(Player(Value(e, "InputMapping")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api)).ToArray();
+                    .Select(e => new ControlRow(Player(Value(e, "InputMapping")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
                 return new(rows, I18n.T("Aus dem gestarteten TeknoParrot-Profil gelesen. Helfer wie DemulShooter können weitere Zuordnungen vornehmen."));
             }
             if (Path.GetFileName(game.Executable).Contains("dolphin", StringComparison.OrdinalIgnoreCase))
@@ -70,7 +70,7 @@ public static class OverlayControls
                         if(!active || item.Split('=',2) is not {Length:2} pair || string.IsNullOrWhiteSpace(pair[1]))continue;
                         string key=pair[0].Trim();
                         if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/Buttons/") || key.StartsWith("Nunchuk/Stick/") || key is "Tilt/Left" or "Shake/X" or "Nunchuk/Shake/X")
-                            rows.Add(new(1,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(profile)));
+                            rows.Add(new(1,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(profile),pair[1].Trim()));
                     }
                     return new(rows.ToArray(),I18n.T("Aktives Dolphin-Titelprofil. P1 ist vorbereitet; P2 benötigt eine separat zugeordnete DirectInput-Gun. Zwei Desktop-Mäuse sind keine unabhängigen Spieler."));
                 }
@@ -84,7 +84,7 @@ public static class OverlayControls
                         if (line.Trim().StartsWith('[')) player = section.Success ? int.Parse(section.Groups[1].Value) : 0;
                         if (player == 0 || !line.Contains('=')) continue;
                         string[] pair = line.Split('=', 2); string key = pair[0].Trim();
-                        if (key.StartsWith("Buttons/") || key.StartsWith("D-Pad/")) rows.Add(new(player, key.Split('/')[1], string.IsNullOrWhiteSpace(pair[1]) ? I18n.T("Nicht belegt") : pair[1].Trim(), "Dolphin · WiimoteNew.ini"));
+                        if (key.StartsWith("Buttons/") || key.StartsWith("D-Pad/")) rows.Add(new(player, key.Split('/')[1], string.IsNullOrWhiteSpace(pair[1]) ? I18n.T("Nicht belegt") : pair[1].Trim(), "Dolphin · WiimoteNew.ini",pair[1].Trim()));
                     }
                     return new(rows.ToArray(), I18n.T("Globale Dolphin-Wiimote-Belegung. Titelprofile und Kommandozeilen-Overrides können abweichen."));
                 }
@@ -107,11 +107,13 @@ public static class OverlayControls
                     if (!match.Success) continue;
                     string label = match.Groups[2].Value switch { "gun_trigger" => I18n.T("Abzug"), "gun_reload" => I18n.T("Nachladen"), "gun_aux_a" or "a" => "A", "gun_aux_b" or "b" => "B", "gun_start" or "start" => "Start", _ => I18n.T("Select / Münze (Core abhängig)") };
                     string input = match.Groups[3].Value switch { "mbtn" => I18n.T("Maustaste "), "btn" => I18n.T("Controller-Taste "), "axis" => I18n.T("Achse "), _ => I18n.T("Taste ") };
-                    rows.Add(new(int.Parse(match.Groups[1].Value), label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration"));
+                    // Controller/axis numbers have no confirmed physical gun identity.
+                    string? token = match.Groups[3].Value == "" ? StartupControls.KeyToken(pair.Value) : null;
+                    rows.Add(new(int.Parse(match.Groups[1].Value), label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration",token));
                 }
                 var compact=rows.GroupBy(r=>(r.Player,r.Function)).Select(group=> {
                     var assigned=group.Where(r=>r.Input!=I18n.T("Nicht belegt")).Select(r=>r.Input).Distinct().ToArray();
-                    return group.First() with {Input=assigned.Length==0?I18n.T("Nicht belegt"):string.Join(" / ",assigned)};
+                    return group.First() with {Input=assigned.Length==0?I18n.T("Nicht belegt"):string.Join(" / ",assigned),Expression=group.Select(r=>r.Expression).FirstOrDefault(e=>e is not null)};
                 }).ToArray();
                 return new(compact, I18n.T("RetroArch-Konfiguration mit expliziten Zusatzdateien. Core-/Content-Overrides und Remaps sind nicht bestätigt."));
             }
@@ -158,5 +160,19 @@ public static class OverlayControls
     {
         string path = Path.Combine(DolphinSetup.UserDirectory(game), "Config", "WiimoteNew.ini");
         return File.Exists(path) ? path : null;
+    }
+    private static string? TeknoToken(XElement button,string api,IEnumerable<GunBinding> bindings)
+    {
+        if(api!="RawInput") return null;
+        var raw=button.Elements().FirstOrDefault(e=>e.Name.LocalName=="RawInputButton");
+        if(raw is null) return null;
+        string device=Value(raw,"DevicePath");
+        var binding=bindings.FirstOrDefault(b=>string.Equals(b.MouseId,device,StringComparison.OrdinalIgnoreCase)||string.Equals(b.KeyboardId,device,StringComparison.OrdinalIgnoreCase));
+        if(string.IsNullOrWhiteSpace(device) || binding is null) return null;
+        string? token=Value(raw,"DeviceType") switch {
+            "Mouse"=>Value(raw,"MouseButton") switch {"LeftButton"=>"mouse:1","RightButton"=>"mouse:2","MiddleButton"=>"mouse:3","Button4"=>"mouse:4","Button5"=>"mouse:5",_=>null},
+            "Keyboard"=>StartupControls.KeyToken(Value(raw,"KeyboardKey")),_=>null
+        };
+        return token is null?null:"P"+binding.Player+"|"+token;
     }
 }

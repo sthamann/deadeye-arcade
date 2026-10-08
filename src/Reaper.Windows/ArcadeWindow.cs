@@ -48,6 +48,7 @@ public sealed class ArcadeWindow : Window
     private int? buttonTestPlayer;
     private bool buttonTestRelease;
     private InGameOverlay? overlay;
+    private StartupOverlay? startupOverlay;
     private GameEntry? activeGame;
     private ReaperCalibrationWindow? calibration;
     private int overlayOpener;
@@ -103,6 +104,7 @@ public sealed class ArcadeWindow : Window
             if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); }
         };
         gunTimer.Tick += async (_, _) => { gunTimer.Stop(); if (!busy && !session.Active) await DiscoverGuns(); else { gunTimer.Start(); } };
+        session.GameWindowReady += handle => Dispatcher.Invoke(() => ShowStartupControls(handle));
         session.Changed += status => Dispatcher.Invoke(() =>
         {
             emergencyExit?.Dispose(); emergencyExit = null;
@@ -115,7 +117,7 @@ public sealed class ArcadeWindow : Window
                 catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
                 WindowState = WindowState.Minimized;
             }
-            else { CloseOverlay(false); desktopTrigger.Reset(); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
+            else { CloseStartupControls(); CloseOverlay(false); desktopTrigger.Reset(); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
             Send("session", new { status });
         });
         timer.Tick += async (_, _) =>
@@ -161,7 +163,7 @@ public sealed class ArcadeWindow : Window
             }
             calibration?.Close(); closing = true; ready = false; Log("exit: desktop");
         };
-        Closed += (_, _) => { CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
+        Closed += (_, _) => { CloseStartupControls(); CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
     private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); } return 0; }
     private async Task Initialize()
@@ -364,6 +366,7 @@ public sealed class ArcadeWindow : Window
     private void OpenOverlay(int player)
     {
         if (!session.Active || activeGame is null || overlay is not null) return;
+        CloseStartupControls();
         overlayOpener = player;
         foreach (var hold in triggerHolds.Values.Where(h => h.Pressed)) hold.Consume();
         var controls = OverlayControls.Read(activeGame, store.DirectoryPath, state.Bindings);
@@ -376,6 +379,22 @@ public sealed class ArcadeWindow : Window
     {
         var window = overlay; overlay = null; window?.Close();
         if (resume) session.RestoreFromOverlay();
+    }
+    private void ShowStartupControls(nint handle)
+    {
+        if(!session.Active || activeGame is null || overlay is not null || closing) return;
+        CloseStartupControls();
+        try {
+            var controls=OverlayControls.Read(activeGame,store.DirectoryPath,state.Bindings);
+            var window=new StartupOverlay(activeGame,controls,state.Bindings,handle,session.HasGameForeground);
+            startupOverlay=window;
+            window.Closed+=(_,_)=> {if(startupOverlay==window)startupOverlay=null;Log("startup controls: closed");};
+            window.Show(); Log("startup controls: shown · "+activeGame.Title);
+        } catch(Exception error) {CloseStartupControls();Log("startup controls unavailable: "+error.Message);}
+    }
+    private void CloseStartupControls()
+    {
+        var window=startupOverlay; startupOverlay=null; window?.Close();
     }
     private async Task OverlayCommand(string action)
     {

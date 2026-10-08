@@ -16,6 +16,7 @@ public sealed class GameSession
     private readonly List<(nint Handle, int Show)> overlayWindows = [];
     public bool Active { get; private set; }
     public event Action<string>? Changed;
+    public event Action<nint>? GameWindowReady;
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct ProcessEntry
     { public uint Size, Usage, Pid; public nint Heap; public uint Module, Threads, Parent; public int Priority; public uint Flags; [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string Name; }
@@ -28,6 +29,16 @@ public sealed class GameSession
     [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsZoomed(nint hwnd);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
+    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint handle,out uint processId);
+    public bool HasGameForeground()
+    {
+        if(!Active || overlayVisible || ending is not null) return false;
+        GetWindowThreadProcessId(GetForegroundWindow(),out var id);
+        DateTime start; lock(sync) if(!owned.TryGetValue((int)id,out start))return false;
+        try {using var process=Process.GetProcessById((int)id);return !process.HasExited && process.StartTime==start;}
+        catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return false;}
+    }
     public void HideForOverlay()
     {
         overlayVisible = true; overlayWindows.Clear();
@@ -139,6 +150,8 @@ public sealed class GameSession
         var targets = new HashSet<int>(); if (targetSeen) targets.Add(process.Id);
         var lastChild = DateTime.Now;
         var presented = new HashSet<nint>();
+        bool legendShown=false;
+        nint legendWindow=0; long legendSince=0;
         try
         {
             while (!stop)
@@ -181,6 +194,23 @@ public sealed class GameSession
                                 if (handle != 0 && IsWindowVisible(handle) && presented.Add(handle)) { if(IsIconic(handle)) ShowWindowAsync(handle, 9); SetForegroundWindow(handle); }
                             }
                             catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                    // Wait for the actual game window, not the launcher or dependency dialog.
+                    // Count the ten seconds only after a stable foreground game window exists.
+                    if(!legendShown && !overlayVisible && ending is null)
+                    {
+                        var foreground=GetForegroundWindow();
+                        GetWindowThreadProcessId(foreground,out uint foregroundPid);
+                        bool ready=false;
+                        if(owned.TryGetValue((int)foregroundPid,out var expectedStart))
+                            try {
+                                using var candidate=Process.GetProcessById((int)foregroundPid);
+                                ready=!candidate.HasExited && candidate.StartTime==expectedStart && IsWindowVisible(foreground) && !IsIconic(foreground)
+                                    && (string.Equals(candidate.MainModule?.FileName,target,StringComparison.OrdinalIgnoreCase) || game.Source=="steam" && foregroundPid!=process.Id);
+                            } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                        if(!ready) legendWindow=0;
+                        else if(legendWindow!=foreground) {legendWindow=foreground;legendSince=Environment.TickCount64;}
+                        else if(Environment.TickCount64-legendSince>=750) {legendShown=true;GameWindowReady?.Invoke(foreground);}
+                    }
                     if (children > 0) lastChild = DateTime.Now;
                     if (targetSeen && liveTarget == 0 && (game.Source == "teknoparrot" || children == 0)) break;
                     if (descendantSeen && children == 0 && DateTime.Now - lastChild > TimeSpan.FromSeconds(3)) break;
