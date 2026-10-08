@@ -44,6 +44,9 @@ public sealed class ArcadeWindow : Window
     private readonly GameSession session = new();
     private readonly Dictionary<int, TriggerHold> triggerHolds = [];
     private readonly TriggerHold desktopTrigger = new();
+    private readonly TriggerHold buttonTestHold = new();
+    private int? buttonTestPlayer;
+    private bool buttonTestRelease;
     private InGameOverlay? overlay;
     private GameEntry? activeGame;
     private ReaperCalibrationWindow? calibration;
@@ -84,7 +87,7 @@ public sealed class ArcadeWindow : Window
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         // Keep the control outside WebView2's HWND to avoid WPF airspace covering it.
         Grid.SetRow(exitButton, 1); layout.Children.Add(web); layout.Children.Add(exitButton); Content = layout;
-        exitButton.Click += (_, _) => Close();
+        exitButton.Click += (_, _) => { if (buttonTestPlayer is null && !buttonTestRelease) Close(); };
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
@@ -93,6 +96,8 @@ public sealed class ArcadeWindow : Window
         {
             var connected = raw.Devices.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var hold in triggerHolds.Values) hold.RetainDevices(connected);
+            buttonTestHold.RetainDevices(connected);
+            if (buttonTestRelease && !buttonTestHold.Pressed) buttonTestRelease = false;
             if (overlay is not null && overlayOpener != 0 && triggerHolds.GetValueOrDefault(overlayOpener)?.Pressed != true) overlay.Arm();
             if (session.Active) Log("input: device list changed; preserving connected trigger holds");
             if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); }
@@ -103,6 +108,8 @@ public sealed class ArcadeWindow : Window
             emergencyExit?.Dispose(); emergencyExit = null;
             if (status == "running")
             {
+                buttonTestPlayer = null; buttonTestRelease = false; buttonTestHold.Reset();
+                Send("button-test-ended", new {});
                 desktopTrigger.Reset();
                 try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); })), () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); }))); }
                 catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
@@ -113,6 +120,13 @@ public sealed class ArcadeWindow : Window
         });
         timer.Tick += async (_, _) =>
         {
+            if (buttonTestPlayer is not null && buttonTestHold.Ready(Environment.TickCount64))
+            {
+                buttonTestHold.Consume(); buttonTestPlayer = null; buttonTestRelease = true;
+                gestures.Clear(); Send("button-test-ended", new {});
+                Send("notice", new { message = I18n.T("Tastentest beendet. Abzug loslassen; die Gun steuert wieder das Menü.") });
+            }
+            if (buttonTestPlayer is not null || buttonTestRelease) return;
             if (session.Active)
             {
                 // Independent fallback for games that capture mouse input or change Raw Input registration.
@@ -246,7 +260,7 @@ public sealed class ArcadeWindow : Window
             return;
         }
         // The physical trigger can always reach the native exit, even while learning a button.
-        if (!session.Active && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
+        if (!session.Active && buttonTestPlayer is null && !buttonTestRelease && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
         {
             var exitPoint = exitButton.PointFromScreen(PacketPoint(packet));
             if (exitPoint.X >= 0 && exitPoint.Y >= 0 && exitPoint.X < exitButton.ActualWidth && exitPoint.Y < exitButton.ActualHeight)
@@ -268,7 +282,7 @@ public sealed class ArcadeWindow : Window
         if (session.Active && emergencyExit is null && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
         var binding = state.Bindings.FirstOrDefault(b => string.Equals(b.MouseId, packet.DeviceId, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, packet.DeviceId, StringComparison.OrdinalIgnoreCase)
             || packet.Kind == "hid" && guns.Any(g => g.Id == b.PhysicalId && g.InputIds.Contains(packet.DeviceId, StringComparer.OrdinalIgnoreCase)));
-        if (packet.Kind == "keyboard" && binding is not null)
+        if (packet.Kind == "keyboard" && binding is not null && buttonTestPlayer is null && !buttonTestRelease)
         {
             if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
             gesture.Key(packet.Key, packet.Down, DateTimeOffset.UtcNow);
@@ -281,6 +295,13 @@ public sealed class ArcadeWindow : Window
                 string action = map.GetValueOrDefault(signal.Token, "none");
                 // RS3 joystick mode exposes its primary trigger on HID button usage 1.
                 if (packet.Kind == "hid" && binding.SystemId == "rs3" && packet.Key == 1) action = "shoot";
+                bool physicalTrigger = signal.Token == (binding.ControlMap?.GetValueOrDefault("trigger") ?? "mouse:1")
+                    || binding.SystemId == "rs3" && packet.Kind == "hid" && packet.Key == 1;
+                if ((buttonTestPlayer == binding.Player || buttonTestRelease) && physicalTrigger)
+                {
+                    buttonTestHold.Button(packet.DeviceId + "|" + signal.Token, signal.Down, Environment.TickCount64);
+                    if (buttonTestRelease && !buttonTestHold.Pressed) { buttonTestRelease = false; buttonTestHold.Reset(); }
+                }
                 if (session.Active && action == "shoot")
                 {
                     Log($"input: P{binding.Player} {signal.Token} {(signal.Down ? "down" : "up")}");
@@ -314,7 +335,7 @@ public sealed class ArcadeWindow : Window
                 }
             }
         }
-        if (session.Active || remoteSession || learningPlayer is not null) return;
+        if (session.Active || remoteSession || learningPlayer is not null || binding is not null && (buttonTestPlayer is not null || buttonTestRelease)) return;
         long now = Environment.TickCount64;
         if (packet.Kind == "mouse" && packet.Buttons == 0 && now - lastMove < 30) return;
         if (packet.Kind == "mouse") lastMove = now;
@@ -457,6 +478,13 @@ public sealed class ArcadeWindow : Window
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException(I18n.T("Bitte zuerst die Dateiauswahl schließen."));
         if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); return; }
+        if (type == "button-test")
+        {
+            if (session.Active) return;
+            buttonTestPlayer = payload.TryGetProperty("player", out var testPlayer) && testPlayer.ValueKind == JsonValueKind.Number ? Player() : null;
+            if (!buttonTestRelease) buttonTestHold.Reset();
+            gestures.Clear(); return;
+        }
         if (type == "end-game") { await session.End(); return; }
         if (type == "show-overlay") { OpenOverlay(0); overlay?.Arm(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }

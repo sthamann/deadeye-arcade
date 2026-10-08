@@ -159,6 +159,16 @@ export function GunStudio({
   const binding = state.bindings.find((b) => b.player === player);
   const [model, setModel] = useState(binding?.systemId ?? "rs3");
   const [tab, setTab] = useState("buttons");
+  const [buttonTesting, setButtonTesting] = useState(true);
+  useEffect(() => {
+    const end = () => setButtonTesting(false);
+    window.addEventListener("deadeye-button-test-ended", end);
+    return () => window.removeEventListener("deadeye-button-test-ended", end);
+  }, []);
+  useEffect(() => {
+    send("button-test", {player:tab === "buttons" && buttonTesting ? player : null});
+    return () => send("button-test", {player:null});
+  }, [player, tab, buttonTesting]);
   const [held, setHeld] = useState<Record<string, boolean>>({});
   const [seen, setSeen] = useState<Record<string, boolean>>({});
   const [last, setLast] = useState("");
@@ -289,6 +299,12 @@ export function GunStudio({
         {tab === "buttons" && (
           <div className="studio-body">
             <div className="gun-live-panel">
+              <div className="setup-note">
+                <strong>{buttonTesting ? t("Tastentest · nur Anzeige") : t("Gun steuert das Menü")}</strong>
+                <p>{buttonTesting ? t("Tasten werden nur angezeigt. Abzug 10 Sekunden halten und loslassen, um wieder das Menü zu bedienen. Mit der Maus kannst du den Test auch beenden.") : t("Zum Belegen eine Zeile auswählen. Für reine Tastenanzeige den Tastentest starten.")}</p>
+                <button className="secondary" onClick={() => setButtonTesting(v => !v)}>{buttonTesting ? t("Tastentest beenden") : t("Tastentest starten")}</button>
+                <p className="studio-caption">{t("Eigene Gun-Funktionen wie LED-Wechsel oder Maus-/Joystick-Umschaltung laufen in der Firmware und bleiben aktiv.")}</p>
+              </div>
               <div className="live-heading">
                 <span className={"status-led " + (last ? "active" : "")} />
                 <b>{t("LIVE INPUT")}</b>
@@ -403,7 +419,7 @@ export function GunStudio({
               )}
               <p className="studio-caption">
                 {t(
-                  "Diese Belegung steuert das Deadeye-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Start + Coin halten bleibt der unabh\u00E4ngige Notausgang.",
+                  "Diese Belegung steuert das Deadeye-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Außerhalb des Tastentests bleibt Start + Coin halten der unabhängige Notausgang.",
                 )}
               </p>
               <button
@@ -705,6 +721,7 @@ export function GunStudio({
                     </button>
                   </div>
                   <p className="studio-caption">{t("In 16:9 und deiner Spielposition kalibrieren. Für 4:3 genügt die automatische Formatumschaltung. Anschließend den Zieltest ausführen. Unter Remote Desktop ist nur die Vorbereitung verfügbar.")}</p>
+                  <p className="studio-caption">{t("Die Kalibrierung sendet Herstellerbefehle direkt an die Gun. Es gibt keine laufende Deadeye-Mauskorrektur. Der Zieltest prüft nur die Genauigkeit; er verändert die Kalibrierung nicht.")}</p>
                   <details><summary>{t("Eigenes Herstellerprogramm verwenden")}</summary>
                   <div className="inline-actions">
                     <button

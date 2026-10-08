@@ -145,6 +145,7 @@ function App() {
   const [justEnded, setJustEnded] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
   const stateRef = useRef(state);
+  const buttonTestRef = useRef(false);
   const modalRef = useRef(modal);
   const stepRef = useRef(testStep);
   const errorsRef = useRef(testErrors);
@@ -155,6 +156,10 @@ function App() {
     timer.current = setTimeout(() => setToast(""), 6500);
   };
   const send = (type: string, payload: unknown = {}) => {
+    if (type === "button-test") {
+      buttonTestRef.current = typeof (payload as {player?:unknown}).player === "number";
+      if (!window.chrome?.webview) return;
+    }
     if (type === "set-language") {
       const language = normalizeLanguage(
         (payload as { language?: unknown }).language,
@@ -264,7 +269,12 @@ function App() {
         if (payload.status === "ended") setJustEnded(true);
       }
       if (type === "gun-input") setGunSignal(payload);
+      if (type === "button-test-ended") {
+        buttonTestRef.current = false;
+        window.dispatchEvent(new Event("deadeye-button-test-ended"));
+      }
       if (type === "menu-action") {
+        if (buttonTestRef.current) return;
         const keys: Record<string, string> = {
           start: "Enter",
           coin: "Escape",
@@ -286,6 +296,11 @@ function App() {
         if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
+        if (buttonTestRef.current && input.player > 0) {
+          if (input.kind === "mouse" && input.x !== undefined && input.y !== undefined)
+            setAim({x:input.x,y:input.y,player:input.player});
+          return;
+        }
         if (input.kind === "keyboard" && input.down) {
           const keys: Record<string, string> = {
             start: "Enter",
@@ -354,9 +369,18 @@ function App() {
       }
     };
     document.addEventListener("click", legacy, true);
+    const testLegacy = (event: Event) => {
+      if (buttonTestRef.current && !stateRef.current.remoteSession) {
+        event.preventDefault(); event.stopImmediatePropagation();
+      }
+    };
+    for (const name of ["contextmenu", "auxclick", "keydown", "keyup"])
+      document.addEventListener(name, testLegacy, true);
     return () => {
       bridge.removeEventListener("message", receive);
       document.removeEventListener("click", legacy, true);
+      for (const name of ["contextmenu", "auxclick", "keydown", "keyup"])
+        document.removeEventListener(name, testLegacy, true);
     };
   }, []);
   useEffect(() => {

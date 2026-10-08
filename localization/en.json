@@ -707,5 +707,15 @@
   "Model 2 · Zwei-Gun-Helfer fehlt": "Model 2 · two-gun helper missing",
   "Model 2 1.1a benötigt DemulShooter mit passendem ROM-Namen. Native RawInput-Eingabe und native Fadenkreuze werden für diesen Startweg deaktiviert. SERVICE-Kalibrierung am echten Bildschirm durchführen.": "Model 2 1.1a requires DemulShooter with the matching ROM name. Native RawInput and native crosshairs are disabled for this launch path. Perform SERVICE calibration at the physical screen.",
   "Windows-Klassiker · DemulShooter für getrennte Guns": "Classic Windows game · DemulShooter for independent guns",
-  "Beide Spieler im Spiel bzw. Arcade-Launcher auf Keyboard einstellen. START: 1/2; Coin: 5. Die 32-Bit-Spielversion muss vom Helfer unterstützt werden.": "Set both players to Keyboard in the game or arcade launcher. START: 1/2; Coin: 5. The helper must support the 32-bit game build."
+  "Beide Spieler im Spiel bzw. Arcade-Launcher auf Keyboard einstellen. START: 1/2; Coin: 5. Die 32-Bit-Spielversion muss vom Helfer unterstützt werden.": "Set both players to Keyboard in the game or arcade launcher. START: 1/2; Coin: 5. The helper must support the 32-bit game build.",
+  "Tastentest · nur Anzeige": "Button test · display only",
+  "Gun steuert das Menü": "Gun controls the menu",
+  "Tasten werden nur angezeigt. Abzug 10 Sekunden halten und loslassen, um wieder das Menü zu bedienen. Mit der Maus kannst du den Test auch beenden.": "Buttons are displayed only. Hold the trigger for 10 seconds and release to control the menu again. You can also end the test with the mouse.",
+  "Zum Belegen eine Zeile auswählen. Für reine Tastenanzeige den Tastentest starten.": "Select a row to configure a button. Start the button test for display-only input.",
+  "Tastentest beenden": "End button test",
+  "Tastentest starten": "Start button test",
+  "Eigene Gun-Funktionen wie LED-Wechsel oder Maus-/Joystick-Umschaltung laufen in der Firmware und bleiben aktiv.": "Gun functions such as LED changes or mouse/joystick switching run in the firmware and remain active.",
+  "Tastentest beendet. Abzug loslassen; die Gun steuert wieder das Menü.": "Button test ended. Release the trigger; the gun controls the menu again.",
+  "Die Kalibrierung sendet Herstellerbefehle direkt an die Gun. Es gibt keine laufende Deadeye-Mauskorrektur. Der Zieltest prüft nur die Genauigkeit; er verändert die Kalibrierung nicht.": "Calibration sends manufacturer commands directly to the gun. Deadeye does not apply continuous mouse correction. The aim test only checks accuracy; it does not change calibration.",
+  "Diese Belegung steuert das Deadeye-Menü. MAME übernimmt die unterstützten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Außerhalb des Tastentests bleibt Start + Coin halten der unabhängige Notausgang.": "This mapping controls the Deadeye menu. MAME applies supported game actions at launch; other emulators use their own profiles. Outside the button test, holding Start + Coin remains the independent emergency exit."
 }

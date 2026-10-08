@@ -1,15 +1,12 @@
-Deadeye Arcade 0.3.10 improves the in-game escape menu and Dolphin setup.
+Deadeye Arcade 0.3.11 isolates live button testing from menu actions.
 
-- Observe RS3 joystick button edges as well as mouse and keyboard input.
-- Keep the ten-second trigger hold intact when unrelated devices arrive or change.
-- Cancel a hold when its actual input device disconnects.
-- Add an independent desktop mouse hold fallback during games launched by Deadeye.
-- Log bound trigger press/release events for diagnosing a physical gun test.
-- Use explicit absolute pointing in managed Dolphin RS3 profiles.
-- Apply a Dead Space: Extraction-only graphics preset: VSync off, 3x internal resolution, no MSAA, asynchronous ubershaders and pre-launch shader compilation.
-- Preserve existing game settings and make repeated profile preparation idempotent.
-- Include the scrollable first-launch game information and always-accessible launch button.
+- Gun Studio starts a pure button test: connected guns highlight controls without activating menu items or the Start/Coin exit gesture.
+- Hold the selected gun’s physical trigger for ten seconds, then release it, to restore menu control. A mouse can also stop the test.
+- Keep input learning available through explicit mapping selections. Changing the trigger’s assigned action does not remove the test escape.
+- Suppress legacy context menus and key actions during the test. Gun firmware shortcuts remain active in the hardware.
+- Explain RS3 calibration clearly: the verified manufacturer module sends the calibration sequence to the selected gun; the separate aim test measures accuracy and applies no correction.
+- Clear button-test state when a game starts, so it cannot block the in-game overlay.
 
-151 core checks pass and the Windows build succeeds. Physical aiming latency and the RS3 joystick trigger mapping require a test at the attached display. Dolphin independent two-gun gameplay remains unverified; this release does not enable it.
+Windows build, core checks and UI regressions cover the software paths. Physical trigger holds and calibration accuracy require testing at the attached screen.
 
-Games, third-party patches and media are not bundled. English remains the first-run default, German is available, and autostart remains off by default.
+Games, third-party patches and media are not bundled. English is the first-run default and German is available.

@@ -69,10 +69,26 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('button',{name:'Deutsch',exact:true}).evaluate(b=>b.click());
  await native.getByRole('status').filter({hasText:'Gun meldet P2.'}).waitFor();
  await clickRaw('Meine Guns');await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).waitFor();
+ // Pure button testing retains visualization while suppressing menu routes.
+ await native.waitForFunction(()=>window.fixture.sent.some(m=>m.type==='button-test'&&m.payload.player===1));
+ await native.evaluate(()=>{
+  window.fixture.emit('menu-action',{action:'coin'});
+  window.fixture.emit('input',{deviceId:'key-1',kind:'keyboard',player:1,key:53,down:true,action:'coin'});
+ });
+ await clickRaw('Einstellungen');
+ assert.equal(await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).count(),1,'Test input cannot leave Gun Studio');
+ assert(await native.evaluate(()=>!document.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}))),'Test suppresses legacy context menus');
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:true,action:'shoot'}));
  await native.waitForFunction(()=>document.querySelector('.gun-hotspot.pressed'));
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'shoot'}));
  await native.waitForFunction(()=>!document.querySelector('.gun-hotspot.pressed'));
+ await native.evaluate(()=>window.fixture.emit('button-test-ended',{}));
+ await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
+ await native.waitForFunction(()=>window.fixture.sent.some(m=>m.type==='button-test'&&m.payload.player===null));
+ await clickRaw('Einstellungen');
+ await native.getByRole('textbox',{name:'SteamGridDB API Schlüssel'}).waitFor();
+ await clickRaw('Meine Guns');
+ await native.getByRole('button',{name:'Tastentest beenden',exact:true}).evaluate(b=>b.click());
  // Physical highlight follows the input, even when its assigned action is changed.
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:true,action:'reload'}));
  await native.waitForFunction(()=>document.querySelector('[data-control="trigger"].pressed'));

@@ -10,7 +10,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.10](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.10/Deadeye-Arcade-0.3.10-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.10)
+**[Download Windows Setup 0.3.11](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.11/Deadeye-Arcade-0.3.11-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.11)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -43,12 +43,12 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
-**0.3.10** improves the in-game escape menu across RS3 mouse and joystick modes.
-Connected trigger holds survive unrelated device changes, and a desktop mouse fallback
-covers games that capture mouse input. Dead Space: Extraction receives a per-game
-latency preset with explicit absolute pointing and lower graphics overhead.
-[Verification notes](docs/verification-0.3.10.md) separate software checks, Windows
-launch checks and physical gun validation.
+**0.3.11** adds a pure live button test in Gun Studio. Connected guns highlight
+controls without triggering menu actions. Hold the selected gun’s trigger for ten
+seconds and release it to return to menu control. RS3 calibration uses the
+manufacturer module; the separate aim test checks accuracy without changing it.
+[Verification notes](docs/verification-0.3.11.md) explain software coverage and
+physical validation limits.
 
 - **Multiplayer helper setup:** writes the actual connected gun IDs before launching installed DemulShooter helpers. Unassigned channels cannot pick up nameless Remote Desktop mice. Blue Estate uses distinct VID/PID assignments for an already installed, matching patch; HOTD 2 Remake has its own plugin requirements.
 - **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
