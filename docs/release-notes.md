@@ -1,9 +1,8 @@
-Deadeye Arcade 0.3.16 introduces an original app icon and matching arcade wallpaper.
+Deadeye Arcade 0.3.17 restores reliable remote buttons and keeps the app exit available during button testing.
 
-- A bold ivory eye with an orange aiming target identifies Deadeye Arcade in Windows.
-- The executable, main window, Setup, uninstaller, desktop shortcut, Start menu shortcut and Installed Apps entry use the new icon.
-- The Windows ICO includes seven sizes from 16 to 256 pixels, with transparent corners.
-- A matching dark arcade-hall wallpaper is included at `wallpapers/deadeye-arcade.png`. Its quiet left side keeps desktop icons readable. Apply it through Windows Personalization; updates preserve the wallpaper already selected by the user.
-- Original branding PNGs, the Windows ICO and generation notes are available in the repository under the MIT license.
+- Windows session detection follows live transitions between the physical screen and Remote Desktop. A process-start snapshot previously left remote clicks blocked after connecting to an app started locally.
+- The native Close app · Windows button works during button testing, including a deliberate lightgun trigger aimed at it.
+- Remote mouse clicks can end a button test; returning to the physical screen restores the gun-test input isolation.
+- Includes the original eye-and-target Windows icon and matching arcade wallpaper introduced in 0.3.16. Artwork and setup notes are in docs/branding.md.
 
-Game libraries, input settings and startup preferences are retained. Gameplay behavior is unchanged from 0.3.15.
+Game libraries, input settings and startup preferences are retained.

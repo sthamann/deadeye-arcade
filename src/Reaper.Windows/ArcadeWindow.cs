@@ -29,7 +29,8 @@ public sealed class ArcadeWindow : Window
     private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(6) };
     private readonly RawInput raw = new();
     private readonly ArcadePicker picker;
-    private readonly bool remoteSession = GetSystemMetrics(0x1000) != 0 || (Environment.GetEnvironmentVariable("SESSIONNAME")?.StartsWith("RDP-", StringComparison.OrdinalIgnoreCase) ?? false);
+    private bool remoteSession = IsRemoteSession();
+    private long nextSessionCheck;
     private List<Installation> installations = [];
     private readonly GunSerial serial = new();
     private PhysicalGun[] guns = [];
@@ -77,7 +78,22 @@ public sealed class ArcadeWindow : Window
     [StructLayout(LayoutKind.Sequential)] private struct ScreenPoint { public int X, Y; }
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out ScreenPoint point);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool WTSQuerySessionInformation(nint server, int session, int information, out nint buffer, out int bytes);
+    [DllImport("wtsapi32.dll")] private static extern void WTSFreeMemory(nint buffer);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
+    private static bool IsRemoteSession()
+    {
+        // The same Windows session can switch from the physical screen to RDP and back.
+        // SESSIONNAME is inherited at process start and cannot describe that transition.
+        if (WTSQuerySessionInformation(0, -1, 16, out var buffer, out var bytes))
+        {
+            try { if (bytes >= sizeof(short)) return Marshal.ReadInt16(buffer) != 0; }
+            finally { WTSFreeMemory(buffer); }
+        }
+        return GetSystemMetrics(0x1000) != 0;
+    }
     public ArcadeWindow()
     {
         picker = new ArcadePicker(Send);
@@ -89,7 +105,7 @@ public sealed class ArcadeWindow : Window
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         // Keep the control outside WebView2's HWND to avoid WPF airspace covering it.
         Grid.SetRow(exitButton, 1); layout.Children.Add(web); layout.Children.Add(exitButton); Content = layout;
-        exitButton.Click += (_, _) => { if (buttonTestPlayer is null && !buttonTestRelease) Close(); };
+        exitButton.Click += (_, _) => Close();
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
         DesktopGuns.ConfigureStartup(state.Settings.DesktopCrosshairs);
@@ -124,6 +140,17 @@ public sealed class ArcadeWindow : Window
         });
         timer.Tick += async (_, _) =>
         {
+            if (Environment.TickCount64 >= nextSessionCheck)
+            {
+                nextSessionCheck = Environment.TickCount64 + 1000;
+                bool currentRemoteSession = IsRemoteSession();
+                if (currentRemoteSession != remoteSession)
+                {
+                    remoteSession = currentRemoteSession;
+                    Log("input: " + (remoteSession ? "remote desktop" : "physical desktop"));
+                    SendState();
+                }
+            }
             if (buttonTestPlayer is not null && buttonTestHold.Ready(Environment.TickCount64))
             {
                 buttonTestHold.Consume(); buttonTestPlayer = null; buttonTestRelease = true;
@@ -264,7 +291,7 @@ public sealed class ArcadeWindow : Window
             return;
         }
         // The physical trigger can always reach the native exit, even while learning a button.
-        if (!session.Active && buttonTestPlayer is null && !buttonTestRelease && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
+        if (!session.Active && packet.Kind == "mouse" && (packet.Buttons & 1) != 0)
         {
             var exitPoint = exitButton.PointFromScreen(PacketPoint(packet));
             if (exitPoint.X >= 0 && exitPoint.Y >= 0 && exitPoint.X < exitButton.ActualWidth && exitPoint.Y < exitButton.ActualHeight)

@@ -87,6 +87,17 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.waitForFunction(()=>document.querySelector('.gun-hotspot.pressed'));
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:false,action:'shoot'}));
  await native.waitForFunction(()=>!document.querySelector('.gun-hotspot.pressed'));
+ // Attaching RDP during a physical button test must restore trusted mouse clicks.
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:true}));
+ await native.getByRole('button',{name:'Tastentest beenden',exact:true}).click();
+ await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
+ await native.getByRole('button',{name:'Einstellungen',exact:true}).click();
+ await native.getByRole('textbox',{name:'SteamGridDB API Schlüssel'}).waitFor();
+ await native.getByRole('button',{name:'Meine Guns',exact:true}).click();
+ await native.getByRole('button',{name:'Tastentest beenden',exact:true}).waitFor();
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:false}));
+ await clickRaw('Einstellungen');
+ assert.equal(await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).count(),1,'Returning to the physical screen restores pure button testing');
  await native.evaluate(()=>window.fixture.emit('button-test-ended',{}));
  await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
  await native.waitForFunction(()=>window.fixture.sent.some(m=>m.type==='button-test'&&m.payload.player===null));
