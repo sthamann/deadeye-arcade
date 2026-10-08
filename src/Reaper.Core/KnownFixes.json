@@ -1,0 +1,138 @@
+[
+  {
+    "id": "tekno-path",
+    "name": "Spielpfade",
+    "mode": "automatic",
+    "scope": "TeknoParrot",
+    "source": "https://github.com/teknogods/TeknoParrotUI",
+    "verification": "Unique explicit existing library file; original XML backed up."
+  },
+  {
+    "id": "portable-paths",
+    "name": "Portable Emulatorpfade",
+    "mode": "automatic",
+    "scope": "Model 2, PCSX2, TeknoParrot",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Existing live storage retained; vendor metadata and ASCII paths checked."
+  },
+  {
+    "id": "openal",
+    "name": "OpenAL-Laufzeit",
+    "mode": "automatic",
+    "scope": "Windows games and arcade loaders",
+    "source": "https://openal-soft.org/",
+    "verification": "Pinned package hash, matching PE architecture, absent destination, license retained; gameplay remains to test."
+  },
+  {
+    "id": "hypseus-assets",
+    "name": "Hypseus-Zusatzdateien",
+    "mode": "automatic",
+    "scope": "Hypseus Singe 2.11.1",
+    "source": "https://github.com/DirtBagXon/hypseus-singe/releases/tag/v2.11.1",
+    "verification": "Exact installed emulator hash; only absent matching images/sound restored."
+  },
+  {
+    "id": "dolphin-accuracy",
+    "name": "Dolphin-Zielgenauigkeit",
+    "mode": "launch-time",
+    "scope": "Supported Dolphin disc regions",
+    "source": "https://github.com/ProfgLX/Dolphin-Lightguns-Accuracy-Inis",
+    "verification": "Pinned licensed profile archive and disc-region match; independent DSU channels, physical gameplay test still required."
+  },
+  {
+    "id": "usb-identity",
+    "name": "Getrennte Spielergeräte",
+    "mode": "launch-time",
+    "scope": "RawInput, DemulShooter, RPCS3, Dolphin",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Exact healthy USB identities retained during RDP; unavailable mouse indices never invented."
+  },
+  {
+    "id": "multiplayer-plugin",
+    "name": "Mehrspieler-Plugins",
+    "mode": "launch-time",
+    "scope": "Installed supported game plugins",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Existing plugin version and device format checked. No undocumented download or invented two-player support."
+  },
+  {
+    "id": "tc5-controls",
+    "name": "Time-Crisis-5-Belegung",
+    "mode": "launch-time",
+    "scope": "Time Crisis 5 with reviewed helper",
+    "source": "https://github.com/argonlefou/DemulShooter/wiki/ES3",
+    "verification": "Exact helper contents and playside checked; linked-cabinet multiplayer stays separate."
+  },
+  {
+    "id": "local-loader-libs",
+    "name": "Vorhandene Arcade-Zusatzbibliotheken",
+    "mode": "launch-time",
+    "scope": "Primeval Hunt and HOTD 4 Special / ElfLdr2",
+    "source": "https://github.com/teknogods/TeknoParrotUI",
+    "verification": "Only absent ELF libraries from the installed title; original path and changed-file hashes recorded."
+  },
+  {
+    "id": "game-profile",
+    "name": "Spielgerechte Anzeige und Belegung",
+    "mode": "launch-time",
+    "scope": "Supported TeknoParrot and Model 2 profiles",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Known profile fields only; actual changed files recorded with before/after hashes. Native fullscreen and physical controls require testing."
+  },
+  {
+    "id": "session-ownership",
+    "name": "Einmaliger Start und Beenden",
+    "mode": "launch-time",
+    "scope": "All game sessions",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Single launch reservation and owned process job; actual native startup/exit test required."
+  },
+  {
+    "id": "administrator",
+    "name": "Administratorrechte",
+    "mode": "needs-action",
+    "scope": "Vendor profiles requiring elevation",
+    "source": "https://github.com/teknogods/TeknoParrotUI",
+    "verification": "Detects requirement; preserves Windows consent and does not silently elevate."
+  },
+  {
+    "id": "vendor-access",
+    "name": "Spielzugang und Lizenz",
+    "mode": "needs-action",
+    "scope": "Vendor profiles requiring access",
+    "source": "https://github.com/teknogods/TeknoParrotUI",
+    "verification": "Vendor access requirement detected; does not infer a valid login or bypass licensing."
+  },
+  {
+    "id": "pcsx2-shared-pointer",
+    "name": "Gemeinsamer PCSX2-Mauszeiger",
+    "mode": "needs-action",
+    "scope": "PCSX2 Guncon2",
+    "source": "https://github.com/PCSX2/pcsx2",
+    "verification": "Both ports and their actual Pointer values read; a shared pointer is not independent two-player support."
+  },
+  {
+    "id": "missing-files",
+    "name": "Fehlende Spieldateien",
+    "mode": "needs-action",
+    "scope": "Library required files",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Expected files checked; no antivirus weakening, quarantine restore or substitute ROM rename."
+  },
+  {
+    "id": "display-session",
+    "name": "Lokaler Bildschirm und Remote Desktop",
+    "mode": "needs-action",
+    "scope": "Windows displays",
+    "source": "https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-enumdisplaysettingsw",
+    "verification": "Physical and remote outputs measured separately. Refresh restoration requires a local-session measurement."
+  },
+  {
+    "id": "repair-error",
+    "name": "Reparatur konnte nicht bestätigt werden",
+    "mode": "needs-action",
+    "scope": "Any repair rule",
+    "source": "https://github.com/sthamann/deadeye-arcade",
+    "verification": "Preserves the failure and retains current files; never marks a game as played."
+  }
+]

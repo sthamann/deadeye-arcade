@@ -127,6 +127,7 @@ internal sealed class DesktopGuns : IDisposable
     {
         if (Environment.TickCount64 - lastReport < 2000) return;
         lastReport = Environment.TickCount64;
+        DisplayDiagnostics.Capture(store.DirectoryPath);
         var rows = bindings.OrderBy(b => b.Player).Select(b => new { b.Player, b.SystemId,
             connected = raw.Devices.Any(d => d.Id.Equals(b.MouseId, StringComparison.OrdinalIgnoreCase)),
             positioned = points.ContainsKey(b.Player), visible = markers.GetValueOrDefault(b.Player)?.IsVisible == true });

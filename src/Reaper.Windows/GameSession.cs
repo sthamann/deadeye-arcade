@@ -156,12 +156,16 @@ public sealed class GameSession
         GameInputPreparation? input = null;
         try
         {
+            await AutomaticFixes.Run([game], dataDirectory);
             _ = LaunchRules.Prepare(game);
             input = await GameInputPreparation.Prepare(game, dataDirectory, bindings);
             bridge=input.Bridge;
             game = input.Game;
             var players = input.Players;
+            var helperFiles = KnownFixes.MultiplayerFiles(game);
+            var beforeHelpers = KnownFixes.Snapshot(helperFiles);
             MultiplayerSetup.Configure(game, players);
+            KnownFixes.RecordChanges(game, dataDirectory, "multiplayer-plugin", beforeHelpers, helperFiles);
             foreach (var helper in game.Helpers ?? [])
             {
                 var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(helper.Executable));
@@ -196,10 +200,17 @@ public sealed class GameSession
     private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
     {
         if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
+        var profileFiles = game.Source == "teknoparrot" ? new[] { game.SourcePath } : new[] { Path.Combine(game.WorkingDirectory, "EMULATOR.INI") };
+        var beforeProfile = KnownFixes.Snapshot(profileFiles);
         EmulatorSetup.ConfigurePaths(game);
+        string loader = Path.Combine(Path.GetDirectoryName(game.Executable)!, "ElfLdr2", "libs");
+        string[] libraries = [Path.Combine(loader, "librnalindbergh_jr.so"), Path.Combine(loader, "libcri_soundoutput_lindbergh_jr.so")];
+        var beforeLibraries = KnownFixes.Snapshot(libraries);
         LocalRuntimeSetup.Configure(game);
+        KnownFixes.RecordChanges(game, dataDirectory, "local-loader-libs", beforeLibraries, libraries);
         TeknoGunSetup.Configure(game,bindings);
         GamePresentation.Prepare(game);
+        KnownFixes.RecordChanges(game, dataDirectory, "game-profile", beforeProfile, profileFiles);
         var info = LaunchRules.Prepare(game);
         if(SupermodelSetup.IsSupermodel(game) && bindings.Any()) info.ArgumentList.Add("-input-system=rawinput");
         if (game.Source == "teknoparrot")
@@ -213,7 +224,10 @@ public sealed class GameSession
             // MAME creates its own game window; its console must not cover it.
             info.CreateNoWindow = true;
             string ctrl = Path.Combine(dataDirectory, "controllers"); Directory.CreateDirectory(ctrl);
-            File.WriteAllText(Path.Combine(ctrl, "reaper.cfg"), LaunchRules.MameController(bindings));
+            string controller = Path.Combine(ctrl, "reaper.cfg");
+            var beforeController = KnownFixes.Snapshot([controller]);
+            File.WriteAllText(controller, LaunchRules.MameController(bindings));
+            KnownFixes.RecordChanges(game, dataDirectory, "usb-identity", beforeController, [controller]);
             info.ArgumentList.Add("-ctrlrpath"); info.ArgumentList.Add(ctrl); info.ArgumentList.Add("-ctrlr"); info.ArgumentList.Add("reaper");
         }
         string target = game.Executable;

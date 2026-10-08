@@ -300,6 +300,28 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
   console.log('Preview recovery passed: corrupt video falls back, the next selected game plays a real MP4.');
  }
  console.log('Enrichment UI passed: selected English description, edition year, original hardware, prototype status, German labels and Windows layout.');
+ await native.evaluate(()=>{
+  window.fixture.emit('busy',{message:''});
+  window.fixture.emit('state',{...window.fixture.lastState,settings:{...window.fixture.lastState.settings,language:'en'},update:{status:'idle'},
+   display:{time:new Date().toISOString(),remote:true,outputs:[{device:'fixture-rdp',adapter:'Microsoft Remote Display Adapter',primary:true,current:{width:1920,height:1080,hz:32},saved:{width:1920,height:1080,hz:32}}]},
+   fixes:{time:new Date().toISOString(),catalogVersion:1,games:2,
+    findings:[{gameId:'fixture',game:'Fixture game',ruleId:'openal',status:'repaired',message:'Fehlende OpenAL-Laufzeit in passender Architektur ergänzt und erneut gelesen.',files:['fixture.dll']}],
+    history:[{gameId:'fixture',game:'Fixture game',ruleId:'usb-identity',status:'configured',message:'Aktives Spielprofil automatisch angepasst; geänderte Dateien protokolliert.',files:['fixture.ini']}],
+    catalog:[{id:'openal',name:'OpenAL-Laufzeit',mode:'automatic',scope:'OpenAL',source:'https://openal-soft.org/',verification:'Fixture'}]}});
+ });
+ await native.getByRole('button',{name:'Settings',exact:true}).click();
+ await native.getByText('Automatic repairs',{exact:true}).waitFor();
+ await native.getByText('Remote Desktop is active. Its frame rate does not confirm the physical display refresh rate.',{exact:true}).waitFor();
+ await native.getByText('Results and next steps',{exact:true}).click();
+ await native.getByText('Missing OpenAL runtime added with the matching architecture and read back.',{exact:true}).waitFor();
+ await native.getByText('Recent automatic changes',{exact:true}).click();
+ await native.getByText('Active game profile configured automatically; changed files recorded.',{exact:true}).waitFor();
+ await native.getByRole('button',{name:'Check and repair library',exact:true}).click();
+ assert(await native.evaluate(()=>window.fixture.sent.at(-1)?.type==='check-dependencies'),'Repair action reaches the existing native dependency path');
+ await native.getByRole('button',{name:'Deutsch',exact:true}).click();
+ await native.getByText('Automatische Reparaturen',{exact:true}).waitFor();
+ await native.getByText('Fehlende OpenAL-Laufzeit in passender Architektur ergänzt und erneut gelesen.',{exact:true}).waitFor();
+ console.log('Repair UI passed: native command, persisted findings/history, English/German switching and honest RDP display scope.');
  assert.equal(errors.length,0,errors.join('\n'));
  console.log('UI passed: empty-library honesty, eight preview entries, selection/filter/search, target test, browser-native boundary, raw-input navigation, player isolation, binding command, four pages at five widths.');
  await browser.close();

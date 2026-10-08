@@ -29,3 +29,12 @@ application license does not grant rights to games, ROMs or artwork.
   calibration package. Its exact package and DLL hashes are checked before use.
   It retains the manufacturer's terms and is not redistributed in the application
   source or release packages.
+
+- [OpenAL Soft](https://openal-soft.org/) 1.25.2 is downloaded separately, only when
+  a matching game lacks OpenAL. The app checks the official package hash, copies
+  the matching implementation DLL and keeps the upstream COPYING file. OpenAL
+  Soft retains its LGPL terms; it is not bundled as MIT application code.
+- [Hypseus Singe](https://github.com/DirtBagXon/hypseus-singe/releases/tag/v2.11.1)
+  2.11.1 support images and a sound file can be restored separately for the exact
+  recognized installed executable. Its upstream LICENSE is retained. No emulator
+  or game data is included in the Deadeye installer.

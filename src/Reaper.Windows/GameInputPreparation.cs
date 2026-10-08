@@ -18,6 +18,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
         var setup = new GameInputPreparation(data);
         try
         {
+            var before = KnownFixes.Snapshot(KnownFixes.InputFiles(game, data));
             using var raw = new RawInput(); raw.Refresh();
             setup.Players = GunConnections.ForConfiguration(bindings, raw.Devices, GunDiscovery.Scan(raw.Devices));
             bool indexAvailable = GunConnections.CanIndexMice(setup.Players, raw.Devices);
@@ -53,6 +54,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
                 // Keep mouse/keyboard mode until an independent joystick profile is
                 // actually installed. Switching an unconfigured P2 loses its input.
             }
+            KnownFixes.RecordChanges(game, data, DolphinSetup.IsDolphin(game) ? "dolphin-accuracy" : "usb-identity", before, KnownFixes.InputFiles(game, data));
             return setup;
         }
         catch { await setup.DisposeAsync(); throw; }

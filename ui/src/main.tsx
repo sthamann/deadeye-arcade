@@ -1375,6 +1375,29 @@ function App() {
                   )}
                 </div>
                 <div className="setting-block">
+                  <div className="setting-title"><ShieldCheck size={20}/><strong>{t("Automatische Reparaturen")}</strong></div>
+                  <p>{t("Deadeye kennt typische Fehler und repariert passende Spielpfade, Emulator-Einstellungen und fehlende Zusatzdateien automatisch. Deine vorhandenen Dateien bleiben erhalten. Jede Änderung wird lokal protokolliert.")}</p>
+                  <button className="secondary" disabled={!!busy} onClick={() => send("check-dependencies")}><RefreshCw size={18}/>{" "+t("Bibliothek prüfen und reparieren")}</button>
+                  {state.display && <>
+                    <p>{state.display.remote?t("Remote Desktop ist aktiv. Seine Bildrate bestätigt nicht die Frequenz des echten Bildschirms."):t("Aktuelle Anzeige am lokalen Bildschirm")}</p>
+                    {state.display.outputs.map(d=><p key={d.device}>{d.adapter+" · "+(d.current?d.current.width+" × "+d.current.height+" · "+d.current.hz+" Hz":t("Modus nicht verfügbar"))}</p>)}
+                  </>}
+                  {state.fixes && <>
+                    <p>{state.fixes.games}{" "+t("Spiele geprüft")+" · "+state.fixes.findings.filter(f=>f.status==="repaired").length+" "+t("Reparaturen bestätigt")+" · "+state.fixes.findings.filter(f=>f.status==="needs-action").length+" "+t("offene Hinweise")}</p>
+                    <p>{t("Dateiprüfung bestätigt keine echten Treffer oder einen vollständigen Spieldurchlauf. Lizenz, Windows-Freigaben und echte Gun-Tests bleiben gegebenenfalls erforderlich.")}</p>
+                    <details><summary>{t("Ergebnisse und nächste Schritte")}</summary>
+                      {state.fixes.findings.length===0 && <p>{t("Für die geprüften Regeln wurde aktuell kein zusätzlicher Reparaturbedarf gefunden.")}</p>}
+                      {state.fixes.findings.map((f,i)=><div className="setting-row" key={i}><div><strong>{f.game}</strong><p>{message(f.message)}</p></div><span className={"connection-tag "+(f.status==="repaired"?"online":"")}>{f.status==="repaired"?t("Repariert"):t("Prüfung nötig")}</span></div>)}
+                    </details>
+                    {state.fixes.history.length>0 && <details><summary>{t("Letzte automatische Änderungen")}</summary>
+                      {state.fixes.history.map((f,i)=><div className="setting-row" key={i}><div><strong>{f.game}</strong><p>{message(f.message)}</p></div><span className="connection-tag online">{f.status==="configured"?t("Konfiguriert"):t("Repariert")}</span></div>)}
+                    </details>}
+                    <details><summary>{t("Bekannte Fallstricke")+" · "+state.fixes.catalog.length}</summary>
+                      {state.fixes.catalog.map(r=><div className="setting-row" key={r.id}><div><strong>{t(r.name)}</strong><p>{r.scope}</p></div><span className={"connection-tag "+(r.mode==="automatic"||r.mode==="launch-time"?"online":"")}>{r.mode==="automatic"?t("Automatisch"):r.mode==="launch-time"?t("Beim Spielstart"):t("Prüfung nötig")}</span></div>)}
+                    </details>
+                  </>}
+                </div>
+                <div className="setting-block">
                   <div className="setting-title">
                     <ImageIcon size={20} />
                     <strong>{t("Automatische Spielecover")}</strong>

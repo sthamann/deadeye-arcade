@@ -56,6 +56,8 @@ public sealed class ArcadeWindow : Window
     private bool overlayAction;
     private EmergencyExit? emergencyExit;
     private DependencyReport? dependencies;
+    private FixReport? fixes;
+    private DisplaySnapshot? display;
     private readonly LibraryStore store;
     private LibraryState state;
     private readonly Dictionary<string, ExitGesture> gestures = new(StringComparer.OrdinalIgnoreCase);
@@ -144,6 +146,9 @@ public sealed class ArcadeWindow : Window
             if (Environment.TickCount64 >= nextSessionCheck)
             {
                 nextSessionCheck = Environment.TickCount64 + 1000;
+                var currentDisplay = DisplayDiagnostics.Capture(store.DirectoryPath);
+                bool displayChanged = display is null || currentDisplay.Remote != display.Remote || !currentDisplay.Outputs.SequenceEqual(display.Outputs);
+                display = currentDisplay;
                 bool currentRemoteSession = IsRemoteSession();
                 if (currentRemoteSession != remoteSession)
                 {
@@ -151,6 +156,7 @@ public sealed class ArcadeWindow : Window
                     Log("input: " + (remoteSession ? "remote desktop" : "physical desktop"));
                     SendState();
                 }
+                else if (displayChanged) SendState();
             }
             if (buttonTestPlayer is not null && buttonTestHold.Ready(Environment.TickCount64))
             {
@@ -258,9 +264,11 @@ public sealed class ArcadeWindow : Window
             version = AppUpdater.Current,
             update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
             remoteSession,
+            display,
             calibrationPrepared = ReaperCalibrationPackage.Prepared(store.DirectoryPath),
             installations,
             dependencies = DependencyView(),
+            fixes = fixes is null ? null : new { fixes.Time, fixes.CatalogVersion, fixes.Games, fixes.Findings, catalog = KnownFixes.Catalog, history = KnownFixes.History(store.DirectoryPath) },
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
             native = true
         });
@@ -826,8 +834,11 @@ public sealed class ArcadeWindow : Window
                         version = AppUpdater.Current,
             update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
             remoteSession,
+            display,
             installations,
             calibrationTool = state.Settings.CalibrationTool is null ? null : Path.GetFileName(state.Settings.CalibrationTool),
+                        fixes,
+                        repairHistory = KnownFixes.History(store.DirectoryPath),
                         os = Environment.OSVersion.ToString(),
                         devices = raw.Devices,
                         bindings = state.Bindings,
@@ -880,6 +891,8 @@ public sealed class ArcadeWindow : Window
         try
         {
             var games = state.Games.ToArray();
+            display = DisplayDiagnostics.Capture(store.DirectoryPath);
+            fixes = await AutomaticFixes.Run(games, store.DirectoryPath);
             dependencies = await Task.Run(() => RuntimeInstaller.Scan(games));
             System.IO.File.WriteAllText(Path.Combine(store.DirectoryPath, "dependencies.json"), JsonSerializer.Serialize(dependencies, JsonDefaults.Options));
             SendState();
@@ -893,6 +906,8 @@ public sealed class ArcadeWindow : Window
         busy = true; launching = true;
         try
         {
+            Send("busy", new { message = I18n.T("Spiel wird geprüft und vorbereitet …") });
+            await AutomaticFixes.Run([game], store.DirectoryPath);
             _ = LaunchRules.Prepare(game);
             Send("busy", new { message = I18n.T("Spiel wird gestartet …") });
             var launchDependencies = await Task.Run(() => RuntimeInstaller.Scan([game]));

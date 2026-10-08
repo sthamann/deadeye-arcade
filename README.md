@@ -12,7 +12,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.20](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.20/Deadeye-Arcade-0.3.20-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.20)
+**[Download Windows Setup 0.3.22](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.22/Deadeye-Arcade-0.3.22-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.22)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -44,6 +44,16 @@ Original game-media files are not bundled as library assets.*
 *Gun Studio is shown in browser preview without simulating connected hardware.*
 
 ## What's inside
+
+**0.3.22** adds an integrated, reviewed repair catalog. Deadeye checks for known
+setup problems on startup, after import and before launch. It repairs matching
+paths, restores missing OpenAL or Hypseus support files from verified official
+packages, and records real profile changes. **Settings → Automatic repairs**
+shows findings, remaining steps and recent changes. [Automatic repair guide](docs/automatic-repairs.md).
+
+**0.3.21** preserves exact USB device assignments when Remote Desktop hides their
+RawInput mouse interfaces and reads the recognized Time Crisis 5 controls helper.
+Unavailable mouse indices are never guessed.
 
 **0.3.20** assigns independent guns to the recognized, already installed
 HOTD 2: Remake multiplayer plugin and shows its shoot/reload/menu controls.
@@ -214,6 +224,8 @@ With the app closed, these commands use the intended Windows game user's library
 
 ```powershell
 ReaperArcade.exe --import-collection "C:\path\to\spiele.json"
+ReaperArcade.exe --repair-library
+ReaperArcade.exe --inspect-display
 ReaperArcade.exe --validate-library
 ReaperArcade.exe --check-dependencies
 ReaperArcade.exe --inspect-guns
@@ -228,7 +240,7 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
 
 [0.3.5 branding, media and upgrade checks](docs/verification-0.3.5.md).
 
-- **174 core checks:** imports, file readiness, preservation after reload, player
+- **247 core checks:** imports, file readiness, preservation after reload, player
   isolation, trigger hold timing, control-profile parsing, dependency detection,
   English defaults, native translations, saved language preference and update validation.
 - **Browser checks:** English ↔ German switching and reload, four pages at five

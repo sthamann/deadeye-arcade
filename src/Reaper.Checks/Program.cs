@@ -40,7 +40,7 @@ Directory.Delete(languageStore.DirectoryPath, true);
 // Existing profile assertions use the German catalog.
 void Check(bool pass, string label) { if (!pass) throw new Exception("FAIL: " + label); checks++; Console.WriteLine("PASS: " + label); }
 void Throws(Action action, string label) { try { action(); throw new Exception("Expected error: " + label); } catch (Exception e) when (!e.Message.StartsWith("Expected error")) { checks++; Console.WriteLine("PASS: " + label); } }
-string root = Path.Combine(args.FirstOrDefault() ?? Path.GetTempPath(), "reaper-check-" + Guid.NewGuid().ToString("N"));
+string root = Path.Combine(args.FirstOrDefault() is string target && !target.StartsWith("--") ? target : Path.GetTempPath(), "reaper-check-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 try
 {
@@ -62,6 +62,67 @@ try
     Check(GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun with {MouseId="other-mouse"}]).Length==0 && GunConnections.ForConfiguration([remoteGun],[keyboardOnly],[usbGun with {SystemId="sinden"}]).Length==0,"A keyboard, another mouse or another gun model cannot stand in for the assigned USB mouse");
     var rawMouse=new InputDevice("physical-mouse","RS3","mouse",true);
     Check(GunConnections.ForConfiguration([remoteGun],[rawMouse],[]).Length==1 && GunConnections.CanIndexMice([remoteGun],[rawMouse]),"The ordinary local RawInput path still permits actual mouse-index configuration");
+    Check(KnownFixes.Catalog.Select(r=>r.Id).Distinct().Count()==KnownFixes.Catalog.Length && KnownFixes.Catalog.All(r=>r.Mode is "automatic" or "launch-time" or "needs-action"), "Repair catalog has unique reviewed rules and explicit automation boundaries");
+    string repairRoot=Path.Combine(multiRoot,"repairs");Directory.CreateDirectory(repairRoot);
+    string autoRepairProfile=Path.Combine(repairRoot,"game.xml"),repairBinary=Path.Combine(repairRoot,"game.exe");File.WriteAllText(repairBinary,"not a PE image");
+    File.WriteAllText(autoRepairProfile,"<GameProfile><GamePath>missing.exe</GamePath><RequiresAdmin>true</RequiresAdmin><Patreon>true</Patreon><Input>retained</Input></GameProfile>");
+    var repairGame=new GameEntry("repair-test","Fixture","Arcade",repairBinary,[],repairRoot,"teknoparrot",autoRepairProfile,RequiredFiles:[autoRepairProfile,repairBinary]);
+    Task<string> NoDownload(FixPackage _)=>throw new Exception("This fixture must never download a package");
+    var repaired=KnownFixes.Apply([repairGame],repairRoot,false,NoDownload).GetAwaiter().GetResult();
+    Check(repaired.Findings.Any(f=>f.RuleId=="tekno-path"&&f.Status=="repaired") && XDocument.Load(autoRepairProfile).Root!.Element("Input")!.Value=="retained" && File.Exists(autoRepairProfile+".before-reaper-path-fix"), "Automatic repair rebases an explicit game file, backs up the profile and preserves unrelated input");
+    Check(repaired.Findings.Any(f=>f.RuleId=="administrator") && repaired.Findings.Any(f=>f.RuleId=="vendor-access"), "Access and elevation requirements stay visible rather than being silently bypassed");
+    string history=File.ReadAllText(Path.Combine(repairRoot,"fixes-history.jsonl"));
+    var again=KnownFixes.Apply([repairGame],repairRoot,true,NoDownload).GetAwaiter().GetResult();
+    Check(!again.Findings.Any(f=>f.Status=="repaired"||f.RuleId=="administrator") && File.ReadAllText(Path.Combine(repairRoot,"fixes-history.jsonl"))==history, "A second check is idempotent, records no duplicate repair and reads the current privilege context");
+    string sharedPointer="[USB1]\nType = guncon2\nguncon2_Pointer = Pointer-0\n[USB2]\nType = guncon2\nguncon2_Pointer = Pointer-0\n";
+    Check(KnownFixes.SharedPcsxPointer(sharedPointer) && !KnownFixes.SharedPcsxPointer(sharedPointer.Replace("[USB2]\nType = guncon2\nguncon2_Pointer = Pointer-0","[USB2]\nType = guncon2\nguncon2_Pointer = Pointer-1")), "PCSX2 detection identifies a shared two-player pointer without flagging independent ports");
+    Check(!KnownFixes.SharedPcsxPointer(sharedPointer.Replace("[USB2]\nType = guncon2","[USB2]\nType = none")) && !KnownFixes.SharedPcsxPointer("[USB1]\nType=guncon2"), "A single configured gun or missing pointer is not evidence of a shared two-player pointer");
+    string fixturePackage=Path.Combine(repairRoot,"fixture.zip");
+    using(var fixtureZip=System.IO.Compression.ZipFile.Open(fixturePackage,System.IO.Compression.ZipArchiveMode.Create))
+    {using var writer=new StreamWriter(fixtureZip.CreateEntry("reviewed/image.bmp").Open());writer.Write("reviewed asset");}
+    var fixtureSpecification=new FixPackage("fixture","https://example.invalid/package",KnownFixes.Hash(fixturePackage),10000);
+    Check(KnownFixes.ValidPackage(fixturePackage,fixtureSpecification) && !KnownFixes.ValidPackage(fixturePackage,fixtureSpecification with{Sha256=new string('0',64)}) && !KnownFixes.ValidPackage(fixturePackage,fixtureSpecification with{MaxBytes=1}), "Repair cache requires the exact package hash and size bound");
+    string restoredAsset=Path.Combine(repairRoot,"pics","image.bmp");
+    using(var fixtureZip=System.IO.Compression.ZipFile.OpenRead(fixturePackage))KnownFixes.CopyMissing(fixtureZip,"reviewed/image.bmp",restoredAsset);
+    File.WriteAllText(restoredAsset,"user asset");
+    using(var fixtureZip=System.IO.Compression.ZipFile.OpenRead(fixturePackage))KnownFixes.CopyMissing(fixtureZip,"reviewed/image.bmp",restoredAsset);
+    Check(File.ReadAllText(restoredAsset)=="user asset" && !File.Exists(restoredAsset+".deadeye-new"), "Restoring a missing support file never overwrites an existing user asset");
+    bool absentRejected=false;
+    try{using var fixtureZip=System.IO.Compression.ZipFile.OpenRead(fixturePackage);KnownFixes.CopyMissing(fixtureZip,"missing",Path.Combine(repairRoot,"missing.bmp"));}catch(InvalidDataException){absentRejected=true;}
+    Check(absentRejected && !File.Exists(Path.Combine(repairRoot,"missing.bmp")), "Missing reviewed archive entries are rejected without creating a substitute file");
+    string trackedConfig=Path.Combine(repairRoot,"profile.ini");File.WriteAllText(trackedConfig,"before");
+    var beforeTracked=KnownFixes.Snapshot([trackedConfig]);File.WriteAllText(trackedConfig,"after");
+    KnownFixes.RecordChanges(repairGame,repairRoot,"usb-identity",beforeTracked,[trackedConfig]);
+    using(var trackedReceipt=System.Text.Json.JsonDocument.Parse(File.ReadLines(Path.Combine(repairRoot,"fixes-history.jsonl")).Last()))
+        Check(trackedReceipt.RootElement.GetProperty("changes")[0].GetProperty("before").GetString()==beforeTracked[trackedConfig] && trackedReceipt.RootElement.GetProperty("changes")[0].GetProperty("after").GetString()==KnownFixes.Hash(trackedConfig),"Launch configuration history records the actual before/after file hashes");
+    string unchangedHistory=File.ReadAllText(Path.Combine(repairRoot,"fixes-history.jsonl"));
+    KnownFixes.RecordChanges(repairGame,repairRoot,"usb-identity",KnownFixes.Snapshot([trackedConfig]),[trackedConfig]);
+    Check(File.ReadAllText(Path.Combine(repairRoot,"fixes-history.jsonl"))==unchangedHistory && KnownFixes.History(repairRoot).First().Status=="configured","Unchanged launch configuration creates no duplicate history; previous changes survive reload");
+    string mixedRoot=Path.Combine(repairRoot,"mixed");Directory.CreateDirectory(mixedRoot);
+    string mixedMain=Path.Combine(mixedRoot,"game.exe");WriteNative(mixedMain,false,"openal32.dll");WriteNative(Path.Combine(mixedRoot,"utility.exe"),true,"openal32.dll");
+    var mixedRepair=KnownFixes.Apply([repairGame with{Source="custom",Executable=mixedMain,WorkingDirectory=mixedRoot}],repairRoot,true,NoDownload).GetAwaiter().GetResult();
+    Check(mixedRepair.Findings.Any(f=>f.RuleId=="openal"&&f.Status=="needs-action") && !File.Exists(Path.Combine(mixedRoot,"OpenAL32.dll")),"Mixed-architecture game folders never receive a guessed shared OpenAL runtime");
+    string retainedDll=Path.Combine(mixedRoot,"OpenAL32.dll");WriteNative(retainedDll,true);
+    string retainedHash=KnownFixes.Hash(retainedDll);
+    var retainedRepair=KnownFixes.Apply([repairGame with{Source="custom",Executable=mixedMain,WorkingDirectory=mixedRoot}],repairRoot,true,NoDownload).GetAwaiter().GetResult();
+    Check(retainedRepair.Findings.Any(f=>f.RuleId=="openal"&&f.Status=="needs-action") && KnownFixes.Hash(retainedDll)==retainedHash,"An incompatible existing OpenAL runtime stays intact and receives a visible review finding");
+    if (args.Length == 3 && args[0] == "--repair-packages")
+    {
+        Task<string> OfficialPackage(FixPackage package) => Task.FromResult(args[package.Id == KnownFixes.OpenAl.Id ? 1 : 2]);
+        string officialRoot=Path.Combine(repairRoot,"official-openal");Directory.CreateDirectory(officialRoot);
+        string officialGame=Path.Combine(officialRoot,"game.exe");WriteNative(officialGame,false,"openal32.dll");
+        var officialRepair=KnownFixes.Apply([repairGame with{Source="custom",Executable=officialGame,WorkingDirectory=officialRoot}],repairRoot,true,OfficialPackage).GetAwaiter().GetResult();
+        string openAlDll=Path.Combine(officialRoot,"OpenAL32.dll");
+        Check(officialRepair.Findings.Any(f=>f.RuleId=="openal"&&f.Status=="repaired") && NativeImports.Read(openAlDll).Architecture=="x86" && File.Exists(Path.Combine(officialRoot,"DeadeyeThirdParty","OpenAL-Soft-COPYING.txt")),"Official pinned OpenAL package restores a missing runtime with its matching architecture and license");
+        string officialHypseus=Path.Combine(repairRoot,"official-hypseus");Directory.CreateDirectory(officialHypseus);
+        string hypseusExe=Path.Combine(officialHypseus,"hypseus.exe");
+        using(var vendor=System.IO.Compression.ZipFile.OpenRead(args[2]))KnownFixes.CopyMissing(vendor,"Hypseus Singe/hypseus.exe",hypseusExe);
+        var hypseusGame=repairGame with{Source="custom",Executable=hypseusExe,WorkingDirectory=officialHypseus};
+        var hypseusRepair=KnownFixes.Apply([hypseusGame],repairRoot,true,OfficialPackage).GetAwaiter().GetResult();
+        Check(hypseusRepair.Findings.Single(f=>f.RuleId=="hypseus-assets"&&f.Status=="repaired").Files.Length==40 && File.Exists(Path.Combine(officialHypseus,"DeadeyeThirdParty","Hypseus-LICENSE.txt")),"Official pinned Hypseus package restores all 40 missing support assets for the exact installed release");
+        var secondHypseus=KnownFixes.Apply([hypseusGame],repairRoot,true,NoDownload).GetAwaiter().GetResult();
+        Check(!secondHypseus.Findings.Any(f=>f.Status=="repaired"),"A healthy Hypseus install is idempotent and requires no download or network access");
+    }
     string tcHelper=Path.Combine(multiRoot,"Deadeye-RS3-Controls.ahk");
     File.WriteAllText(tcHelper,"""
 #NoEnv
@@ -538,7 +599,7 @@ RButton::y
     try { await AppUpdates.Download(updateClient, release, updateDirectory, null, cancel.Token); } catch (OperationCanceledException) { cancelled = true; }
     Check(cancelled && !File.Exists(downloaded + ".partial"), "Cancelled updates clean partial downloads");
     Check(new AppSettings().CheckForUpdates && System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}", JsonDefaults.Options)!.CheckForUpdates, "Automatic update checks default on for new and existing libraries");
-    if (args.Length > 1)
+    if (args.Length > 1 && args[0] != "--repair-packages")
     {
         var actual = CollectionImporter.Read(args[1]);
         using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(args[1]));

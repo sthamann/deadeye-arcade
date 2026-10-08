@@ -25,6 +25,16 @@ public static class App
             try
             {
                 var store = new LibraryStore(data); var state = store.Load();
+                if (args.Length == 1 && args[0] == "--inspect-display")
+                {
+                    DisplayDiagnostics.Capture(data);
+                    return;
+                }
+                if (args.Length == 1 && args[0] == "--repair-library")
+                {
+                    AutomaticFixes.Run(state.Games, data).GetAwaiter().GetResult();
+                    return;
+                }
                 if (args.Length == 1 && args[0] == "--inspect-gamepads")
                 {
                     using var raw = new RawInput(); raw.Refresh();

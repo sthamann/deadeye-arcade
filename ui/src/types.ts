@@ -139,6 +139,14 @@ export type State = {
       dlls: string[];
     }[];
   };
+  display?: null | {time:string;remote:boolean;outputs:{device:string;adapter:string;primary:boolean;current:null|{width:number;height:number;hz:number};saved:null|{width:number;height:number;hz:number}}[]};
+  fixes?: null | {
+    time: string;
+    catalogVersion: number;
+    games: number;
+    findings: {gameId:string;game:string;ruleId:string;status:string;message:string;files:string[]}[];
+    history: { gameId: string; game: string; ruleId: string; status: string; message: string; files: string[] }[]; catalog: {id:string;name:string;mode:string;scope:string;source:string;verification:string}[];
+  };
   native: boolean;
 };
 export type Input = {

@@ -1,7 +1,9 @@
-Deadeye Arcade 0.3.21 preserves exact lightgun assignments when Remote Desktop hides their RawInput mouse interfaces.
+Deadeye Arcade 0.3.22 integrates a reviewed repair catalog into startup, import and game launch.
 
-A healthy, present USB interface can retain its assigned device-name profile. Mouse-index profiles are refreshed only when the actual RawInput mice are visible, so a remote launch no longer silently replaces valid gun assignments with disconnected placeholders or guessed mouse indices. Keyboard-only visibility no longer counts as live aiming input.
+The app recognizes moved game paths, broken portable emulator paths, missing matching OpenAL runtimes, missing support files for the exact Hypseus release, access requirements and shared PCSX2 pointers. It restores eligible missing support files from hash-checked official packages and keeps existing files and upstream licenses.
 
-Time Crisis 5 now shows the credit, weapon, cursor and pedal bindings from the recognized game-scoped AutoHotkey helper. Its trigger is shown only when the assigned DemulShooter mouse matches. Modified helpers, duplicate helpers and another cabinet side do not inherit this legend. Two players still require linked cabinets for this title.
+Settings now shows Automatic repairs: results, remaining steps, known pitfalls and recent changes. Existing supported gun/profile adapters record their actual changed files with before/after hashes. Catalog rules and fixes are distributed with normal releases and self-updates; reports remain local.
 
-This release includes regression checks for remote USB retention, genuinely disconnected devices, local mouse indexing and the Time Crisis 5 legend. Existing libraries, startup preferences and the recognized HOTD 2: Remake multiplayer plugin setup are retained. Physical aiming, button actions and recoil require verification with the actual guns at the display.
+Display diagnostics separate Remote Desktop modes from physical-session modes and record changes through the frontend and optional desktop-gun companion. No physical refresh rate or completed gun test is inferred from a remote session.
+
+Validation includes 247 core regression checks, optional checks against both official repair archives, English/German repair UI checks and a native Windows build. Existing libraries and startup preferences are retained. Vendor access, Windows consent and physical aiming/independent P2 still need their applicable checks.

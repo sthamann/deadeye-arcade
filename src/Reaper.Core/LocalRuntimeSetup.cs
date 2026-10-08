@@ -4,8 +4,8 @@ namespace Reaper.Core;
 
 public static class LocalRuntimeSetup
 {
-    // TeknoParrot ships its own OpenAL runtime. Resolve the matching architecture
-    // locally for game executables instead of downloading arbitrary DLL files.
+    // Install only matching, already owned ELF libraries required by these vendor profiles.
+    // OpenAL is handled by the reviewed KnownFixes package and architecture checks.
     public static void Configure(GameEntry game)
     {
         if (game.Source != "teknoparrot" || !File.Exists(game.SourcePath)) return;
@@ -30,28 +30,5 @@ public static class LocalRuntimeSetup
             }
         }
 
-        var candidates = new[] { "TeknoParrot", "N2", Path.Combine("ElfLdr2", "libs") }
-            .Select(subfolder => Path.Combine(game.WorkingDirectory, subfolder, "openal32.dll"));
-        foreach (var executable in Directory.EnumerateFiles(folder, "*.exe").Take(32))
-        {
-            NativeImage image;
-            try { image = NativeImports.Read(executable); }
-            catch (Exception e) when (e is IOException or BadImageFormatException or ArgumentOutOfRangeException) { continue; }
-            if (!image.Imports.Any(i => i.Name == "openal32.dll" && !i.Delayed)) continue;
-            string local = Path.Combine(folder, "OpenAL32.dll");
-            if (File.Exists(local)) continue;
-            string system = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                image.Architecture == "x86" && Environment.Is64BitOperatingSystem ? "SysWOW64" : "System32", "OpenAL32.dll");
-            if (File.Exists(system)) continue;
-            string? source = candidates.FirstOrDefault(file => Compatible(file, image.Architecture));
-            if (source is null) continue;
-            File.Copy(source, local, false);
-            File.WriteAllText(local + ".deadeye-source.txt", source + Environment.NewLine);
-        }
-    }
-    private static bool Compatible(string file, string architecture)
-    {
-        try { return File.Exists(file) && NativeImports.Read(file).Architecture == architecture; }
-        catch (Exception e) when (e is IOException or BadImageFormatException or ArgumentOutOfRangeException) { return false; }
     }
 }
