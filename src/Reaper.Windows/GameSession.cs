@@ -281,7 +281,10 @@ public sealed class GameSession
                             catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     // Wait for the actual game window, not the launcher or dependency dialog.
                     // Count the ten seconds only after a stable foreground game window exists.
-                    if(!legendShown && !overlayVisible && ending is null)
+                    // Games such as Blue Estate replace their splash window after startup.
+                    // Keep the renderer handle current for exit checks and overlay restoration,
+                    // while displaying the startup legend only once per session.
+                    if((!legendShown || !GameWindowAvailable) && !overlayVisible && ending is null)
                     {
                         nint readyWindow=0;
                         foreach(var pair in owned.ToArray())
@@ -297,8 +300,9 @@ public sealed class GameSession
                         if(readyWindow==0) legendWindow=0;
                         else if(legendWindow!=readyWindow) {legendWindow=readyWindow;legendSince=Environment.TickCount64;}
                         else if(Environment.TickCount64-legendSince>=750) {
-                            legendShown=true;gameWindow=readyWindow;GamePresentation.Apply(game,readyWindow);
-                            SetForegroundWindow(readyWindow);GameWindowReady?.Invoke(readyWindow);
+                            gameWindow=readyWindow;GamePresentation.Apply(game,readyWindow);
+                            SetForegroundWindow(readyWindow);
+                            if(!legendShown) {legendShown=true;GameWindowReady?.Invoke(readyWindow);}
                         }
                     }
                     if (children > 0) lastChild = DateTime.Now;
