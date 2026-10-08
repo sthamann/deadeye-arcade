@@ -154,6 +154,11 @@ try
     var secondHold = new TriggerHold(); secondHold.Button("P2", true, 5000);
     Check(!secondHold.Ready(14999) && secondHold.Ready(15000) && !hold.Ready(15000), "Players have isolated hold durations");
     secondHold.Reset(); Check(!secondHold.Ready(90000), "Game end or disconnect clears stale trigger state");
+    var deviceHold = new TriggerHold(); deviceHold.Button("gun-p1|mouse:1", true, 0);
+    deviceHold.RetainDevices(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GUN-P1", "unrelated-new-device" });
+    Check(deviceHold.Ready(10000), "Unrelated device arrival preserves a connected gun's full ten-second hold");
+    deviceHold.RetainDevices(new HashSet<string>());
+    Check(!deviceHold.Ready(20000) && !deviceHold.Pressed, "Removing the held gun cancels its hold without retaining a stuck button");
     string ctrlDir = Path.Combine(root, "overlay", "controllers"); Directory.CreateDirectory(ctrlDir);
     File.WriteAllText(Path.Combine(ctrlDir, "reaper.cfg"), LaunchRules.MameController([new(1, mouse, ButtonMap:new() { ["mouse:2"]="shoot", ["key:53"]="coin" })]));
     var mameControls = OverlayControls.Read(scarlet with { Source="mame" }, Path.Combine(root,"overlay"), []);
@@ -182,8 +187,10 @@ try
     string perGame=Path.Combine(root,"User","GameSettings","RZJE69.ini");File.WriteAllText(perGame,"[Core]\nCPUThread = False\n[Controls]\nWiimoteSource1 = 1\nWiimoteProfile1 = OTHER_GUN\n");
     Check(DolphinSetup.Configure(deadspace,pack,[new(1,"RS3")]),"Dolphin applies the separate RS3 title profile on the actual setup path");
     string managed=DolphinSetup.ProfilePath(deadspace)!;string managedText=File.ReadAllText(managed);
+    Check(DolphinSetup.Value(managedText,"Profile","IR/Relative Input")=="False", "RS3 aim follows absolute cursor position instead of integrating stick velocity");
     Check(DolphinSetup.Value(managedText,"Profile","IR/Total Yaw")=="17.25" && DolphinSetup.Value(managedText,"Profile","Nunchuk/Buttons/C")=="`M` & !`Click 1`" && !managedText.Contains("LCONTROL"),"Dolphin retains title accuracy and replaces inaccessible RS3 Nunchuk buttons");
     Check(File.ReadAllText(perGame).Contains("CPUThread = False") && DolphinSetup.Value(File.ReadAllText(perGame),"Controls","WiimoteSource1")=="0" && File.Exists(perGame+".before-deadeye-input"),"Dolphin preserves unrelated overrides, backs up input settings and disables an unverified P2 device");
+    Check(DolphinSetup.Value(File.ReadAllText(perGame),"Video_Hardware","VSync")=="False" && DolphinSetup.Value(File.ReadAllText(perGame),"Video_Settings","MSAA")=="1", "Extraction receives its local latency preset without overwriting global graphics settings");
     var titleControls=OverlayControls.Read(deadspace,root,[new(1,"RS3")]);
     Check(titleControls.Rows.Any(r=>r.Function=="Stasis (C)"&&r.Input=="`M` & !`Click 1`") && titleControls.Rows.Any(r=>r.Function.StartsWith("Glow Worm")) && titleControls.Rows.All(r=>r.Player==1),"Game overlay reads the active per-game controls including stasis, shake and pending P2");
     string firstSettings=File.ReadAllText(perGame);DolphinSetup.Configure(deadspace,pack,[new(1,"RS3")]);Check(firstSettings==File.ReadAllText(perGame),"Dolphin title setup is idempotent");

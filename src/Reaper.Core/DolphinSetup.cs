@@ -54,8 +54,16 @@ public static class DolphinSetup
         foreach(var pair in values)
         {
             var indices=Enumerable.Range(start+1,end-start-1).Where(i=>lines[i].Split('=',2) is {Length:2} p && p[0].Trim().Equals(pair.Key,StringComparison.OrdinalIgnoreCase)).ToArray();
-            foreach(int i in indices.Reverse()) {lines.RemoveAt(i);end--;}
-            lines.Insert(end++,pair.Key+" = "+pair.Value);
+            if(indices.Length>0)
+            {
+                lines[indices[0]]=pair.Key+" = "+pair.Value;
+                foreach(int i in indices.Skip(1).Reverse()) {lines.RemoveAt(i);end--;}
+            }
+            else
+            {
+                int insert=end;while(insert>start+1 && string.IsNullOrWhiteSpace(lines[insert-1]))insert--;
+                lines.Insert(insert,pair.Key+" = "+pair.Value);end++;
+            }
         }
         return string.Join(newline,lines);
     }
@@ -85,6 +93,12 @@ public static class DolphinSetup
         File.WriteAllText(profile,Merge(File.ReadAllText(source),"Profile",ReaperButtons(id,bindings.First(b=>b.Player==1 && b.SystemId=="rs3"))));
         string perGame=Path.Combine(user,"GameSettings",id+".ini");
         WriteMerged(perGame,"Controls",new Dictionary<string,string> { ["WiimoteSource0"]="1",["WiimoteSource1"]="0",["WiimoteSource2"]="0",["WiimoteSource3"]="0",["WiimoteProfile1"]=managed,["PadType0"]="0",["PadType1"]="0",["PadType2"]="0",["PadType3"]="0" });
+        if (id.StartsWith("RZJ"))
+        {
+            // Keep this latency preset local to Extraction, not every Dolphin game.
+            WriteMerged(perGame,"Video_Hardware",new Dictionary<string,string>{["VSync"]="False"});
+            WriteMerged(perGame,"Video_Settings",new Dictionary<string,string>{["InternalResolution"]="3",["MSAA"]="1",["ShaderCompilationMode"]="1",["WaitForShadersBeforeStarting"]="True"});
+        }
         WriteMerged(Path.Combine(user,"Config","Dolphin.ini"),"Display",new Dictionary<string,string>{["Fullscreen"]="True",["RenderToMain"]="True"});
         WriteMerged(Path.Combine(user,"Config","GFX.ini"),"Settings",new Dictionary<string,string>{["AspectRatio"]="3"});
         return true;
@@ -99,7 +113,7 @@ public static class DolphinSetup
             int key=int.Parse(token[4..]);return key switch {>=48 and <=90=>"`"+(char)key+"`",37=>"LEFT",38=>"UP",39=>"RIGHT",40=>"DOWN",13=>"RETURN",32=>"SPACE",_=>throw new ArgumentException("Dolphin cannot map this key automatically.")};
         }
         string trigger=Input("trigger","mouse:1"),reload=Input("reload","mouse:2"),magazine=Input("magazine","mouse:3"),start=Input("start","key:49"),coin=Input("coin","key:53"),side=Input("side","key:77"),stick=Input("stick","key:81");
-        var values=new Dictionary<string,string> { ["Device"]="DInput/0/Keyboard Mouse",["Buttons/A"]=magazine,["Buttons/B"]=trigger,["Buttons/1"]=side,["Buttons/2"]=stick,["Buttons/+"]=start,["Buttons/-"]=coin,["Buttons/Home"]="",["D-Pad/Up"]=Input("up","key:38"),["D-Pad/Down"]=Input("down","key:40"),["D-Pad/Left"]=Input("left","key:37"),["D-Pad/Right"]=Input("right","key:39") };
+        var values=new Dictionary<string,string> { ["Device"]="DInput/0/Keyboard Mouse",["IR/Relative Input"]="False",["IR/Auto-Hide"]="False",["Buttons/A"]=magazine,["Buttons/B"]=trigger,["Buttons/1"]=side,["Buttons/2"]=stick,["Buttons/+"]=start,["Buttons/-"]=coin,["Buttons/Home"]="",["D-Pad/Up"]=Input("up","key:38"),["D-Pad/Down"]=Input("down","key:40"),["D-Pad/Left"]=Input("left","key:37"),["D-Pad/Right"]=Input("right","key:39") };
         if(id.StartsWith("RZJ"))
         {
             // Standard Wii Remote + Nunchuk layout. A shared desktop mouse cannot isolate P2.

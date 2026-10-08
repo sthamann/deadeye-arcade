@@ -43,6 +43,7 @@ public sealed class ArcadeWindow : Window
     private readonly DispatcherTimer gunTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
     private readonly GameSession session = new();
     private readonly Dictionary<int, TriggerHold> triggerHolds = [];
+    private readonly TriggerHold desktopTrigger = new();
     private InGameOverlay? overlay;
     private GameEntry? activeGame;
     private ReaperCalibrationWindow? calibration;
@@ -72,6 +73,7 @@ public sealed class ArcadeWindow : Window
     [StructLayout(LayoutKind.Sequential)] private struct ScreenPoint { public int X, Y; }
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out ScreenPoint point);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
     public ArcadeWindow()
     {
         picker = new ArcadePicker(Send);
@@ -87,26 +89,41 @@ public sealed class ArcadeWindow : Window
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
-        raw.Packet += Input; raw.DevicesChanged += () => { foreach (var hold in triggerHolds.Values) hold.Reset(); if (overlay is not null) overlay.Arm(); if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); } };
+        raw.Packet += Input; raw.DevicesChanged += () =>
+        {
+            var connected = raw.Devices.Select(d => d.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var hold in triggerHolds.Values) hold.RetainDevices(connected);
+            if (overlay is not null && overlayOpener != 0 && triggerHolds.GetValueOrDefault(overlayOpener)?.Pressed != true) overlay.Arm();
+            if (session.Active) Log("input: device list changed; preserving connected trigger holds");
+            if (ready && !closing) { gunTimer.Stop(); gunTimer.Start(); }
+        };
         gunTimer.Tick += async (_, _) => { gunTimer.Stop(); if (!busy && !session.Active) await DiscoverGuns(); else { gunTimer.Start(); } };
         session.Changed += status => Dispatcher.Invoke(() =>
         {
             emergencyExit?.Dispose(); emergencyExit = null;
             if (status == "running")
             {
+                desktopTrigger.Reset();
                 try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); })), () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); }))); }
                 catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
                 WindowState = WindowState.Minimized;
             }
-            else { CloseOverlay(false); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
+            else { CloseOverlay(false); desktopTrigger.Reset(); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
             Send("session", new { status });
         });
         timer.Tick += async (_, _) =>
         {
+            if (session.Active)
+            {
+                // Independent fallback for games that capture mouse input or change Raw Input registration.
+                desktopTrigger.Button("desktop", (GetAsyncKeyState(1) & 0x8000) != 0, Environment.TickCount64);
+                if (overlay is not null && overlayOpener == 0 && !desktopTrigger.Pressed) overlay.Arm();
+            }
             if (session.Active && overlay is null && !overlayAction && activeGame is not null)
             {
                 var held = triggerHolds.FirstOrDefault(p => p.Value.Ready(Environment.TickCount64));
                 if (held.Value is not null) { held.Value.Consume(); OpenOverlay(held.Key); }
+                else if (desktopTrigger.Ready(Environment.TickCount64)) { desktopTrigger.Consume(); Log("overlay: desktop trigger fallback"); OpenOverlay(0); }
             }
             if (!gestures.Values.Any(g => g.Ready(DateTimeOffset.UtcNow))) return;
             foreach (var g in gestures.Values) g.Consume();
@@ -249,7 +266,8 @@ public sealed class ArcadeWindow : Window
             }
         }
         if (session.Active && emergencyExit is null && packet.Kind == "keyboard" && packet.Key == 0x7B && packet.Down) { _ = session.End(); return; }
-        var binding = state.Bindings.FirstOrDefault(b => string.Equals(b.MouseId, packet.DeviceId, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, packet.DeviceId, StringComparison.OrdinalIgnoreCase));
+        var binding = state.Bindings.FirstOrDefault(b => string.Equals(b.MouseId, packet.DeviceId, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, packet.DeviceId, StringComparison.OrdinalIgnoreCase)
+            || packet.Kind == "hid" && guns.Any(g => g.Id == b.PhysicalId && g.InputIds.Contains(packet.DeviceId, StringComparer.OrdinalIgnoreCase)));
         if (packet.Kind == "keyboard" && binding is not null)
         {
             if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
@@ -261,15 +279,18 @@ public sealed class ArcadeWindow : Window
             {
                 var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId);
                 string action = map.GetValueOrDefault(signal.Token, "none");
+                // RS3 joystick mode exposes its primary trigger on HID button usage 1.
+                if (packet.Kind == "hid" && binding.SystemId == "rs3" && packet.Key == 1) action = "shoot";
                 if (session.Active && action == "shoot")
                 {
+                    Log($"input: P{binding.Player} {signal.Token} {(signal.Down ? "down" : "up")}");
                     if (!triggerHolds.TryGetValue(binding.Player, out var hold)) triggerHolds[binding.Player] = hold = new();
                     hold.Button(packet.DeviceId + "|" + signal.Token, signal.Down, Environment.TickCount64);
                     if (!signal.Down && !hold.Pressed && overlay is not null && binding.Player == overlayOpener) overlay.Arm();
                 }
                 if (overlay is not null && signal.Down)
                 {
-                    if (action == "shoot") overlay.Shoot(PacketPoint(packet)); else overlay.Navigate(action);
+                    if (action == "shoot") { if (packet.Kind == "hid") overlay.Navigate("confirm"); else overlay.Shoot(PacketPoint(packet)); } else overlay.Navigate(action);
                 }
                 if (binding.PhysicalId is not null)
                 {
@@ -363,6 +384,7 @@ public sealed class ArcadeWindow : Window
     }
     private static IEnumerable<(string Token, bool Down)> Signals(RawPacket packet)
     {
+        if (packet.Kind == "hid") { yield return ("hid:" + packet.Key, packet.Down); yield break; }
         if (packet.Kind == "keyboard") { yield return ("key:" + packet.Key, packet.Down); yield break; }
         if (packet.Kind != "mouse") yield break;
         for (int i = 0; i < 5; i++)

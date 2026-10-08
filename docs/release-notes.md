@@ -1,11 +1,15 @@
-Deadeye Arcade 0.3.9 improves independent multiplayer device configuration.
+Deadeye Arcade 0.3.10 improves the in-game escape menu and Dolphin setup.
 
-- Assign installed DemulShooter helpers from the actual connected P1/P2 guns before every launch.
-- Isolate unassigned helper channels with nonempty identifiers so nameless Remote Desktop mice cannot control missing players.
-- Reject duplicate player slots or two player assignments pointing at the same mouse.
-- Merge helper settings with backups while retaining unrelated options.
-- Disable conflicting native Model 2 RawInput and crosshairs when using its DemulShooter launch path.
-- Show separate requirements for HOTD Remake, HOTD 2 Remake, Operation Wolf Returns, classic Windows HOTD games and Model 2.
-- Assign Blue Estate VID/PID values only for an already installed patch; reject duplicate VID/PID identities. The patch must be compatible with the 32-bit game build and requires Raw Mode and fullscreen.
+- Observe RS3 joystick button edges as well as mouse and keyboard input.
+- Keep the ten-second trigger hold intact when unrelated devices arrive or change.
+- Cancel a hold when its actual input device disconnects.
+- Add an independent desktop mouse hold fallback during games launched by Deadeye.
+- Log bound trigger press/release events for diagnosing a physical gun test.
+- Use explicit absolute pointing in managed Dolphin RS3 profiles.
+- Apply a Dead Space: Extraction-only graphics preset: VSync off, 3x internal resolution, no MSAA, asynchronous ubershaders and pre-launch shader compilation.
+- Preserve existing game settings and make repeated profile preparation idempotent.
+- Include the scrollable first-launch game information and always-accessible launch button.
 
-Third-party games, patches and game media are not bundled. Installed files, successful launch and physical two-gun gameplay are separate checks. English remains the first-run default, German is available, and autostart remains off by default.
+151 core checks pass and the Windows build succeeds. Physical aiming latency and the RS3 joystick trigger mapping require a test at the attached display. Dolphin independent two-gun gameplay remains unverified; this release does not enable it.
+
+Games, third-party patches and media are not bundled. English remains the first-run default, German is available, and autostart remains off by default.

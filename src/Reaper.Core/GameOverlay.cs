@@ -17,6 +17,11 @@ public sealed class TriggerHold
     }
     public bool Ready(long now) => !consumed && since is long start && now - start >= 10_000;
     public void Consume() { consumed = true; since = null; }
+    public void RetainDevices(ISet<string> devices)
+    {
+        down.RemoveWhere(token => token.LastIndexOf('|') is int separator && separator >= 0 && !devices.Contains(token[..separator]));
+        if (down.Count == 0) { since = null; consumed = false; }
+    }
     public void Reset() { down.Clear(); since = null; consumed = false; }
 }
 

@@ -21,13 +21,16 @@ public sealed class RawInput : IDisposable
     [DllImport("user32.dll")] private static extern uint GetRawInputData(nint input, uint command, nint data, ref uint size, uint headerSize);
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern SafeFileHandle CreateFile(string name, uint access, uint share, nint security, uint creation, uint flags, nint template);
     [DllImport("hid.dll")] private static extern bool HidD_GetProductString(SafeFileHandle device, byte[] buffer, uint length);
+    [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW")] private static extern uint DeviceInfoBytes(nint device, uint command, nint data, ref uint size);
+    [DllImport("hid.dll")] private static extern int HidP_GetUsages(int type, ushort page, ushort collection, [Out] ushort[] usages, ref uint count, nint preparsed, byte[] report, uint length);
     private readonly Dictionary<nint, string> names = [];
+    private readonly Dictionary<string, HashSet<ushort>> hidButtons = new(StringComparer.OrdinalIgnoreCase);
     private const uint DeviceName = 0x20000007;
     public void Register(nint window)
     {
         // INPUTSINK observes the guns during a game; it does not inject or steal game inputs.
-        Registration[] registration = [new() { Page = 1, Usage = 2, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 6, Flags = 0x2100, Window = window }];
-        if (!RegisterRawInputDevices(registration, 2, (uint)Marshal.SizeOf<Registration>())) throw new Win32Exception(Marshal.GetLastWin32Error());
+        Registration[] registration = [new() { Page = 1, Usage = 2, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 6, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 4, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 5, Flags = 0x2100, Window = window }];
+        if (!RegisterRawInputDevices(registration, (uint)registration.Length, (uint)Marshal.SizeOf<Registration>())) throw new Win32Exception(Marshal.GetLastWin32Error());
         Refresh();
     }
     public void Refresh()
@@ -55,6 +58,7 @@ public sealed class RawInput : IDisposable
             devices.Add(new(id, string.IsNullOrEmpty(product) ? kind == "mouse" ? I18n.T("Maus / Lightgun") : kind == "keyboard" ? "Tasteneingang" : I18n.T("HID-Gerät") : product, kind, retro));
         }
         Devices = devices;
+        foreach (var id in hidButtons.Keys.Where(id => !devices.Any(d => d.Id.Equals(id, StringComparison.OrdinalIgnoreCase))).ToArray()) hidButtons.Remove(id);
     }
     public void Message(int message, nint lParam)
     {
@@ -79,12 +83,38 @@ public sealed class RawInput : IDisposable
                 int flags = (ushort)Marshal.ReadInt16(data, 2); int key = (ushort)Marshal.ReadInt16(data, 6);
                 Packet?.Invoke(new(id, "keyboard", key, (flags & 1) == 0, 0, 0, 0, false, false));
             }
+            else if (h.Type == 2 && size >= headerSize + 8 && Devices.Any(d => d.Id == id && d.RetroShooter))
+                ReadHidButtons(h.Device, id, data, size - headerSize);
         }
         finally { Marshal.FreeHGlobal(buffer); }
     }
+    private void ReadHidButtons(nint device, string id, nint data, uint available)
+    {
+        int reportSize = Marshal.ReadInt32(data), reportCount = Marshal.ReadInt32(data, 4);
+        if (reportSize <= 0 || reportSize > 4096 || reportCount <= 0 || (long)reportSize * reportCount > available - 8) return;
+        uint bytes = 0;
+        if (DeviceInfoBytes(device, 0x20000005, 0, ref bytes) == uint.MaxValue || bytes == 0 || bytes > 65536) return;
+        nint preparsed = Marshal.AllocHGlobal((int)bytes);
+        try
+        {
+            if (DeviceInfoBytes(device, 0x20000005, preparsed, ref bytes) == uint.MaxValue) return;
+            for (int i = 0; i < reportCount; i++)
+            {
+                var report = new byte[reportSize]; Marshal.Copy(data + 8 + i * reportSize, report, 0, reportSize);
+                var usages = new ushort[128]; uint count = (uint)usages.Length;
+                if (HidP_GetUsages(0, 9, 0, usages, ref count, preparsed, report, (uint)reportSize) != 0x00110000) continue;
+                var current = usages.Take((int)count).ToHashSet();
+                if (!hidButtons.TryGetValue(id, out var previous)) previous = [];
+                foreach (var usage in previous.Except(current)) Packet?.Invoke(new(id, "hid", usage, false, 0, 0, 0, false, false));
+                foreach (var usage in current.Except(previous)) Packet?.Invoke(new(id, "hid", usage, true, 0, 0, 0, false, false));
+                hidButtons[id] = current;
+            }
+        }
+        finally { Marshal.FreeHGlobal(preparsed); }
+    }
     public void Dispose()
     {
-        Registration[] off = [new() { Page = 1, Usage = 2, Flags = 1 }, new() { Page = 1, Usage = 6, Flags = 1 }];
-        RegisterRawInputDevices(off, 2, (uint)Marshal.SizeOf<Registration>());
+        Registration[] off = [new() { Page = 1, Usage = 2, Flags = 1 }, new() { Page = 1, Usage = 6, Flags = 1 }, new() { Page = 1, Usage = 4, Flags = 1 }, new() { Page = 1, Usage = 5, Flags = 1 }];
+        RegisterRawInputDevices(off, (uint)off.Length, (uint)Marshal.SizeOf<Registration>());
     }
 }
