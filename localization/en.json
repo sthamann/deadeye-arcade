@@ -752,5 +752,8 @@
   "Das vollständige Beenden ist noch nicht bestätigt.": "Complete session cleanup has not yet been confirmed.",
   "Treffer, Rückstoß und gleichzeitiges Spielen mit beiden Guns benötigen weiterhin einen Test am angeschlossenen Bildschirm.": "Hits, recoil and simultaneous two-gun gameplay still require a test at the connected monitor.",
   "Start und Beenden geprüft": "Launch and exit checked",
-  "Startprüfung benötigt Aufmerksamkeit": "Launch check needs attention"
+  "Startprüfung benötigt Aufmerksamkeit": "Launch check needs attention",
+  "Schießen / Menü bestätigen": "Shoot / Confirm menu",
+  "Nachladen / Menü zurück": "Reload / Back in menu",
+  "Belegung des vorhandenen MultiLightgunPlugin 2.0. Mehrspielermodus im Spiel einschalten; unabhängige Treffer und Wiederbeleben mit beiden Guns sind vor Ort zu prüfen.": "Bindings from the installed MultiLightgunPlugin 2.0. Enable multiplayer inside the game; independent aiming and revival with both guns still require a test at the screen."
 }

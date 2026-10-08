@@ -42,11 +42,56 @@ public static class MultiplayerSetup
             string patch = Path.Combine(game.WorkingDirectory, "LightGun_Patch.ini");
             DolphinSetup.WriteMerged(patch, "LightGuns", new Dictionary<string, string> { ["Gun1"] = ids.GetValueOrDefault(1, ""), ["Gun2"] = ids.GetValueOrDefault(2, "") });
         }
+        ConfigureHouseDead2Remake(game, players);
+    }
+    public static bool ConfigureHouseDead2Remake(GameEntry game, IReadOnlyList<GunBinding> players)
+    {
+        if (players.Count == 0 || !SupportsHouseDead2Remake(game)) return false;
+        WriteCompactGunAssignments(HouseDead2RemakeConfigPath(), players);
+        return true;
+    }
+    public static string HouseDead2RemakeConfigPath() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AppData", "LocalLow", "MegaPixel Studio SA", "THE HOUSE OF THE DEAD 2_ Remake", "lightgun_config.ini");
+    public static bool SupportsHouseDead2Remake(GameEntry game)
+    {
+        if (!game.Title.Contains("The House of the Dead 2", StringComparison.OrdinalIgnoreCase) || !game.Title.Contains("Remake", StringComparison.OrdinalIgnoreCase)) return false;
+        // This installed 2.0 plugin uses VID/PID keys from its native mouse library.
+        // Unknown plugin versions retain their own assignment workflow.
+        bool KnownFile(string relative, string expected)
+        {
+            string file = Path.Combine(game.WorkingDirectory, relative);
+            if (!File.Exists(file) || new FileInfo(file).Length > 1_000_000) return false;
+            using var stream = File.OpenRead(file);
+            return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)).Equals(expected, StringComparison.OrdinalIgnoreCase);
+        }
+        return !string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) &&
+            KnownFile(Path.Combine("BepInEx", "plugins", "MultiLightgunPlugin.dll"), "98a8d76a7d56843c37f63cfc85c2f91b118bc0f2d218b17f6b65fa9edf980ae1") &&
+            KnownFile("MultiMouseLib.dll", "e114e539e7be70c3180357cbaddbb04ec45be5de7be165473cca399f96959fa1");
+    }
+    public static GameControls ReadCompactGunAssignments(string file, IEnumerable<GunBinding> bindings)
+    {
+        string[] lines = File.Exists(file) ? File.ReadAllLines(file) : [];
+        var rows = new List<ControlRow>();
+        foreach (var gun in bindings.Where(b => b.Player is 1 or 2))
+        {
+            string expected = "Player" + gun.Player + "Gun=" + DevicePair(gun.MouseId);
+            if (DevicePair(gun.MouseId).Length == 0 || !lines.Contains(expected, StringComparer.OrdinalIgnoreCase)) continue;
+            rows.Add(new(gun.Player, I18n.T("Schießen / Menü bestätigen"), OverlayControls.InputName("mouse:1"), "MultiLightgunPlugin 2.0 · lightgun_config.ini", "P" + gun.Player + "|mouse:1"));
+            foreach (int button in new[] { 2, 3 })
+                rows.Add(new(gun.Player, I18n.T("Nachladen / Menü zurück"), OverlayControls.InputName("mouse:" + button), "MultiLightgunPlugin 2.0 · lightgun_config.ini", "P" + gun.Player + "|mouse:" + button));
+        }
+        return new(rows.ToArray(), I18n.T("Belegung des vorhandenen MultiLightgunPlugin 2.0. Mehrspielermodus im Spiel einschalten; unabhängige Treffer und Wiederbeleben mit beiden Guns sind vor Ort zu prüfen."));
+    }
+    public static void WriteCompactGunAssignments(string file, IReadOnlyList<GunBinding> players)
+    {
+        var ids = players.Where(b => b.Player is 1 or 2).ToDictionary(b => b.Player, b => DevicePair(b.MouseId));
+        if (ids.Values.Any(v => v.Length == 0) || ids.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count() != ids.Count)
+            throw new InvalidDataException(I18n.T("P1 und P2 benötigen unterschiedliche Gun-Geräte."));
+        WriteFlat(file, new Dictionary<string, string> { ["Player1Gun"] = ids.GetValueOrDefault(1, ""), ["Player2Gun"] = ids.GetValueOrDefault(2, "") }, compactSeparator: true);
     }
     public static string DisconnectedDevice(int player) => $"DEADEYE_DISCONNECTED_P{player}";
     public static bool IsDemulShooter(string path) => Path.GetFileName(path).Equals("DemulShooter.exe", StringComparison.OrdinalIgnoreCase) || Path.GetFileName(path).Equals("DemulShooterX64.exe", StringComparison.OrdinalIgnoreCase);
     public static string DevicePair(string path) => Regex.Match(path, @"VID_[0-9A-F]{4}&PID_[0-9A-F]{4}", RegexOptions.IgnoreCase).Value.ToUpperInvariant();
-    public static void WriteFlat(string file, IReadOnlyDictionary<string, string> values)
+    public static void WriteFlat(string file, IReadOnlyDictionary<string, string> values, bool compactSeparator = false)
     {
         string old = File.Exists(file) ? File.ReadAllText(file) : "";
         string newline = old.Contains("\r\n") ? "\r\n" : "\n";
@@ -54,8 +99,9 @@ public static class MultiplayerSetup
         foreach (var pair in values)
         {
             var matches = Enumerable.Range(0, lines.Count).Where(i => lines[i].Split('=', 2) is { Length: 2 } item && item[0].Trim().Equals(pair.Key, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (matches.Length == 0) lines.Add(pair.Key + " = " + pair.Value);
-            else { lines[matches[0]] = pair.Key + " = " + pair.Value; foreach (int i in matches.Skip(1).Reverse()) lines.RemoveAt(i); }
+            string assignment = pair.Key + (compactSeparator ? "=" : " = ") + pair.Value;
+            if (matches.Length == 0) lines.Add(assignment);
+            else { lines[matches[0]] = assignment; foreach (int i in matches.Skip(1).Reverse()) lines.RemoveAt(i); }
         }
         string text = string.Join(newline, lines);
         if (old == text) return;

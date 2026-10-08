@@ -12,7 +12,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.19](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.19/Deadeye-Arcade-0.3.19-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.19)
+**[Download Windows Setup 0.3.20](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.20/Deadeye-Arcade-0.3.20-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.20)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -44,6 +44,9 @@ Original game-media files are not bundled as library assets.*
 *Gun Studio is shown in browser preview without simulating connected hardware.*
 
 ## What's inside
+
+**0.3.20** assigns independent guns to the recognized, already installed
+HOTD 2: Remake multiplayer plugin and shows its shoot/reload/menu controls.
 
 **0.3.19** tracks replacement game windows after startup, keeping overlay recovery
 and window checks connected to the active renderer. It also keeps remote mouse buttons usable when a running app switches between

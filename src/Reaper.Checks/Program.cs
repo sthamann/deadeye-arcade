@@ -142,6 +142,17 @@ try
     Check(DolphinSetup.Value(File.ReadAllText(Path.Combine(multiRoot,"LightGun_Patch.ini")),"LightGuns","Gun2")=="VID_0483&PID_5751","Blue Estate receives the real distinct P2 VID/PID");
     Throws(()=>MultiplayerSetup.Configure(blueGame,[p1,p2 with {MouseId=p1.MouseId+"other"}]),"Blue Estate rejects distinct paths with the same VID/PID");
     var hotd2=multiGame with {Title="THE HOUSE OF THE DEAD 2: Remake",Helpers=null};
+    string hotd2Assignment=Path.Combine(multiRoot,"lightgun_config.ini");
+    File.WriteAllText(hotd2Assignment,"# retained\nPlayer1Gun=old\nPlayer1Gun = duplicate\n");
+    MultiplayerSetup.WriteCompactGunAssignments(hotd2Assignment,[p1,p2]);
+    string hotd2Text=File.ReadAllText(hotd2Assignment);
+    Check(hotd2Text.Split('\n').Count(l=>l.StartsWith("Player1Gun="))==1 && hotd2Text.Contains("Player2Gun=VID_0483&PID_5751") && !hotd2Text.Contains("Player1Gun ="),"HOTD 2 plugin's literal prefix parser receives exact compact P1/P2 assignments without duplicate keys");
+    Check(File.ReadAllText(hotd2Assignment+".before-deadeye-multiplayer").Contains("Player1Gun=old") && hotd2Text.Contains("# retained"),"HOTD 2 assignment repair preserves the original config and unrelated lines");
+    Throws(()=>MultiplayerSetup.WriteCompactGunAssignments(hotd2Assignment,[p1,p2 with {MouseId=p1.MouseId+"other"}]),"HOTD 2 VID/PID assignment rejects two paths sharing one device pair");
+    Check(!MultiplayerSetup.ConfigureHouseDead2Remake(hotd2,[p1,p2]),"Unknown or absent HOTD 2 plugin versions retain their manual setup");
+    var hotd2Controls=MultiplayerSetup.ReadCompactGunAssignments(hotd2Assignment,[p1,p2]);
+    Check(hotd2Controls.Rows.Count(r=>r.Player==2)==3 && StartupControls.ForPlayer(hotd2Controls,p2).All(r=>r.Resolved),"HOTD 2's actual plugin assignment resolves P2 trigger, grip reload and magazine reload on its own gun");
+    Check(MultiplayerSetup.ReadCompactGunAssignments(hotd2Assignment,[p2 with {MouseId=p1.MouseId}]).Rows.Length==0,"HOTD 2 legend does not claim a P2 assignment belonging to another device");
     Check(GameCompatibility.Read(hotd2,1)!.Notes.Any(n=>n.Contains("MultiLightgunPlugin"))&&!GameCompatibility.Read(hotd2,1)!.Notes.Any(n=>n.Contains("-rom=hotdra")),"HOTD 2 Remake never inherits the incompatible HOTD 1 helper recipe");
     string tp = Path.Combine(root, "TeknoParrot"); Directory.CreateDirectory(Path.Combine(tp, "UserProfiles")); Directory.CreateDirectory(Path.Combine(tp, "GameProfiles"));
     File.WriteAllText(Path.Combine(tp, "TeknoParrotUi.exe"), ""); File.WriteAllText(Path.Combine(tp, "game & 1.exe"), "");
