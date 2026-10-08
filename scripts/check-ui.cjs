@@ -69,6 +69,11 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('button',{name:'Deutsch',exact:true}).evaluate(b=>b.click());
  await native.getByRole('status').filter({hasText:'Gun meldet P2.'}).waitFor();
  await clickRaw('Meine Guns');await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).waitFor();
+ // RS3 HID usage 1 is the physical trigger even when mouse-mode shoot is remapped.
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'hid:1',down:true,action:'shoot'}));
+ await native.waitForFunction(()=>document.querySelector('[data-control="trigger"].pressed'));
+ await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'hid:1',down:false,action:'shoot'}));
+ await native.waitForFunction(()=>!document.querySelector('[data-control="trigger"].pressed'));
  // Pure button testing retains visualization while suppressing menu routes.
  await native.waitForFunction(()=>window.fixture.sent.some(m=>m.type==='button-test'&&m.payload.player===1));
  await native.evaluate(()=>{

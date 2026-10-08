@@ -198,7 +198,7 @@ export function GunStudio({
   const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(player,model) : factoryMap(player,model);
   const physicalControls = controls(model,player);
   const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? physicalControls.find(c=>c.id===id)?.token;
-  const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token];}).map(c=>c.id));
+  const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token] || model === "rs3" && c.id === "trigger" && held["hid:1"];}).map(c=>c.id));
   const feedback = binding?.feedback ?? {
     recoil: true,
     rumble: true,
@@ -299,7 +299,7 @@ export function GunStudio({
         {tab === "buttons" && (
           <div className="studio-body">
             <div className="gun-live-panel">
-              <div className="setup-note">
+              <div className="setup-note button-test-note">
                 <strong>{buttonTesting ? t("Tastentest · nur Anzeige") : t("Gun steuert das Menü")}</strong>
                 <p>{buttonTesting ? t("Tasten werden nur angezeigt. Abzug 10 Sekunden halten und loslassen, um wieder das Menü zu bedienen. Mit der Maus kannst du den Test auch beenden.") : t("Zum Belegen eine Zeile auswählen. Für reine Tastenanzeige den Tastentest starten.")}</p>
                 <button className="secondary" onClick={() => setButtonTesting(v => !v)}>{buttonTesting ? t("Tastentest beenden") : t("Tastentest starten")}</button>
