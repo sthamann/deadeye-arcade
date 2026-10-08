@@ -1,5 +1,7 @@
 # Deadeye Arcade
 
+<img src="assets/branding/deadeye-icon.png" width="112" alt="Deadeye Arcade eye-and-target app icon">
+
 **Your lightguns. Your games. One Windows arcade.**
 
 A fullscreen, gun-first launcher for your existing lightgun collection. Browse games,
@@ -10,7 +12,7 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.15](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.15/Deadeye-Arcade-0.3.15-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.15)
+**[Download Windows Setup 0.3.16](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.16/Deadeye-Arcade-0.3.16-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.16)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
@@ -42,6 +44,10 @@ Original game-media files are not bundled as library assets.*
 *Gun Studio is shown in browser preview without simulating connected hardware.*
 
 ## What's inside
+
+**0.3.16** introduces an original eye-and-target app icon across Windows, Setup
+and shortcuts, plus a matching dark arcade wallpaper included with the app.
+[Artwork downloads and wallpaper setup](docs/branding.md).
 
 **0.3.15** adds an independent **Start + Coin, held for two seconds**, emergency
 exit and blue P1/P2 desktop crosshairs. Exit detection uses its own message thread

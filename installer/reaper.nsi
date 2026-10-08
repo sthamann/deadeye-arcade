@@ -24,6 +24,8 @@ VIAddVersionKey "FileDescription" "Deadeye Arcade Windows installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "Copyright 2026 Stefan Hamann"
 !define MUI_ABORTWARNING
+!define MUI_ICON "${PAYLOAD}\deadeye.ico"
+!define MUI_UNICON "${PAYLOAD}\deadeye.ico"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\ReaperArcade.exe"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -114,6 +116,7 @@ Section "Deadeye Arcade"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayName" "Deadeye Arcade"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "Publisher" "Stefan Hamann"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "DisplayIcon" '$\"$INSTDIR\deadeye.ico$\",0'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade" "NoModify" 1
@@ -123,8 +126,8 @@ Section "Deadeye Arcade"
   Delete "$SMPROGRAMS\Reaper Arcade\Reaper Arcade.lnk"
   RMDir "$SMPROGRAMS\Reaper Arcade"
   CreateDirectory "$SMPROGRAMS\Deadeye Arcade"
-  CreateShortcut "$SMPROGRAMS\Deadeye Arcade\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
-  CreateShortcut "$DESKTOP\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe"
+  CreateShortcut "$SMPROGRAMS\Deadeye Arcade\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe" "" "$INSTDIR\deadeye.ico" 0
+  CreateShortcut "$DESKTOP\Deadeye Arcade.lnk" "$INSTDIR\ReaperArcade.exe" "" "$INSTDIR\deadeye.ico" 0
   ; Never enable autostart. Update an existing app-owned entry only.
   ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ReaperArcade"
   ${If} $0 != ""

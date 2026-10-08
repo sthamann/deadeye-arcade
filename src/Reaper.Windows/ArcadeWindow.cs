@@ -81,6 +81,7 @@ public sealed class ArcadeWindow : Window
     public ArcadeWindow()
     {
         picker = new ArcadePicker(Send);
+        Icon = System.Windows.Media.Imaging.BitmapFrame.Create(new Uri("pack://application:,,,/Assets/deadeye-icon.png"));
         Title = "Deadeye Arcade"; Width = 1280; Height = 800; MinWidth = 900; MinHeight = 620; Background = new SolidColorBrush(Color.FromRgb(12, 15, 21));
         // A native control remains usable independently of browser dialogs and loading states.
         var layout = new Grid();
