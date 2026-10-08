@@ -4,6 +4,22 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+var emergency = new EmergencyChord();
+Check(!emergency.Sample(true,true,0) && !emergency.Sample(true,true,1999) && emergency.Sample(true,true,2000), "Dedicated Start+Coin exit uses a monotonic two-second hold");
+Check(!emergency.Sample(true,true,5000) && !emergency.Sample(false,true,6000) && !emergency.Sample(true,true,9000), "Held exit chord cannot fire again or rearm after releasing only one button");
+emergency.Sample(false,false,10000);
+Check(!emergency.Sample(true,true,11000) && emergency.Sample(true,true,13000), "Both buttons must be released before another emergency exit");
+var interrupted = new EmergencyChord(); interrupted.Sample(true,true,0); interrupted.Sample(true,false,1900);
+Check(!interrupted.Sample(true,true,2000) && !interrupted.Sample(true,true,3900) && interrupted.Sample(true,true,4000), "Releasing Coin cancels a partial emergency hold");
+var pulseHold = new TriggerHold(); var independent = new EmergencyChord(); bool fired=false;
+for(long t=0;t<=12000;t+=20) { pulseHold.Button("MG", t%80<40,t); fired |= independent.Sample(true,true,t); }
+Check(!pulseHold.Ready(12000) && fired,"Autofire release pulses prevent the old trigger hold but cannot reset the dedicated exit chord");
+Check(DesktopAim.Position(0,65535,-1920,-1080,3840,2160)==(-1920,1079),"Desktop aim maps normalized coordinates to the virtual desktop including negative origins");
+Check(DesktopAim.Position(65535,0,0,0,1920,1080)==(1919,0) && DesktopAim.Position(-1,0,0,0,1920,1080) is null,"Desktop aim reaches exact screen edges and rejects malformed coordinates");
+GunBinding desktopP1=new(1,"gun-one"),desktopP2=new(2,"gun-two");
+Check(DesktopAim.Binding([desktopP1,desktopP2],"GUN-TWO")?.Player==2 && DesktopAim.Binding([desktopP1,desktopP2],"rdp-mouse") is null,"Desktop markers route only the assigned physical mouse and keep P1/P2 distinct");
+Check(DesktopAim.Binding([desktopP1,desktopP2 with {MouseId="gun-one"}],"gun-one") is null,"Ambiguous duplicate devices cannot appear as two independent cursors");
+
 Check(I18n.Language == "en" && new AppSettings().Language == "en", "English is the default UI and settings language");
 Check(System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}", JsonDefaults.Options)!.Language == "en", "Libraries without a language migrate to English");
 I18n.Language = "en";

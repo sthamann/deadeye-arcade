@@ -60,7 +60,7 @@ public sealed class StartupOverlay : Window
         foreach(var binding in all.Except(displayed)) panel.Children.Add(Text("P"+binding.Player+" · "+(GunSystems.Catalog.FirstOrDefault(s=>s.Id==binding.SystemId)?.Name??binding.SystemId)+" · "+I18n.T("Spielbelegung für diesen Spieler noch nicht bestätigt."),17,Accent));
         // Keep provenance visible, including Dolphin's unverified independent P2 status.
         panel.Children.Add(Text(controls.Note,14,Muted));
-        panel.Children.Add(Text(I18n.T("Abzug 10 Sekunden halten → Spielmenü · danach loslassen"),17,Brushes.White));
+        panel.Children.Add(Text(I18n.T("Start + Coin 2 Sekunden halten → Spiel beenden · Abzug 10 Sekunden → Spielmenü"),17,Brushes.White));
         progress=new ProgressBar {Height=3,Maximum=StartupControls.DurationMilliseconds,Value=StartupControls.DurationMilliseconds,Foreground=Accent,Background=ColorBrush("#34465d"),Margin=new Thickness(0,12,0,0)};
         panel.Children.Add(progress);
         var border=new Border {Background=ColorBrush("#ee101924"),BorderBrush=ColorBrush("#536781"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(20),Child=panel};

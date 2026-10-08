@@ -91,6 +91,7 @@ public sealed class ArcadeWindow : Window
         exitButton.Click += (_, _) => { if (buttonTestPlayer is null && !buttonTestRelease) Close(); };
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
+        DesktopGuns.ConfigureStartup(state.Settings.DesktopCrosshairs);
         SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
         Loaded += async (_, _) => await Initialize();
         raw.Packet += Input; raw.DevicesChanged += () =>
@@ -113,11 +114,11 @@ public sealed class ArcadeWindow : Window
                 buttonTestPlayer = null; buttonTestRelease = false; buttonTestHold.Reset();
                 Send("button-test-ended", new {});
                 desktopTrigger.Reset();
-                try { emergencyExit = new EmergencyExit(() => Dispatcher.BeginInvoke(new Action(() => { Log("exit: F12"); _ = session.End(); })), () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); }))); }
+                try { emergencyExit = new EmergencyExit(() => { Dispatcher.BeginInvoke(new Action(() => Log("exit: independent Start+Coin / F12"))); session.End().GetAwaiter().GetResult(); }, () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); })), state.Bindings); }
                 catch (System.ComponentModel.Win32Exception error) { Log("F12 fallback unavailable: " + error.Message); }
                 WindowState = WindowState.Minimized;
             }
-            else { CloseStartupControls(); CloseOverlay(false); desktopTrigger.Reset(); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
+            else { foreach (var gesture in gestures.Values) gesture.Consume(); CloseStartupControls(); CloseOverlay(false); desktopTrigger.Reset(); foreach (var hold in triggerHolds.Values) hold.Reset(); WindowState = WindowState.Normal; SetFullscreen(state.Settings.Fullscreen); Activate(); }
             Send("session", new { status });
         });
         timer.Tick += async (_, _) =>
@@ -222,7 +223,7 @@ public sealed class ArcadeWindow : Window
             gunSignals,
             learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction, control = learningControl },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
-            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), state.Settings.CheckForUpdates, hasCoverKey = state.Settings.CoverKey is not null },
+            settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), state.Settings.CheckForUpdates, state.Settings.DesktopCrosshairs, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
             version = AppUpdater.Current,
             update = new { status = updateStatus, release = availableUpdate, progress = updateProgress, error = updateError, checkedAt = updateChecked },
@@ -761,6 +762,12 @@ public sealed class ArcadeWindow : Window
             case "fetch-covers": await Covers(); break;
             case "fullscreen":
                 { bool on = payload.GetProperty("enabled").GetBoolean(); state = state with { Settings = state.Settings with { Fullscreen = on } }; SetFullscreen(on); Persist(); break; }
+            case "desktop-crosshairs":
+                {
+                    bool on = payload.GetProperty("enabled").GetBoolean();
+                    state = state with { Settings = state.Settings with { DesktopCrosshairs = on } }; Persist();
+                    DesktopGuns.ConfigureStartup(on); break;
+                }
             case "autostart":
                 {
                     bool on = payload.GetProperty("enabled").GetBoolean();

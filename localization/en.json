@@ -726,5 +726,9 @@
   "Spielbelegung für diesen Spieler noch nicht bestätigt.": "Game controls for this player are not confirmed yet.",
   "Münztaste": "Coin button",
   " ohne ": " without ",
-  " oder ": " or "
+  " oder ": " or ",
+  "P1 / P2 Fadenkreuze auf dem Desktop": "P1 / P2 desktop crosshairs",
+  "Blaue, beschriftete Ziele für zugeordnete Guns. Läuft auch bei geschlossener App; verschwindet in Spielen und fängt keine Klicks ab.": "Blue, labeled targets for assigned guns. Runs with the app closed; hides in games and never intercepts clicks.",
+  "Desktop-Fadenkreuze": "Desktop crosshairs",
+  "Start + Coin 2 Sekunden halten → Spiel beenden · Abzug 10 Sekunden → Spielmenü": "Hold Start + Coin for 2 seconds → End game · Trigger for 10 seconds → Game menu"
 }

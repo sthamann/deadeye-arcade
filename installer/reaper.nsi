@@ -69,8 +69,16 @@ Function .onInit
     SetErrorLevel 2
     Abort
   ${EndIf}
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DeadeyeDesktopGuns"
+  ${If} $0 != ""
+    ExecWait '"$INSTDIR\ReaperArcade.exe" --stop-desktop-guns'
+  ${EndIf}
 FunctionEnd
 Function .onInstSuccess
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DeadeyeDesktopGuns"
+  ${If} $0 != ""
+    Exec '"$INSTDIR\ReaperArcade.exe" --desktop-guns'
+  ${EndIf}
   ${If} $Restart == "yes"
     Exec '"$INSTDIR\ReaperArcade.exe"'
   ${EndIf}
@@ -122,6 +130,10 @@ Section "Deadeye Arcade"
   ${If} $0 != ""
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ReaperArcade" '$\"$INSTDIR\ReaperArcade.exe$\"'
   ${EndIf}
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DeadeyeDesktopGuns"
+  ${If} $0 != ""
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DeadeyeDesktopGuns" '$\"$INSTDIR\ReaperArcade.exe$\" --desktop-guns'
+  ${EndIf}
 SectionEnd
 Function un.onInit
   SetShellVarContext current
@@ -131,6 +143,7 @@ Function un.onInit
     MessageBox MB_OK "$(CloseApp)"
     Abort
   ${EndIf}
+  ExecWait '"$INSTDIR\ReaperArcade.exe" --stop-desktop-guns'
 FunctionEnd
 Section "Uninstall"
   ; Remove only files shipped by this installer. Keep the user's library and media.
@@ -144,4 +157,5 @@ Section "Uninstall"
   DeleteRegKey HKCU "Software\ReaperArcade\Installer"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\ReaperArcade"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "ReaperArcade"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DeadeyeDesktopGuns"
 SectionEnd

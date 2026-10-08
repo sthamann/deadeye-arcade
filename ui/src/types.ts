@@ -108,6 +108,7 @@ export type State = {
     hasCoverKey: boolean;
     language: "en" | "de";
     checkForUpdates?: boolean;
+    desktopCrosshairs?: boolean;
   };
   bindingStage: null | {
     player: number;

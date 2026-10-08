@@ -1264,6 +1264,13 @@ function App() {
                     <span />
                   </button>
                 </div>
+                <div className="setting-row">
+                  <div>
+                    <strong>{t("P1 / P2 Fadenkreuze auf dem Desktop")}</strong>
+                    <p>{t("Blaue, beschriftete Ziele für zugeordnete Guns. Läuft auch bei geschlossener App; verschwindet in Spielen und fängt keine Klicks ab.")}</p>
+                  </div>
+                  <button className={"toggle " + (state.settings.desktopCrosshairs !== false ? "on" : "")} role="switch" aria-checked={state.settings.desktopCrosshairs !== false} aria-label={t("Desktop-Fadenkreuze")} onClick={() => send("desktop-crosshairs", {enabled: state.settings.desktopCrosshairs === false})}><span /></button>
+                </div>
                 <div className="setting-block">
                   <div className="setting-title">
                     <ShieldCheck size={20} />

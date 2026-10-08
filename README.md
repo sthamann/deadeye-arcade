@@ -10,11 +10,11 @@ reaching for a keyboard.
 [![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.14](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.14/Deadeye-Arcade-0.3.14-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.14)
+**[Download Windows Setup 0.3.15](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.15/Deadeye-Arcade-0.3.15-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.15)
 
 > **Early access.** The Windows frontend and game-session flows have been tested.
 > A connected RS3 has been detected and configured in software. Physical aiming,
-> the ten-second trigger gesture and game-driven recoil still require local
+> per-title emergency gestures and game-driven recoil still require local
 > hardware tests. Deadeye does not mark a game as playable just because its files exist.
 
 Use the fixed **Up / Down** buttons to scroll by aiming and pulling the trigger. Selecting a cover returns to the featured game's launch button. Gun Studio now shows model-specific physical controls, with independent live highlights and input capture. [Hardware references and exact control behavior](docs/HARDWARE-CONTROLS.md).
@@ -43,6 +43,12 @@ Original game-media files are not bundled as library assets.*
 
 ## What's inside
 
+**0.3.15** adds an independent **Start + Coin, held for two seconds**, emergency
+exit and blue P1/P2 desktop crosshairs. Exit detection uses its own message thread
+and keyboard-state polling, so trigger pulses and frontend input handling do not
+reset the hold. Desktop markers run in a separate companion process and use each
+assigned gun's absolute coordinates. [Verification notes](docs/verification-0.3.15.md).
+
 **0.3.14** corrects Dead Space Extraction's Dolphin shader preset to Hybrid
 Ubershaders. The previous numeric value selected the more demanding Exclusive
 mode. This addresses a configuration error; physical aiming latency and accuracy
@@ -63,9 +69,10 @@ remain explicit. [Verification notes](docs/verification-0.3.13.md).
   system selection; grouped USB devices, P1/P2 status, live button diagrams and
   learnable menu bindings.
 - **Controls at launch:** a passive gun diagram and per-game button legend appear for ten seconds after the game window becomes visible. A countdown shows when it will disappear. Windowed and borderless game presentation is supported; exclusive fullscreen may cover desktop overlays.
-- **An in-game menu:** hold the assigned trigger for **at least 10 seconds**, release
+- **An optional in-game menu:** hold the assigned trigger for **at least 10 seconds**, release
   it, then shoot **Resume game**, **Restart game** or **End game**. D-pad navigation
-  and Start confirmation are available too.
+  and Start confirmation are available too. Autofire may interrupt trigger holds;
+  use Start + Coin for the primary emergency exit.
 - **A controls reference:** P1/P2 mappings read from MAME, TeknoParrot, Dolphin/Wii
   and RetroArch configuration files. Unknown mappings and possible game overrides
   are identified rather than guessed.
@@ -78,9 +85,13 @@ remain explicit. [Verification notes](docs/verification-0.3.13.md).
 - **Runtime checks:** inspect launch programs and local DLLs on startup, after
   import and before launch. Missing supported Visual C++, DirectX and .NET runtimes
   can be downloaded from Microsoft with architecture and signature checks.
+- **Desktop aiming markers:** blue, labeled P1/P2 crosshairs follow assigned
+  absolute-input guns over the Windows desktop and Explorer. They hide over games
+  and other applications, pass clicks through, and remain active with the frontend
+  closed. Toggle them in Settings. Windows still has one shared system click pointer.
 - **A dependable way out:** a native **Close app · Windows** button stays outside
   the scrolling web interface. Hold Start + Coin for about two seconds to end a
-  game; release both, then hold again in the frontend to close the app. **F10** opens
+  game independently of the frontend UI thread; release both, then hold again in the frontend to close the app. **F10** opens
   the game menu; **F12** ends the current game session.
 - **English and German:** English by default; change the language in Settings.
   The choice applies to the frontend, native menu, dialogs and app messages, and
@@ -108,7 +119,8 @@ inputs or audio may continue while the menu is open.
    Confirm playability in Game Details only after a real test.
 
 Fullscreen is enabled by default. **Start with Windows is off by default** and can
-be enabled separately in Settings. The installer and portable package are not code-signed.
+be enabled separately in Settings. Desktop crosshairs have their own background
+startup entry, enabled by default and controlled by their Settings toggle. The installer and portable package are not code-signed.
 Games, ROMs, emulators and manufacturer utilities are **not included**.
 
 ### Language
@@ -192,7 +204,7 @@ packages may need additional setup. Unknown DLLs are never downloaded from DLL p
 
 [0.3.5 branding, media and upgrade checks](docs/verification-0.3.5.md).
 
-- **106 core checks:** imports, file readiness, preservation after reload, player
+- **174 core checks:** imports, file readiness, preservation after reload, player
   isolation, trigger hold timing, control-profile parsing, dependency detection,
   English defaults, native translations, saved language preference and update validation.
 - **Browser checks:** English ↔ German switching and reload, four pages at five

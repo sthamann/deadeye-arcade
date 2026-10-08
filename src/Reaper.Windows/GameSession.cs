@@ -228,7 +228,7 @@ public sealed class GameSession
             // The owning wrapper releases this session's helpers before returning to the menu.
         }
     }
-    public Task End() => ending ??= EndOwned();
+    public Task End() { lock (sync) return ending ??= EndOwned(); }
     private async Task EndOwned()
     {
         if (!Active) return;

@@ -9,6 +9,13 @@ public static class App
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "--stop-desktop-guns") { DesktopGuns.Stop(); return; }
+        if (args.Length == 1 && args[0] == "--desktop-guns")
+        {
+            using var companionMutex = new Mutex(true, "Local\\DeadeyeDesktopGuns-v1", out bool companionFirst);
+            if (!companionFirst) return;
+            DesktopGuns.Run(); return;
+        }
         using var mutex = new Mutex(true, "Local\\ReaperArcade-v1", out bool first);
         if (!first) { Environment.ExitCode = 1; if (args.Length == 0) MessageBox.Show(I18n.T("Deadeye Arcade ist bereits geöffnet."), "Deadeye Arcade"); return; }
         if (args.Length > 0)
