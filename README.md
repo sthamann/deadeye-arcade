@@ -4,22 +4,15 @@
 
 **Your lightguns. Your games. One Windows arcade.**
 
-A fullscreen, gun-first launcher for your existing lightgun collection. Browse games,
-set up player inputs, check required runtimes, and return from a game without
-reaching for a keyboard.
+Turn your Windows PC into a fullscreen lightgun game room. Browse covers and video
+previews, set up your guns, let Deadeye handle supported game profiles and common
+setup problems, and return to the library with your gun.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-86d9b0)](LICENSE)
-[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases)
+[![Windows x64](https://img.shields.io/badge/platform-Windows%20x64-67aaf9)](https://github.com/sthamann/deadeye-arcade/releases/latest)
 [![English / Deutsch](https://img.shields.io/badge/UI-English%20%2F%20Deutsch-ff8051)](#language)
 
-**[Download Windows Setup 0.3.22](https://github.com/sthamann/deadeye-arcade/releases/download/v0.3.22/Deadeye-Arcade-0.3.22-Setup-x64.exe)** · [Release notes & checksums](https://github.com/sthamann/deadeye-arcade/releases/tag/v0.3.22)
-
-> **Early access.** The Windows frontend and game-session flows have been tested.
-> A connected RS3 has been detected and configured in software. Physical aiming,
-> per-title emergency gestures and game-driven recoil still require local
-> hardware tests. Deadeye does not mark a game as playable just because its files exist.
-
-Use the fixed **Up / Down** buttons to scroll by aiming and pulling the trigger. Selecting a cover returns to the featured game's launch button. Gun Studio now shows model-specific physical controls, with independent live highlights and input capture. [Hardware references and exact control behavior](docs/HARDWARE-CONTROLS.md).
+**[Download the latest Windows installer](https://github.com/sthamann/deadeye-arcade/releases/latest)** · [Portable downloads and checksums](https://github.com/sthamann/deadeye-arcade/releases)
 
 ## See it in action
 
@@ -43,184 +36,186 @@ Original game-media files are not bundled as library assets.*
 
 *Gun Studio is shown in browser preview without simulating connected hardware.*
 
-## What's inside
+## Your game room
 
-**0.3.22** adds an integrated, reviewed repair catalog. Deadeye checks for known
-setup problems on startup, after import and before launch. It repairs matching
-paths, restores missing OpenAL or Hypseus support files from verified official
-packages, and records real profile changes. **Settings → Automatic repairs**
-shows findings, remaining steps and recent changes. [Automatic repair guide](docs/automatic-repairs.md).
+- **A library made for the big screen:** search, favorites, platform filters and a
+  featured game with a launch button. Aim at the fixed **Up / Down** buttons and
+  pull the trigger to scroll. Selecting a cover returns to the featured game.
+- **Artwork and previews:** local covers, muted game-video previews, screenshots
+  and logos. Download missing covers with an optional SteamGridDB API key or
+  choose your own artwork.
+- **Useful game details:** English descriptions, release years and original
+  hardware when available, plus controls, setup requirements and separate launch
+  and gameplay status. Imports preserve existing enriched information.
+- **Your existing games:** import TeknoParrot profiles, scan available MAME ROMs
+  against the installed emulator's catalog, add Windows game applications or
+  import a collection JSON. Existing favorites and media are retained.
+- **An arcade look throughout:** an original app icon for Windows, Setup and
+  shortcuts, with a matching dark desktop wallpaper. [Artwork and wallpaper](docs/branding.md).
 
-**0.3.21** preserves exact USB device assignments when Remote Desktop hides their
-RawInput mouse interfaces and reads the recognized Time Crisis 5 controls helper.
-Unavailable mouse indices are never guessed.
+## Set up your lightguns
 
-**0.3.20** assigns independent guns to the recognized, already installed
-HOTD 2: Remake multiplayer plugin and shows its shoot/reload/menu controls.
+**My Guns** brings device detection, player assignment, physical controls and setup
+checks into one place. The header shows P1/P2, the detected model and its software
+setup status. Supported hardware families are **RS3 Reaper Pro, Sinden,
+X-Gunner Wireless and Blamcon Vyper**.
 
-**0.3.19** tracks replacement game windows after startup, keeping overlay recovery
-and window checks connected to the active renderer. It also keeps remote mouse buttons usable when a running app switches between
-the physical screen and Remote Desktop. The native **Close app · Windows** button
-also remains available during button testing.
+Each family has its own illustrated controls. Press a button to see its live
+highlight, capture the signal from your device and bind it to a menu or game action.
+Physical control capture and action bindings are stored separately, so the diagram
+can show what you pressed even when you change what the button does.
+[Physical controls and hardware references](docs/HARDWARE-CONTROLS.md).
 
-**0.3.16** introduces an original eye-and-target app icon across Windows, Setup
-and shortcuts, plus a matching dark arcade wallpaper included with the app.
-[Artwork downloads and wallpaper setup](docs/branding.md).
+For **RS3 Reaper Pro**, Deadeye provides USB/COM detection, automatic player
+assignment, mouse mode, aspect-ratio and offscreen-reload settings, plus bounded
+recoil and rumble test pulses. Prepare the checked manufacturer calibration module,
+then run a fullscreen four-target calibration for the selected player and a
+separate five-target aim test at the physical monitor.
 
-**0.3.15** adds an independent **Start + Coin, held for two seconds**, emergency
-exit and blue P1/P2 desktop crosshairs. Exit detection uses its own message thread
-and keyboard-state polling, so trigger pulses and frontend input handling do not
-reset the hold. Desktop markers run in a separate companion process and use each
-assigned gun's absolute coordinates. [Verification notes](docs/verification-0.3.15.md).
+For the other families, Deadeye provides product or receiver detection, input
+assignment and access to the supported manufacturer setup software. A wireless
+receiver alone does not establish the number of active guns; live input and
+model-specific calibration remain part of setup.
 
-**0.3.14** corrects Dead Space Extraction's Dolphin shader preset to Hybrid
-Ubershaders. The previous numeric value selected the more demanding Exclusive
-mode. This addresses a configuration error; physical aiming latency and accuracy
-still need a local gun test. [Verification notes](docs/verification-0.3.14.md).
+RS3 recoil and grip rumble are separate mechanisms. Hardware switches and the
+specified power supply determine the mechanical recoil; there is no documented
+continuous force slider. Installed helpers such as DemulShooter and Hook of the
+Reaper can run with a game session, with matching per-game setup for game-driven
+feedback. [Calibration and compatibility](docs/compatibility.md).
 
-**0.3.13** adds a ten-second controls introduction over the game window.
-It shows your gun model, numbered physical buttons, and actions from the active
-profile. The game keeps its input focus and the introduction disappears automatically.
-Learned physical controls and button combinations are respected; unconfirmed mappings
-remain explicit. [Verification notes](docs/verification-0.3.13.md).
+## Automatic setup and repairs
 
-- **Multiplayer helper setup:** writes the actual connected gun IDs before launching installed DemulShooter helpers. Unassigned channels cannot pick up nameless Remote Desktop mice. Blue Estate uses distinct VID/PID assignments for an already installed, matching patch; HOTD 2 Remake has its own plugin requirements.
-- **Classic .NET dependencies:** detect CLR 2 executables, including launch helpers, and offer the matching Microsoft Windows feature or installer. CLR 4 startup overrides are respected.
-- **Game information:** short English descriptions, release years, original hardware, and explicit demo or unreleased-prototype labels. Enrichment checks exact game identity and all replacement files before saving; imports retain enriched information.
-- **A fullscreen game library:** search, favorites, platform filters, game details,
-  local covers, muted preview videos, screenshots and logos.
-- **Lightgun Studio:** RS3 Reaper Pro, Sinden, X-Gunner Wireless and Blamcon Vyper
-  system selection; grouped USB devices, P1/P2 status, live button diagrams and
-  learnable menu bindings.
-- **Controls at launch:** a passive gun diagram and per-game button legend appear for ten seconds after the game window becomes visible. A countdown shows when it will disappear. Windowed and borderless game presentation is supported; exclusive fullscreen may cover desktop overlays.
-- **An optional in-game menu:** hold the assigned trigger for **at least 10 seconds**, release
-  it, then shoot **Resume game**, **Restart game** or **End game**. D-pad navigation
-  and Start confirmation are available too. Autofire may interrupt trigger holds;
-  use Start + Coin for the primary emergency exit.
-- **A controls reference:** P1/P2 mappings read from MAME, TeknoParrot, Dolphin/Wii
-  and RetroArch configuration files. Unknown mappings and possible game overrides
-  are identified rather than guessed.
-- **RS3 screen calibration:** prepare the manufacturer module automatically and
-  calibrate a selected player in a fullscreen four-target sequence. Remote Desktop
-  allows preparation; calibration needs the physical screen and gun.
-- **Game-specific setup:** reviewed USA Dolphin accuracy profiles with RS3 P1
-  controls and live per-player Supermodel RawInput routing. Game Details explains
-  remaining P2, plugin and patch requirements. [Compatibility guide](docs/compatibility.md).
-- **Runtime checks:** inspect launch programs and local DLLs on startup, after
-  import and before launch. Missing supported Visual C++, DirectX and .NET runtimes
-  can be downloaded from Microsoft with architecture and signature checks.
-- **Desktop aiming markers:** blue, labeled P1/P2 crosshairs follow assigned
-  absolute-input guns over the Windows desktop and Explorer. They hide over games
-  and other applications, pass clicks through, and remain active with the frontend
-  closed. Toggle them in Settings. Windows still has one shared system click pointer.
-- **A dependable way out:** a native **Close app · Windows** button stays outside
-  the scrolling web interface. Hold Start + Coin for about two seconds to end a
-  game independently of the frontend UI thread; release both, then hold again in the frontend to close the app. **F10** opens
-  the game menu; **F12** ends the current game session.
-- **English and German:** English by default; change the language in Settings.
-  The choice applies to the frontend, native menu, dialogs and app messages, and
-  survives restart.
-- **Local storage:** a backed-up JSON library, user-bound encryption for the optional
-  SteamGridDB key, and diagnostic export without API keys.
+Deadeye carries **17 reviewed rules** for common setup pitfalls. It checks the
+library at startup and after import, then rechecks the selected game before launch.
+Supported input profiles are prepared from the assigned guns as part of the actual
+launch path.
 
-The in-game menu does **not automatically pause the game**. Background game timers,
-inputs or audio may continue while the menu is open.
+| What Deadeye recognizes | What it does |
+| --- | --- |
+| Moved TeknoParrot game files | Repairs an unambiguous existing game path and preserves the original profile. |
+| Broken portable emulator paths | Repairs supported Model 2 search paths, inaccessible PCSX2 memory-card storage and matching TeknoParrot metadata. |
+| Missing OpenAL or Hypseus support files | Downloads exact reviewed official packages, checks hashes and compatibility, and restores eligible absent files with their licenses. |
+| P1/P2 input assignments | Prepares supported MAME, TeknoParrot, DemulShooter, RetroArch, Flycast, Supermodel, RPCS3 and Dolphin input paths. |
+| Supported Dolphin games | Matches the actual disc region to a reviewed accuracy profile, preserves learned offsets and prepares separate RS3 DSU channels for supported two-gun setups. Dead Space Extraction uses Hybrid Ubershaders. |
+| Recognized installed multiplayer extensions | Configures matching Blue Estate and HOTD 2: Remake inputs using each extension's actual device format. |
+| Supported game-specific profiles | Applies known Aliens and Model 2 presentation settings, reads the reviewed Time Crisis 5 controls helper and prepares specific installed arcade-loader libraries. |
+| Required Windows runtimes | Inspects launch programs and local libraries; offers matching Visual C++, DirectX and .NET components from Microsoft with architecture and signature checks. |
+| Missing files or access requirements | Identifies the affected game and remaining step, including vendor access, Windows elevation and shared PCSX2 pointers. |
 
-## Input and launch improvements in 0.3.18
+Open **Settings → Automatic repairs** to inspect results, next steps, known pitfalls
+and recent changes, or select **Check and repair library**. Repairs and launch-time
+profile changes are recorded locally; changed profile files include before/after
+hashes. Repeated checks leave healthy files unchanged. New reviewed rules arrive
+through normal app updates. [Automatic repair guide](docs/automatic-repairs.md).
 
-Supported two-gun Dolphin profiles use separate native DSU inputs. RetroArch and
-Flycast receive explicit physical-device assignments, and recent standalone RPCS3
-builds receive Raw Mouse / PS Move bindings. Game sessions supervise their own
-process tree to prevent duplicate launches and clean up games and helpers on exit.
-The startup legend reads available active profiles and labels unresolved controls.
-See [compatibility and calibration](docs/compatibility.md) for each system's limits.
-A successful launch check is not a full gameplay or two-player certification.
+Manufacturer logins, Windows consent, installer license prompts and physical
+calibration can require your interaction. Game files and matching multiplayer
+patches must be supplied separately; Deadeye configures recognized installed
+integrations rather than treating every patch as compatible.
+
+## Play with your gun
+
+When the game window becomes visible, a **ten-second controls introduction** shows
+your gun and the actions from the active profile. The game keeps input focus and
+the introduction disappears automatically. The controls reference reads supported
+emulator and helper profiles for each player; unresolved inputs stay visible.
+Windowed and borderless presentation supports desktop overlays; exclusive
+fullscreen can cover them.
+
+| Action | Gun or keyboard control |
+| --- | --- |
+| Browse the library | Aim and trigger; stick navigation and fixed scrolling buttons are also available. |
+| Return from a game | Hold **Start + Coin** on the assigned gun for about **two seconds**. Keyboard: **F12**. |
+| Open the in-game menu | Hold the assigned trigger for **at least ten seconds**, then release. Keyboard: **F10**. Autofire can interrupt this hold; Start + Coin is the primary emergency gesture. |
+| Resume, restart or end a game | Select the corresponding in-game menu action, or use D-pad navigation and Start to confirm. |
+| Close Deadeye and return to Windows | Select the persistent **Close app · Windows** button. After returning from a game, release Start/Coin and hold them again in the frontend to close it. |
+
+Game sessions reserve a single launch and supervise their own process tree to
+prevent duplicate starts and clean up owned games and helpers on exit. Emergency
+exit detection runs independently of the frontend UI thread. The native close
+button remains available during dialogs, button testing and background checks.
+The in-game menu does not automatically pause the game; timers and audio may continue.
+[In-game menu details](docs/in-game-overlay.md).
+
+Optional **blue P1/P2 desktop crosshairs** follow assigned absolute-input guns over
+Windows Desktop and Explorer. They pass clicks through, hide over games and other
+applications, and can remain active with the frontend closed. Windows still has
+one shared system click pointer.
+
+## Emulator support
+
+| System | Current integration | Game-specific setup to check |
+| --- | --- | --- |
+| TeknoParrot | Profile import, path repair, supported RawInput gun bindings, controls reference and supervised launch | Vendor access, required elevation, special pedals/actions and matching helper/output configuration |
+| MAME | Import from the emulator's lightgun catalog and present ROM archives, generated controller mapping and controls reference | Game overrides, service calibration and ROM compatibility |
+| Dolphin / Wii | Region-matched accuracy profiles, RS3 controls and separate native DSU inputs for supported two-gun profiles | Supported disc ID, physical aiming and each game's actions; other regions retain existing settings |
+| RetroArch | Explicit player-device assignments and supported core profiles | Core-specific controls and overrides |
+| Flycast | Per-device RawInput mapping for supported launch paths | Correct content, emulator build and game calibration |
+| Supermodel | Live RawInput mouse/keyboard assignment, including supported title overrides | Service calibration and actual simultaneous gameplay |
+| Standalone RPCS3 | Raw Mouse / PS Move configuration on recent compatible builds | Per-player game calibration; bundled TeknoParrot RPCS3 is a separate path |
+| Model 2 | ROM search paths, supported presentation and installed DemulShooter setup | Matching helper target and service calibration |
+| PCSX2 | Portable storage repair, launch paths and detection of shared GunCon2 pointers | A shared Windows pointer does not provide independent two-gun play |
+| Other Windows games and emulators | Manual or collection-import launch paths, configured helpers and runtime inspection | Build-specific plugins, input adapters and per-title requirements |
+
+Automatic import and input configuration differ by system. **Early access:**
+software setup and launch checks are separate from verified aiming, independent
+P2 inputs and recoil. Deadeye keeps these statuses distinct; a successful launch
+is not a full playthrough. [Game-specific compatibility guide](docs/compatibility.md).
 
 ## Get started on Windows
 
-1. Download and run **Deadeye Arcade Setup** above. It installs for your Windows user
-   without administrator rights and adds desktop and Start menu shortcuts.
-2. Open Deadeye Arcade. The .NET runtime is included; Setup installs Microsoft
-   Edge WebView2 Runtime if it is missing (an Internet connection is then required).
-3. Open **My Guns**. Connect your gun, inspect P1/P2 detection, and prepare its
-   software. An RS3's COM player ID is used for automatic assignment.
-4. For RS3, prepare and run the integrated four-target **screen calibration** at the
-   physical monitor, then check live buttons and run the separate five-target aim test.
-   [Calibration and game-specific setup](docs/compatibility.md) explains the distinction.
-5. Open **Find Games** to import existing TeknoParrot profiles, scan MAME ROMs against
-   that emulator's catalog, add a Windows game application, or import a collection handoff.
-6. Launch a game, test aiming and buttons, then use the game menu to return.
-   Confirm playability in Game Details only after a real test.
+1. Download **Deadeye Arcade Setup** and run it. It installs for your Windows user
+   and adds desktop and Start menu shortcuts. The .NET runtime is included; Setup
+   installs Microsoft Edge WebView2 Runtime if needed, using an Internet connection.
+2. Connect your guns and open **My Guns**. Inspect player assignment, prepare the
+   supported software and check the live physical buttons.
+3. Calibrate at the physical monitor. For RS3, run the integrated four-target
+   calibration followed by the separate aim test.
+4. Use **Find Games** to import supported profiles, scan MAME games or add an
+   existing Windows application or collection JSON.
+5. Review **Settings → Automatic repairs**, then launch a game. Check aiming,
+   actions and both players before confirming gameplay in Game Details.
+6. Hold **Start + Coin** to return to the library, or use the in-game menu.
 
-Fullscreen is enabled by default. **Start with Windows is off by default** and can
-be enabled separately in Settings. Desktop crosshairs have their own background
-startup entry, enabled by default and controlled by their Settings toggle. The installer and portable package are not code-signed.
-Games, ROMs, emulators and manufacturer utilities are **not included**.
+Fullscreen is on by default. **Start with Windows is off by default** and can be
+changed in Settings. Desktop crosshairs have a separate background startup entry,
+enabled by default and controlled by their own toggle.
+
+Games, ROMs, emulators and manufacturer utilities are not bundled. Setup and the
+portable package are not code-signed. Uninstall removes app files and shortcuts
+while retaining your library, settings and media.
 
 ### Language
 
-Open **Settings → Language → English / Deutsch**. Existing libraries without a
-language preference also start in English. Changing language preserves games,
-favorites, gun bindings and the Windows autostart setting.
+**English is the default.** Select **Settings → Language → English / Deutsch** to
+change the frontend, native menu, dialogs and app messages. The choice survives
+restart and updates. Game titles, user notes, paths and external manufacturer or
+emulator interfaces retain their original language.
+[Localization details](docs/localization.md).
 
-The browser preview remembers its own language in local storage; the Windows app
-stores the choice in `%LOCALAPPDATA%\ReaperArcade\library.json`. Imported game titles,
-user notes, file paths and external manufacturer/emulator interfaces keep their
-original language.
+## Updates, local data and diagnostics
 
-## Install and update
+Deadeye checks stable GitHub releases at startup and every six hours. Open
+**Settings → App updates → Install update and restart** when an update is available.
+The installer download is checked against GitHub's SHA-256 digest and expected size.
+Deadeye backs up the library, updates in place and reopens with your games, gun
+mappings, language and startup preferences preserved. Updates cannot be installed
+while a game is running. Automatic checks can be disabled; manual checks remain
+available. [Installer and updater details](docs/updates.md).
 
-**Upgrading from Reaper Arcade 0.3.4 or earlier:** install the new Deadeye Setup
-once. The repository rename changes the download address, which older versions
-reject by design. Your library and settings are retained; subsequent versions use
-the new update endpoint. The executable and existing data/registry IDs remain
-`ReaperArcade` for upgrade compatibility.
+The library, settings and repair reports live under `%LOCALAPPDATA%\ReaperArcade`.
+The optional SteamGridDB API key uses Windows user-bound encryption. Diagnostic
+export includes device assignments, game status, repair findings and recent changes,
+with API keys excluded. Repair and update checks do not upload your library or gun
+data. The executable and storage names remain `ReaperArcade` for compatibility.
 
-Setup registers Deadeye Arcade in Windows Installed Apps. Uninstall removes app files
-and shortcuts while keeping your library, settings and media. The optional portable
-ZIP remains available under [Releases](https://github.com/sthamann/deadeye-arcade/releases).
+Display diagnostics record current and saved Windows modes and distinguish Remote
+Desktop from local sessions. With desktop crosshairs enabled, the companion also
+records mode transitions while the frontend is closed. An RDP refresh rate does
+not establish the physical TV's refresh rate, and calibration requires the physical
+screen.
 
-The app checks **stable GitHub releases** at startup and every six hours. When a newer
-installer is available, it shows an update notice. Open **Settings → App updates →
-Install update and restart**. The download is checked against GitHub's SHA-256 digest
-and expected size before the installer starts. Deadeye closes, updates in place and
-reopens. A library backup is saved before installation; gun mappings, language and
-autostart preferences are preserved. Updates cannot be installed during a game.
-Failed or interrupted downloads leave the running app intact. Automatic checks can
-be disabled; **Check for updates** remains available. Prereleases and older versions
-are excluded from automatic updates. The update request sends no library or gun data.
-
-New version tags run [the Windows release workflow](.github/workflows/windows-release.yml):
-UI build, core checks, native publish, Microsoft bootstrapper signature check, installer,
-portable ZIP and SHA-256 checksums are generated and uploaded to GitHub Releases.
-[Installer and updater details](docs/updates.md).
-
-## Support at a glance
-
-| System | Available today | Still needs verification / configuration |
-| --- | --- | --- |
-| RS3 Reaper Pro | USB/COM detection, automatic player assignment, mouse mode, aspect ratio, offscreen reload, bounded recoil/rumble test pulses | Physical aiming, feedback feel and title-specific game outputs |
-| Sinden | Product detection, input assignment and preparation of checked manufacturer software | Local calibration, manufacturer prompts and game profiles |
-| X-Gunner Wireless | Receiver/product detection, input assignment and checked configuration software | A receiver alone does not prove how many wireless guns are active; actual input is required |
-| Blamcon Vyper | Product-family detection, input assignment and Blamcon ARC entry through Steam | Exact model confirmation, calibration and physical feedback |
-| TeknoParrot | Import UserProfiles, repair unambiguous game paths, configure connected guns for supported RawInput controls, launch and read mappings | Pedals, unusual title-specific actions and helper/output setup |
-| MAME | Import actual lightgun catalog + present ROM archives, generated controller mapping, controls reference | Game overrides, calibration and real gameplay |
-| Dolphin / RetroArch | Launch paths from collection handoffs; read supported control configuration | Dedicated automatic import adapters and title/core-specific overrides |
-| Other systems | Executable discovery for several emulators/tools; manual or handoff launch paths | Dedicated import/input adapters and per-title tests |
-
-RS3 recoil and grip rumble are separate mechanisms. Deadeye can send test pulses;
-there is **no documented continuous RS3 force slider**. Hardware switches and the
-specified power supply determine mechanical recoil. Helpers such as DemulShooter
-and Hook of the Reaper can be launched with a session, but still need appropriate
-per-game configuration for real output-driven feedback.
-
-## Bring an existing collection
-
-In **Find Games → Import collection handoff**, select `spiele.json`. Existing
-favorites, covers and gun bindings are retained. **Validate library** checks launch
-files and TeknoParrot GamePath independently of gameplay confirmation.
-
-With the app closed, these commands use the intended Windows game user's library:
+With the frontend closed, these commands operate on the current Windows user's library:
 
 ```powershell
 ReaperArcade.exe --import-collection "C:\path\to\spiele.json"
@@ -231,39 +226,9 @@ ReaperArcade.exe --check-dependencies
 ReaperArcade.exe --inspect-guns
 ```
 
-Reports are stored under `%LOCALAPPDATA%\ReaperArcade`. Runtime inspection covers
-known PE imports and .NET runtime configurations; dynamically loaded plugins,
-special DLL search paths, drivers, older .NET Framework requirements and vendor
-packages may need additional setup. Unknown DLLs are never downloaded from DLL portals.
-
-## Verification
-
-[0.3.5 branding, media and upgrade checks](docs/verification-0.3.5.md).
-
-- **247 core checks:** imports, file readiness, preservation after reload, player
-  isolation, trigger hold timing, control-profile parsing, dependency detection,
-  English defaults, native translations, saved language preference and update validation.
-- **Browser checks:** English ↔ German switching and reload, four pages at five
-  screen widths, library search/filters, raw-input routing, live button state,
-  player-isolated aim tests, picker and on-screen keyboard.
-- **Windows language checks:** English default with an existing library, immediate
-  switching, cold restart in both languages, localized native exit button and
-  CarnEvil/MAME in-game menu. Library entries and saved gun bindings remained intact;
-  autostart stayed off. [language verification](docs/verification-0.3.2.md).
-- **Installer and self-update:** the GitHub Windows workflow built and published
-  0.3.3. A controlled older Windows build downloaded that public release through
-  the app, installed it and restarted as 0.3.3; library entries and gun mappings
-  were preserved. [Installer/update verification](docs/verification-0.3.3.md).
-- **Windows game-session checks:** rendered title/menu screens in MAME, Dolphin,
-  RetroArch, TeknoParrot, Supermodel and Blue Estate, and the GunCon2 calibration screen in PCSX2.
-  Resume/restart/exit checks and unresolved emulator cases are recorded in
-  [0.3.4 verification](docs/verification-0.3.4.md).
-- **Physical gun validation remains pending:** USB/COM detection is distinct from
-  button, aim, calibration and recoil verification. Not every imported title has
-  been launched or tested.
-
-Imported entries and file availability do not establish playability. Test each
-title with its configured emulator and gun before confirming it as playable.
+Runtime inspection covers known executable imports and .NET configurations.
+Dynamically loaded plugins, drivers and special library search paths can require
+additional setup. Unknown DLLs are never downloaded from DLL portals.
 
 ## Build and contribute
 
@@ -299,9 +264,10 @@ UI and native code share [`localization/en.json`](localization/en.json). German 
 messages are the keys; English translations are the values. Keep numbered placeholders
 and surrounding spaces intact. [Localization details](docs/localization.md).
 
-Further implementation notes: [architecture](docs/architecture.md),
-[Gun Studio](docs/gun-studio.md), [in-game menu](docs/in-game-overlay.md),
-[Windows checks](docs/verification-0.3.md). These earlier detailed notes are currently in German.
+Further reading: [architecture](docs/architecture.md), [Gun Studio](docs/gun-studio.md),
+[automatic repairs](docs/automatic-repairs.md), [compatibility](docs/compatibility.md)
+and [third-party components](THIRD-PARTY.md). Some detailed implementation notes
+are in German.
 
 ## License
 
