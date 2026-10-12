@@ -68,7 +68,9 @@ internal sealed class DesktopGuns : IDisposable
     }
     private DesktopGuns()
     {
-        source = new HwndSource(new HwndSourceParameters("Deadeye desktop input") { ParentWindow = new nint(-3), WindowStyle = 0 });
+        // A hidden top-level receiver also gets power broadcasts. Message-only
+        // windows do not, so they cannot recover after standby by this hook.
+        source = new HwndSource(new HwndSourceParameters("Deadeye desktop input") { WindowStyle = 0 });
         source.AddHook(Hook); raw.Packet += Input;
         raw.DevicesChanged += () => { points.Clear(); UpdateVisibility(); };
         raw.Register(source.Handle);
@@ -151,7 +153,7 @@ internal sealed class DesktopGuns : IDisposable
         try { Directory.CreateDirectory(store.DirectoryPath); File.WriteAllText(Path.Combine(store.DirectoryPath, "desktop-guns-status.json"), JsonSerializer.Serialize(new {
             started, time = DateTimeOffset.Now, pid = Environment.ProcessId, session = Environment.GetEnvironmentVariable("SESSIONNAME"),
             desktop = DesktopForeground(), players = rows,
-            inputTransport = new { raw.Generation, raw.LastRecovery, raw.RecoveryReason, raw.LastError, registered = raw.OwnsRegistration() } }, JsonDefaults.Options)); }
+            inputTransport = new { raw.Generation, raw.LastRecovery, raw.RecoveryReason, raw.LastError, registered = raw.OwnsRegistration(), window = source.Handle.ToInt64() } }, JsonDefaults.Options)); }
         catch (IOException) { }
     }
     public void Dispose()
