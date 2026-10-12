@@ -80,7 +80,7 @@ public static class OverlayControls
                         var item=line.Trim();if(item.StartsWith('['))active=item=="[Profile]";
                         if(!active || item.Split('=',2) is not {Length:2} pair || string.IsNullOrWhiteSpace(pair[1]))continue;
                         string key=pair[0].Trim();
-                        if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/Buttons/") || key.StartsWith("Nunchuk/Stick/") || key is "Tilt/Left" or "Shake/X" or "Nunchuk/Shake/X")
+                        if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/Buttons/") || key.StartsWith("Nunchuk/Stick/") || key is "Tilt/Left" or "Shake/X" or "Nunchuk/Shake/X" or "Swing/Down")
                             rows.Add(new(player,DolphinLabel(key,DolphinSetup.DiscId(game)),pair[1].Trim(),"Dolphin · "+Path.GetFileName(playerProfile),pair[1].Trim()));
                         }
                     }
@@ -139,7 +139,7 @@ public static class OverlayControls
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Xml.XmlException or ArgumentException)
         { return new([], I18n.T("Spielprofil konnte nicht gelesen werden. Die Gun-/Menübelegung bleibt verfügbar.")); }
     }
-    private static string DolphinLabel(string key,string? id)
+    public static string DolphinLabel(string key,string? id)
     {
         if(id?.StartsWith("RZJ")==true) return key switch {
             "Buttons/A"=>I18n.T("Kinesis / Benutzen (A)"),"Buttons/B"=>I18n.T("Schießen (B)"),"Buttons/+"=>I18n.T("Pause (+)"),
@@ -147,7 +147,15 @@ public static class OverlayControls
             "Shake/X"=>I18n.T("Glow Worm · Wiimote schütteln"),"Nunchuk/Shake/X"=>I18n.T("Nahkampf · Nunchuk schütteln"),
             _=>key.Replace("Nunchuk/Stick/",I18n.T("Waffenwahl · "))
         };
-        return key;
+        if(id?.StartsWith("RBU")==true && key.StartsWith("Nunchuk/Stick/")) return I18n.T("Waffenwahl · ")+key.Split('/')[2];
+        if(id?.StartsWith("SBD")==true && key.StartsWith("D-Pad/")) return I18n.T("Waffenwahl · ")+key.Split('/')[1];
+        if(id?.StartsWith("RHO")==true && key is "Buttons/1" or "Buttons/2") return key=="Buttons/1"?I18n.T("Vorherige Waffe"):I18n.T("Nächste Waffe");
+        if(id?.StartsWith("RBU")==true && key=="D-Pad/Up") return I18n.T("Granate");
+        if(id?.StartsWith("SBD")==true && key=="Buttons/1") return I18n.T("Heilkraut benutzen");
+        if(id?.StartsWith("SBD")==true && key=="Buttons/-") return I18n.T("Inventar / Status");
+        if(key.StartsWith("Shake/")) return I18n.T("Nachladen / Gegner abschütteln");
+        if(key=="Swing/Down") return I18n.T("Aktion / Nahkampf");
+        return key switch {"Buttons/A"=>I18n.T("Benutzen / Aktion (A)"),"Buttons/B"=>I18n.T("Schießen (B)"),"Buttons/+"=>I18n.T("Pause (+)"),_=>key};
     }
     private static string Value(XElement e, string name) => e.Elements().FirstOrDefault(c => c.Name.LocalName == name)?.Value ?? "";
     private static int Player(string name, string label = "")

@@ -40,6 +40,46 @@ Directory.Delete(languageStore.DirectoryPath, true);
 // Existing profile assertions use the German catalog.
 void Check(bool pass, string label) { if (!pass) throw new Exception("FAIL: " + label); checks++; Console.WriteLine("PASS: " + label); }
 void Throws(Action action, string label) { try { action(); throw new Exception("Expected error: " + label); } catch (Exception e) when (!e.Message.StartsWith("Expected error")) { checks++; Console.WriteLine("PASS: " + label); } }
+long serialClock = 0, lastWrite = 0;
+int queuedSerialBytes = 0;
+var deliveredCommands = new List<string>();
+await ReaperCommandDelivery.Send(["ZS", "ZM", "ZX"], command => {
+    deliveredCommands.Add(command); queuedSerialBytes = 2; lastWrite = serialClock;
+}, () => queuedSerialBytes, milliseconds => {
+    serialClock += milliseconds;
+    if (serialClock - lastWrite >= 40) queuedSerialBytes = 0;
+    return Task.CompletedTask;
+}, () => serialClock);
+Check(queuedSerialBytes == 0 && serialClock - lastWrite >= 120 && deliveredCommands.SequenceEqual(new[]{"ZS","ZM","ZX"}),
+    "RS3 exit-external command is fully transmitted and settled before the COM port closes");
+var umbrellaButtons = DolphinSetup.ReaperButtons("RBUE08", new(2,"RS3"));
+Check(umbrellaButtons.GetValueOrDefault("Nunchuk/Stick/Up") == "`U`" && umbrellaButtons.GetValueOrDefault("D-Pad/Up") == "`6`",
+    "Umbrella P2 has independent weapon selection and a separate grenade button");
+var darksideButtons = DolphinSetup.ReaperButtons("SBDE08");
+Check(darksideButtons.GetValueOrDefault("Shake/X") == "`Click 1`" && darksideButtons.GetValueOrDefault("Buttons/-") == "`Q`",
+    "Darkside maps reload/knife shaking and inventory onto real RS3 controls");
+var overkillButtons = DolphinSetup.ReaperButtons("RHOE8P");
+Check(overkillButtons["Buttons/1"] == "LEFT" && overkillButtons["Buttons/2"] == "RIGHT",
+    "Overkill previous and next weapon use left and right on the physical gun pad");
+var inputRoutes = InputRecovery.RequiredUsages.Select(usage => new RawInputRoute(1,usage,0x2100,42)).ToArray();
+Check(InputRecovery.OwnsRegistration(InputRecovery.RequiredUsages.Select(usage=>new RawInputRoute(1,usage,0x100,new nint(7))),new nint(7)),"Windows queried registration retains INPUTSINK but omits DEVNOTIFY; it must not trigger endless recovery");
+Check(InputRecovery.OwnsRegistration(inputRoutes,42) && !InputRecovery.OwnsRegistration(inputRoutes,0),
+    "Raw Input readiness requires all subscribed classes and a real target window");
+Check(!InputRecovery.OwnsRegistration(inputRoutes.Select(r=>r.Usage==6?r with {Window=7}:r),42),
+    "A keyboard registration taken by another window is detected even when the mouse remains registered");
+Check(InputRecovery.Reason(0x2B1,8)=="session-unlock" && InputRecovery.Reason(0x2B1,4)=="remote-disconnect" && InputRecovery.Reason(0x218,18)=="power-resume",
+    "Unlock, console return and automatic power resume all request real input re-registration");
+Check(InputRecovery.Reason(0x2B1,7) is null && InputRecovery.Reason(0xFF,8) is null,
+    "Lock notifications and ordinary input do not trigger repeated gun setup");
+long stalledClock=0; bool timeoutObserved=false;
+try { await ReaperCommandDelivery.Send(["ZX"],_=>{},()=>2,m=>{stalledClock+=m;return Task.CompletedTask;},()=>stalledClock); }
+catch(IOException) {timeoutObserved=true;}
+Check(timeoutObserved && stalledClock<=1000,"A stalled RS3 transmit buffer times out rather than freezing the gun setup");
+var umbrellaBridge = DolphinSetup.BridgeButtons(umbrellaButtons,new(2,"RS3"));
+Check(umbrellaBridge["Nunchuk/Stick/Up"]=="`Pad N`" && umbrellaBridge["D-Pad/Up"]=="`Share`" && umbrellaBridge["Shake/X"]=="`Cross`",
+    "Umbrella P2 weapon, grenade and reload actions use its own DSU channel without inherited shared mouse expressions");
+var squadBridge = DolphinSetup.BridgeButtons(DolphinSetup.ReaperButtons("RGSE8P",new(2,"RS3")),new(2,"RS3"));
+Check(squadBridge["Swing/Down"]=="`Cross`","Ghost Squad P2 converts its required swing action to the assigned physical gun");
 string root = Path.Combine(args.FirstOrDefault() is string target && !target.StartsWith("--") ? target : Path.GetTempPath(), "reaper-check-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 try
@@ -192,6 +232,8 @@ RButton::y
         Check(DolphinGunBridge.Crc(frame1)==frameCrc && DolphinGunBridge.Crc("123456789"u8)==0xcbf43926,"Dolphin DSU messages carry the native protocol length and valid CRC32");
         bridge.Mouse(p1.MouseId,false,0,0,2);bridge.Pause(true);
         Check(bridge.Frame(1)[55]==0 && bridge.Frame(2)[36]==0,"Gun release packets and the overlay pause cannot leave trigger/Start stuck in Dolphin");
+        bridge.Pause(false);bridge.Mouse(p1.MouseId,false,0,0,1);bridge.Key("kb2",50,true);bridge.ResetInput();
+        Check(bridge.Frame(1)[55]==0 && bridge.Frame(2)[36]==0,"Session recovery clears stale trigger and Start holds for both guns");
         using var nativeClient=new System.Net.Sockets.UdpClient(new IPEndPoint(IPAddress.Loopback,0));
         byte[] request=new byte[28];"DSUC"u8.CopyTo(request);
         System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(request.AsSpan(4),1001);System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(request.AsSpan(6),12);
@@ -338,6 +380,14 @@ RButton::y
     Check(configuredTp.Descendants("DeviceType").Count(e=>e.Value=="Mouse")==2 && configuredTp.Descendants("KeyboardKey").Any(e=>e.Value=="D1"),"TeknoParrot maps aim/trigger to the gun mouse and Start to its keyboard");
     Check(configuredTp.Descendants("FieldValue").Single().Value=="RawInput" && configuredTp.Descendants("BindName").Any(e=>e.Value=="Keep pedal") && TeknoGunSetup.Configure(repair,[new(1,mouse,"keyboard-1")])==0,"Automatic input setup is idempotent and preserves title-specific pedal controls");
     Check(OverlayControls.Read(repair,root,[new(1,mouse,"keyboard-1")]).Rows.Any(r=>r.Function=="Player 1 Light Gun" && r.Input=="P1 · "+I18n.T("Zielen / Mausbewegung")),"TeknoParrot aim binding is shown as movement instead of an unassigned button");
+    var extraButtons=XDocument.Load(repairProfile);
+    extraButtons.Root!.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Player 1 Change")),new XElement("JoystickButtons",new XElement("ButtonName","Player 2 Change")),new XElement("JoystickButtons",new XElement("ButtonName","Player 2 Option")));
+    extraButtons.Save(repairProfile);
+    var specialGuns=new[]{new GunBinding(1,"mouse-p1","keyboard-p1"),new GunBinding(2,"mouse-p2","keyboard-p2")};
+    TeknoGunSetup.Configure(repair,specialGuns);extraButtons=XDocument.Load(repairProfile);
+    string SpecialKey(string name)=>extraButtons.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value==name).Element("RawInputButton")!.Element("KeyboardKey")!.Value;
+    Check(SpecialKey("Player 1 Change")=="Q" && SpecialKey("Player 2 Change")=="S" && SpecialKey("Player 2 Option")=="N","TeknoParrot weapon Change and Option use separate physical RS3 buttons for both players");
+    Check(!GameControlAudit.GameplayAction("Service 1") && !GameControlAudit.GameplayAction("Volume Up") && !GameControlAudit.GameplayAction("P1 Left Trigger (NOT USED)") && GameControlAudit.GameplayAction("Player 2 Sub Trigger"),"Cabinet maintenance/sensor placeholders are excluded while real gameplay actions remain audited");
     string alienProfile=Path.Combine(tp,"UserProfiles","AliensExtermination.xml");
     File.WriteAllText(alienProfile,"<GameProfile><EmulationProfile>AliensExtermination</EmulationProfile><ConfigValues><FieldInformation><CategoryName>General</CategoryName><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>Windowed</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>CustomResolution</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionWidth</FieldName><FieldValue>1920</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionHeight</FieldName><FieldValue>1080</FieldValue></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 2 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Special</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");
     var aliens=repair with {SourcePath=alienProfile};
@@ -467,6 +517,25 @@ RButton::y
     Check(DolphinSetup.Value(File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!),"Profile","IR/Total Yaw")=="17.25" && DolphinSetup.Value(dsuP2Profile,"Profile","Nunchuk/Stick/Up")=="`Pad W`","Dolphin retains existing accuracy adjustments and Extraction's rotated weapon-selection controls");
     var dualLegend=OverlayControls.Read(deadspace,root,[p1,p2]);
     Check(StartupControls.ForPlayer(dualLegend,p2).Any(h=>h.Resolved&&h.ControlIds.Contains("trigger")) && StartupControls.ForPlayer(dualLegend,p2).Any(h=>h.Resolved&&h.ControlIds.Contains("side")&&h.ControlIds.Contains("reload")),"Dolphin P2 legend resolves shooting and the real two-button melee combination through the active profile");
+    foreach(var reviewDisc in new[]{"RBUE08","SBDE08","RHOE8P","RGSE8P","RZPE01"})
+    {
+        string content=Path.Combine(root,reviewDisc+".iso");File.WriteAllBytes(content,System.Text.Encoding.ASCII.GetBytes(reviewDisc+"0000000"));
+        string baseProfile="reviewed-"+reviewDisc;
+        File.WriteAllText(Path.Combine(pack,"GameSettings",reviewDisc+".ini"),"[Controls]\nWiimoteProfile1 = "+baseProfile+"\n");
+        File.WriteAllText(Path.Combine(pack,"Config","Profiles","Wiimote",baseProfile+".ini"),"[Profile]\nIR/Total Yaw = 17.5\nShake/X = `Click 1`\n");
+        var title=deadspace with {Id=reviewDisc,Title=reviewDisc,Arguments=["-e",content]};
+        Check(DolphinSetup.Configure(title,pack,[p1,p2],26761),"Reviewed Wii title applies on the real profile-writing path: "+reviewDisc);
+        var audit=GameControlAudit.Read(title,root,[p1,p2]);
+        Check(audit.Status=="mapping-checked" && audit.Players.All(p=>p.Issues.Length==0),"Wii weapon/gesture actions are reachable for both physical guns: "+reviewDisc);
+        string secondProfile=DolphinSetup.ProfilePath(title,2)!;
+        string missing=GameControlAudit.RequiredDolphin(reviewDisc).Last();
+        DolphinSetup.WriteMerged(secondProfile,"Profile",new Dictionary<string,string>{{missing,""}});
+        Check(GameControlAudit.Read(title,root,[p1,p2]).Status=="needs-action","Missing P2 action is detected from its actual file: "+reviewDisc);
+    }
+    GameControlAudit.Save([deadspace],root,[p1,p2]);
+    GameControlAudit.Save([repair],root,specialGuns,merge:true);
+    var storedAudit=System.Text.Json.JsonSerializer.Deserialize<ControlAuditReport>(File.ReadAllText(Path.Combine(root,"controls-audit.json")),JsonDefaults.Options)!;
+    Check(storedAudit.Games.Any(g=>g.GameId==deadspace.Id) && storedAudit.Games.Any(g=>g.GameId==repair.Id),"A launch-time controls audit retains other library entries instead of erasing their checks");
     string model=Path.Combine(root,"Supermodel.exe");File.WriteAllText(model,"");Directory.CreateDirectory(Path.Combine(root,"Config"));
     string modelIni=Path.Combine(root,"Config","Supermodel.ini");File.WriteAllText(modelIni,"[ Global ] ; existing global section\nInputGunX2 = JOY2_XAXIS\nSoundVolume = 61\n");
     InputDevice[] modelDevices=[new("p2mouse","RS3 P2","mouse",true),new("Root#RDP_MOU","remote","mouse",false),new("p1mouse","RS3 P1","mouse",true),new("p2keys","RS3 P2","keyboard",true),new("p1keys","RS3 P1","keyboard",true)];

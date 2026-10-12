@@ -17,6 +17,7 @@ public sealed class RawInput : IDisposable
     [StructLayout(LayoutKind.Sequential)] private struct Registration { public ushort Page, Usage; public uint Flags; public nint Window; }
     [StructLayout(LayoutKind.Sequential)] private struct Header { public uint Type, Size; public nint Device, WParam; }
     [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterRawInputDevices(Registration[] devices, uint count, uint size);
+    [DllImport("user32.dll", SetLastError = true)] private static extern uint GetRegisteredRawInputDevices([Out] Registration[]? devices, ref uint count, uint size);
     [DllImport("user32.dll", SetLastError = true)] private static extern uint GetRawInputDeviceList([Out] DeviceList[]? devices, ref uint count, uint size);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern uint GetRawInputDeviceInfo(nint device, uint command, StringBuilder? data, ref uint size);
     [DllImport("user32.dll")] private static extern uint GetRawInputData(nint input, uint command, nint data, ref uint size, uint headerSize);
@@ -26,6 +27,33 @@ public sealed class RawInput : IDisposable
     [DllImport("hid.dll")] private static extern int HidP_GetUsages(int type, ushort page, ushort collection, [Out] ushort[] usages, ref uint count, nint preparsed, byte[] report, uint length);
     private readonly Dictionary<nint, string> names = [];
     private bool registered;
+    private nint targetWindow;
+    public int Generation { get; private set; }
+    public DateTimeOffset? LastRecovery { get; private set; }
+    public string RecoveryReason { get; private set; } = "startup";
+    public string? LastError { get; private set; }
+    public bool OwnsRegistration()
+    {
+        uint count = 0, size = (uint)Marshal.SizeOf<Registration>();
+        uint first = GetRegisteredRawInputDevices(null, ref count, size);
+        if (first == uint.MaxValue && Marshal.GetLastWin32Error() != 122 || count > 1024) return false;
+        var list = new Registration[count];
+        uint found = GetRegisteredRawInputDevices(list, ref count, size);
+        if (found == uint.MaxValue) return false;
+        return InputRecovery.OwnsRegistration(list.Take((int)found).Select(r => new RawInputRoute(r.Page,r.Usage,r.Flags,r.Window)), targetWindow);
+    }
+    public void Recover(string reason)
+    {
+        if (targetWindow == 0) return;
+        try
+        {
+            hidButtons.Clear();
+            Register(targetWindow);
+            Generation++; LastRecovery = DateTimeOffset.UtcNow; RecoveryReason = reason;
+            DevicesChanged?.Invoke();
+        }
+        catch (Win32Exception error) { LastError = error.Message; throw; }
+    }
     private readonly Dictionary<string, HashSet<ushort>> hidButtons = new(StringComparer.OrdinalIgnoreCase);
     private const uint DeviceName = 0x20000007;
     public void Register(nint window)
@@ -33,7 +61,7 @@ public sealed class RawInput : IDisposable
         // INPUTSINK observes the guns during a game; it does not inject or steal game inputs.
         Registration[] registration = [new() { Page = 1, Usage = 2, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 6, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 4, Flags = 0x2100, Window = window }, new() { Page = 1, Usage = 5, Flags = 0x2100, Window = window }];
         if (!RegisterRawInputDevices(registration, (uint)registration.Length, (uint)Marshal.SizeOf<Registration>())) throw new Win32Exception(Marshal.GetLastWin32Error());
-        registered = true;
+        registered = true; targetWindow = window; LastError = null;
         Refresh();
     }
     public void Refresh()

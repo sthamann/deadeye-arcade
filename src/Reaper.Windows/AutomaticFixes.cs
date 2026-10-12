@@ -14,7 +14,14 @@ internal static class AutomaticFixes
         {
             using var identity = WindowsIdentity.GetCurrent();
             bool admin = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-            return await Task.Run(() => KnownFixes.Apply(games, data, admin, package => Prepare(package, data)));
+            var entries=games.ToArray();
+            var report=await Task.Run(() => KnownFixes.Apply(entries, data, admin, package => Prepare(package, data)));
+            var controls=await ControlMaintenance.Run(entries,data);
+            var findings=report.Findings.Concat(controls.Games.Where(g=>g.Status!="mapping-checked").Select(g=>new FixFinding(g.GameId,g.Title,"control-completeness","needs-action",
+                string.Join(" · ",g.Players.SelectMany(p=>p.Issues.Select(i=>"P"+p.Player+": "+i)).DefaultIfEmpty(I18n.T("Vollständige Spielbelegung benötigt eine Titelprüfung."))),[Path.Combine(data,"controls-audit.json")]))).ToArray();
+            var combined=report with {Findings=findings};
+            File.WriteAllText(Path.Combine(data,"fix-report.json"),System.Text.Json.JsonSerializer.Serialize(combined,JsonDefaults.Options));
+            return combined;
         }
         finally { gate.Release(); }
     }

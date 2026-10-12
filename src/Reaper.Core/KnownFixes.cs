@@ -14,7 +14,7 @@ public record FixPackage(string Id, string Url, string Sha256, int MaxBytes);
 // Reviewed rules only: the catalog cannot contain scripts, executable commands or arbitrary downloads.
 public static class KnownFixes
 {
-    public const int Version = 1;
+    public const int Version = 2;
     public static FixRule[] Catalog { get; } = LoadCatalog();
     public static readonly FixPackage OpenAl = new("openal-soft-1.25.2",
         "https://openal-soft.org/openal-binaries/openal-soft-1.25.2-bin.zip",

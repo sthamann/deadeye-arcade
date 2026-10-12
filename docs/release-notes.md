@@ -1,9 +1,9 @@
-Deadeye Arcade 0.3.22 integrates a reviewed repair catalog into startup, import and game launch.
+Deadeye Arcade 0.3.23 improves input recovery and per-player game controls.
 
-The app recognizes moved game paths, broken portable emulator paths, missing matching OpenAL runtimes, missing support files for the exact Hypseus release, access requirements and shared PCSX2 pointers. It restores eligible missing support files from hash-checked official packages and keeps existing files and upstream licenses.
+- Re-registers Raw Input after session unlock, resume and Remote Desktop transitions, checks registration ownership and clears stale held buttons in both the frontend and the desktop companion.
+- Waits for RS3 serial output to drain and settle before closing the connection, including the command that restores normal mouse input.
+- Completes reviewed Dolphin mappings for Umbrella Chronicles, Darkside Chronicles, Overkill, Ghost Squad and Link's Crossbow Training. Both players receive native bridge buttons for weapon selection and gesture actions.
+- Adds distinct RS3 bindings for TeknoParrot Change/Option actions and reads active game profiles into a local controls audit. Missing assignments and unreviewed title requirements remain visible in Automatic repairs.
+- Distinguishes USB detection from actual gun button input. Failed serial setup no longer retains a stale configured flag.
 
-Settings now shows Automatic repairs: results, remaining steps, known pitfalls and recent changes. Existing supported gun/profile adapters record their actual changed files with before/after hashes. Catalog rules and fixes are distributed with normal releases and self-updates; reports remain local.
-
-Display diagnostics separate Remote Desktop modes from physical-session modes and record changes through the frontend and optional desktop-gun companion. No physical refresh rate or completed gun test is inferred from a remote session.
-
-Validation includes 247 core regression checks, optional checks against both official repair archives, English/German repair UI checks and a native Windows build. Existing libraries and startup preferences are retained. Vendor access, Windows consent and physical aiming/independent P2 still need their applicable checks.
+Physical input, gameplay completeness and independent two-player operation still require an on-screen gun test; software checks do not mark those tests as completed.

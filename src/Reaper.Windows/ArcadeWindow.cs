@@ -75,6 +75,7 @@ public sealed class ArcadeWindow : Window
     };
     private long lastMove;
     private HwndSource? source;
+    private bool sessionNotifications;
     private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(20) };
     private readonly string logPath;
     [StructLayout(LayoutKind.Sequential)] private struct ScreenPoint { public int X, Y; }
@@ -84,6 +85,8 @@ public sealed class ArcadeWindow : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool WTSQuerySessionInformation(nint server, int session, int information, out nint buffer, out int bytes);
     [DllImport("wtsapi32.dll")] private static extern void WTSFreeMemory(nint buffer);
+    [DllImport("wtsapi32.dll", SetLastError = true)] private static extern bool WTSRegisterSessionNotification(nint window, uint flags);
+    [DllImport("wtsapi32.dll")] private static extern bool WTSUnRegisterSessionNotification(nint window);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
     private static bool IsRemoteSession()
     {
@@ -111,7 +114,12 @@ public sealed class ArcadeWindow : Window
         string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
         Directory.CreateDirectory(data); store = new(data); state = store.Load(); I18n.Language = state.Settings.Language; exitButton.Content = I18n.T("App schließen · Windows"); logPath = Path.Combine(data, "activity.log");
         DesktopGuns.ConfigureStartup(state.Settings.DesktopCrosshairs);
-        SourceInitialized += (_, _) => { source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle); source.AddHook(Hook); raw.Register(new WindowInteropHelper(this).Handle); };
+        SourceInitialized += (_, _) => {
+            nint handle = new WindowInteropHelper(this).Handle;
+            source = HwndSource.FromHwnd(handle); source.AddHook(Hook); raw.Register(handle);
+            sessionNotifications = WTSRegisterSessionNotification(handle, 0);
+            if (!sessionNotifications) Log("input: session notifications unavailable: " + Marshal.GetLastWin32Error());
+        };
         Loaded += async (_, _) => await Initialize();
         raw.Packet += Input; raw.DevicesChanged += () =>
         {
@@ -150,9 +158,11 @@ public sealed class ArcadeWindow : Window
                 bool displayChanged = display is null || currentDisplay.Remote != display.Remote || !currentDisplay.Outputs.SequenceEqual(display.Outputs);
                 display = currentDisplay;
                 bool currentRemoteSession = IsRemoteSession();
+                if (source is not null && !raw.OwnsRegistration()) RecoverInputs("registration-lost");
                 if (currentRemoteSession != remoteSession)
                 {
                     remoteSession = currentRemoteSession;
+                    RecoverInputs(remoteSession ? "remote-desktop" : "physical-desktop");
                     Log("input: " + (remoteSession ? "remote desktop" : "physical desktop"));
                     SendState();
                 }
@@ -199,9 +209,30 @@ public sealed class ArcadeWindow : Window
             }
             calibration?.Close(); closing = true; ready = false; Log("exit: desktop");
         };
-        Closed += (_, _) => { CloseStartupControls(); CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
+        Closed += (_, _) => { CloseStartupControls(); CloseOverlay(false); timer.Stop(); gunTimer.Stop(); updateTimer.Stop(); updater.Dispose(); emergencyExit?.Dispose(); if (sessionNotifications && source is not null) WTSUnRegisterSessionNotification(source.Handle); raw.Dispose(); source?.RemoveHook(Hook); http.Dispose(); web.Dispose(); };
     }
-    private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled) { raw.Message(message, lParam); if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); } return 0; }
+    private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
+    {
+        raw.Message(message, lParam);
+        if (InputRecovery.Reason(message, wParam.ToInt64()) is string reason && !closing) RecoverInputs(reason);
+        if (message == 0x219 && ready && !closing) { raw.Refresh(); gunTimer.Stop(); gunTimer.Start(); }
+        return 0;
+    }
+    private void RecoverInputs(string reason)
+    {
+        if (source is null || closing) return;
+        try
+        {
+            raw.Recover(reason);
+            aim.RetainDevices(new(StringComparer.OrdinalIgnoreCase));
+            foreach (var hold in triggerHolds.Values) hold.Reset();
+            desktopTrigger.Reset(); buttonTestHold.Reset(); gestures.Clear(); gunSignals.Clear();
+            session.ResetInput();
+            Log($"input recovery: {reason}; generation={raw.Generation}; devices={raw.Devices.Count}; registration={raw.OwnsRegistration()}");
+            if (ready) { gunTimer.Stop(); gunTimer.Start(); SendState(); }
+        }
+        catch (System.ComponentModel.Win32Exception error) { Log("input recovery failed: " + error.Message); }
+    }
     private async Task Initialize()
     {
         try
@@ -257,6 +288,7 @@ public sealed class ArcadeWindow : Window
             guns,
             gunIssues,
             gunSignals,
+            inputTransport = new { raw.Generation, raw.LastRecovery, raw.RecoveryReason, raw.LastError, registered = raw.OwnsRegistration() },
             learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction, control = learningControl },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), state.Settings.CheckForUpdates, state.Settings.DesktopCrosshairs, hasCoverKey = state.Settings.CoverKey is not null },
@@ -505,7 +537,13 @@ public sealed class ArcadeWindow : Window
                     state.Bindings.RemoveAll(b => b.Player == player);
                     state.Bindings.Add(new(player, gun.MouseId, gun.KeyboardId, gun.Port, "rs3", gun.Id, existing is null ? GunSystems.DefaultMap(player) : GunSystems.UpgradeMap(existing), feedback, true, existing?.ControlMap));
                 }
-                catch (Exception error) { gunIssues[gun.Id] = error.Message; Log("gun setup: " + error.Message); }
+                catch (Exception error) {
+                    gunIssues[gun.Id] = error.Message;
+                    for(int i=0;i<state.Bindings.Count;i++)
+                        if(state.Bindings[i].PhysicalId==gun.Id || state.Bindings[i].MouseId.Equals(gun.MouseId,StringComparison.OrdinalIgnoreCase))
+                            state.Bindings[i]=state.Bindings[i] with {SoftwareConfigured=false};
+                    Log("gun setup: " + error.Message);
+                }
             }
             foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy))
                 if (preparedVendors.Add(gun.Id))

@@ -14,6 +14,8 @@ setup problems, and return to the library with your gun.
 
 **[Download the latest Windows installer](https://github.com/sthamann/deadeye-arcade/releases/latest)** · [Portable downloads and checksums](https://github.com/sthamann/deadeye-arcade/releases)
 
+Deadeye recovers its input subscriptions after Windows unlock, resume and Remote Desktop transitions. The header distinguishes USB presence from a received gun button event. Reviewed Wii profiles include per-player weapon selection, reload gestures and special actions; the startup legend reads the active mappings. Automatic repairs also inspect every library entry for missing player actions and keep a local controls report. A profile check does not replace a physical two-player test.
+
 ## See it in action
 
 ![Deadeye Arcade library with real covers and a game-video preview](docs/images/deadeye-library.png)

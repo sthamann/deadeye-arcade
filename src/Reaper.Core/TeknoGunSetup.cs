@@ -26,14 +26,18 @@ public static class TeknoGunSetup
                 else if(suffix.Success){number=int.Parse(suffix.Groups[2].Value);control=suffix.Groups[1].Value;}
                 else if(Regex.IsMatch(name,@"^(Coin|Coin Chute|Credits?) ?[12]$",RegexOptions.IgnoreCase)){number=name[^1]-'0';control="Coin";}
                 else if(name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute"){number=1;control="Coin";}
-                else if(name is "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload"){number=1;control=name;}
+                else if(name is "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload" or "Action"){number=1;control=name;}
                 else continue;
                 if(number!=player.Player)continue;
                 bool aim=control is "Light Gun" or "Gun" or "Spray Controller" or "Proton Pack" or "Touch" or "Light Whip";
-                string? action=control switch {"Start" or "Start Button"=>"start","Coin" or "Credits"=>"coin","Gun Trigger" or "Trigger" or "Trigger Left" or "Shoot" or "Vacuum Button" or "Touch/Click"=>"shoot","Reload" or "Trigger Right" or "Pump Reload" or "Pump"=>"reload","Grenade" or "Grenades" or "Action" or "Action Button" or "Gun Button" or "Special"=>"secondary",_=>null};
+                string? action=control switch {"Start" or "Start Button"=>"start","Coin" or "Credits"=>"coin","Gun Trigger" or "Trigger" or "Right Trigger" or "Trigger Left" or "Shoot" or "Vacuum Button" or "Touch/Click"=>"shoot","Reload" or "Trigger Right" or "Pump Reload" or "Pump" or "Vacuum Lever" or "Reload/Guard"=>"reload","Grenade" or "Grenades" or "Action" or "Action Button" or "Gun Button" or "Special" or "Vacuum Screen Out"=>"secondary",_=>null};
                 // Extermination uses the reload/right-mouse control for its flame weapon.
                 if(control=="Flame" && document.Root?.Element("EmulationProfile")?.Value=="AliensExtermination") action="reload";
                 string? token=aim?null:map.Where(p=>p.Value==action).Select(p=>p.Key).FirstOrDefault();
+                // These are distinct vendor actions, not aliases of grenades/action.
+                // Keep weapon change and Option reachable on separate RS3 controls.
+                if(player.SystemId=="rs3" && control is "Change" or "Option" or "Sub Trigger" or "Controller Select")
+                    token=StartupControls.Hardware(player).FirstOrDefault(h=>h.Id==(control is "Change" or "Controller Select"?"stick":"side"))?.Token;
                 if(!aim&&(token is null||!GunSystems.ValidToken(token)))continue;
                 bool keyboard=token?.StartsWith("key:")==true;
                 string? device=keyboard?player.KeyboardId:player.MouseId;

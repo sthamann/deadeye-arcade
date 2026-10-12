@@ -138,7 +138,7 @@ public static class DolphinSetup
             return input is null?throw new ArgumentException("Unknown Dolphin physical input: "+match.Value):"`"+input+"`";
         }
         var result=values.ToDictionary(p=>p.Key,p=>p.Value);
-        foreach(string key in result.Keys.ToArray()) if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/") || key.StartsWith("Shake/") || key.StartsWith("Tilt/"))
+        foreach(string key in result.Keys.ToArray()) if(key.StartsWith("Buttons/") || key.StartsWith("D-Pad/") || key.StartsWith("Nunchuk/") || key.StartsWith("Shake/") || key.StartsWith("Tilt/") || key.StartsWith("Swing/"))
             result[key]=Regex.Replace(result[key],@"`Click ([0-4])`|`(D[0-9]|[A-Za-z0-9])`|\b(LEFT|UP|RIGHT|DOWN|RETURN|SPACE)\b",Replace);
         result["Device"]="DSUClient/"+(binding.Player-1)+"/"+DolphinGunBridge.DeviceName;
         result["IR/Left"]="`Accel Left`";result["IR/Right"]="`Accel Right`";result["IR/Up"]="`Accel Up`";result["IR/Down"]="`Accel Down`";
@@ -165,7 +165,37 @@ public static class DolphinSetup
             foreach(string axis in new[]{"X","Y","Z"}) {values["Shake/"+axis]=stick;values["Nunchuk/Shake/"+axis]=reload+" & "+side;}
             values["Nunchuk/Buttons/Z"]=reload+" & !"+side; values["Nunchuk/Buttons/C"]=side+" & !"+reload;
         }
-        else if(id.StartsWith("RHO")) foreach(string axis in new[]{"X","Y","Z"}) values["Shake/"+axis]=reload;
+        else if(id.StartsWith("RBU"))
+        {
+            // Weapon selection uses the Nunchuk stick; the reviewed profile
+            // uses D-pad Up separately for grenades.
+            values["Extension"]="Nunchuk";
+            foreach(string direction in new[]{"Up","Down","Left","Right"})
+                values["Nunchuk/Stick/"+direction]=values["D-Pad/"+direction];
+            values["D-Pad/Up"]=coin;
+            foreach(string direction in new[]{"Down","Left","Right"}) values["D-Pad/"+direction]="";
+            foreach(string axis in new[]{"X","Y","Z"}) values["Shake/"+axis]=reload;
+        }
+        else if(id.StartsWith("SBD"))
+        {
+            // Code Veronica in Darkside: shake reloads/shakes off attackers;
+            // A+shake is knife. 1 is herbs, - is inventory/status.
+            values["Buttons/1"]=side;values["Buttons/-"]=stick;
+            foreach(string axis in new[]{"X","Y","Z"}) values["Shake/"+axis]=reload;
+        }
+        else if(id.StartsWith("RHO"))
+        {
+            values["Buttons/1"]=values["D-Pad/Left"];values["Buttons/2"]=values["D-Pad/Right"];
+            values["D-Pad/Left"]="";values["D-Pad/Right"]="";
+            foreach(string axis in new[]{"X","Y","Z"}) values["Shake/"+axis]=reload;
+        }
+        else if(id.StartsWith("RGS")) values["Swing/Down"]=reload;
+        else if(id.StartsWith("RZP"))
+        {
+            values["Extension"]="Nunchuk";values["Nunchuk/Buttons/Z"]=reload;
+            foreach(var pair in new Dictionary<string,string>{["Up"]="Left",["Down"]="Right",["Left"]="Down",["Right"]="Up"})
+                values["Nunchuk/Stick/"+pair.Key]=values["D-Pad/"+pair.Value];
+        }
         return values;
     }
 }

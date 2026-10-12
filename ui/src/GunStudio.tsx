@@ -124,7 +124,7 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
                     : state.gunIssues?.[gun.id]
                       ? t("Einrichtung pr\u00FCfen")
                       : binding?.softwareConfigured
-                        ? t("Software bereit \u00B7 Zieltest offen")
+                        ? state.gunSignals?.[gun.id] ? t("Tasteneingang empfangen · Zieltest offen") : t("USB bereit · Tastentest ausstehend")
                         : t("Einrichtung offen")}
               </small>
             </span>

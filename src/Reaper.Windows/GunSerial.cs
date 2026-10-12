@@ -33,11 +33,17 @@ public sealed class GunSerial
                 bool external = false;
                 try
                 {
-                    foreach (var command in commands) { await Task.Delay(120); serial.Write(command); if (command == "ZS") external = true; if (command == "ZX") external = false; }
+                    await ReaperCommandDelivery.Send(commands, command => {
+                        serial.Write(command);
+                        if (command == "ZS") external = true;
+                    }, () => serial.BytesToWrite);
+                    if (commands.Contains("ZX")) external = false;
                 }
                 finally
                 {
-                    if (external && serial.IsOpen) try { await Task.Delay(120); serial.Write("ZX"); } catch (IOException) { }
+                    if (external && serial.IsOpen)
+                        try { await ReaperCommandDelivery.Send(["ZX"], serial.Write, () => serial.BytesToWrite); }
+                        catch (Exception error) when (error is IOException or InvalidOperationException or TimeoutException) { }
                 }
                 return player;
             });

@@ -134,5 +134,13 @@
     "scope": "Any repair rule",
     "source": "https://github.com/sthamann/deadeye-arcade",
     "verification": "Preserves the failure and retains current files; never marks a game as played."
+  },
+  {
+    "id": "control-completeness",
+    "name": "Vollständige Gun-Belegung",
+    "mode": "automatic",
+    "scope": "Active game profiles for P1 and P2",
+    "source": "https://github.com/ProfgLX/Dolphin-Lightguns-Accuracy-Inis",
+    "verification": "Reads actual game profiles, repairs reviewed Dolphin weapon/gesture mappings and explicit TeknoParrot controls, reports missing assignments without asserting gameplay or physical input validation."
   }
 ]

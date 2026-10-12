@@ -29,6 +29,10 @@ public sealed class DolphinGunBridge : IAsyncDisposable
         receiving = Receive(); sending = SendFrames();
     }
     public void Pause(bool value) { lock (sync) paused = value; }
+    public void ResetInput()
+    {
+        lock (sync) foreach (int player in states.Keys.ToArray()) states[player] = (0, 0, []);
+    }
     public void Mouse(string device, bool absolute, int x, int y, int buttons)
     {
         lock (sync) foreach (var b in bindings.Where(b => b.MouseId.Equals(device, StringComparison.OrdinalIgnoreCase)))

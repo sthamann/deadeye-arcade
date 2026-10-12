@@ -28,6 +28,9 @@ internal sealed class DesktopGuns : IDisposable
     private long lastReport;
     private DateTime libraryStamp;
     private long lastRefresh;
+    private bool sessionNotifications;
+    [DllImport("wtsapi32.dll", SetLastError = true)] private static extern bool WTSRegisterSessionNotification(nint window, uint flags);
+    [DllImport("wtsapi32.dll")] private static extern bool WTSUnRegisterSessionNotification(nint window);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window, out uint process);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
@@ -69,13 +72,26 @@ internal sealed class DesktopGuns : IDisposable
         source.AddHook(Hook); raw.Packet += Input;
         raw.DevicesChanged += () => { points.Clear(); UpdateVisibility(); };
         raw.Register(source.Handle);
+        sessionNotifications = WTSRegisterSessionNotification(source.Handle, 0);
         RefreshSettings(); timer.Tick += (_, _) => {
             if (stop.WaitOne(0)) { Application.Current.Shutdown(); return; }
             RefreshSettings(); UpdateVisibility(); Report();
         }; timer.Start(); Report();
     }
     private nint Hook(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
-    { raw.Message(message, lParam); return 0; }
+    {
+        raw.Message(message, lParam);
+        if (InputRecovery.Reason(message, wParam.ToInt64()) is string reason)
+        {
+            Recover(reason);
+        }
+        return 0;
+    }
+    private void Recover(string reason)
+    {
+        try { raw.Recover(reason); points.Clear(); UpdateVisibility(); }
+        catch (System.ComponentModel.Win32Exception) { /* Status retains the failure; retry at the next ownership check. */ }
+    }
     private void RefreshSettings()
     {
         if (Environment.TickCount64 - lastRefresh < 800) return;
@@ -127,18 +143,20 @@ internal sealed class DesktopGuns : IDisposable
     {
         if (Environment.TickCount64 - lastReport < 2000) return;
         lastReport = Environment.TickCount64;
+        if (!raw.OwnsRegistration()) Recover("registration-lost");
         DisplayDiagnostics.Capture(store.DirectoryPath);
         var rows = bindings.OrderBy(b => b.Player).Select(b => new { b.Player, b.SystemId,
             connected = raw.Devices.Any(d => d.Id.Equals(b.MouseId, StringComparison.OrdinalIgnoreCase)),
             positioned = points.ContainsKey(b.Player), visible = markers.GetValueOrDefault(b.Player)?.IsVisible == true });
         try { Directory.CreateDirectory(store.DirectoryPath); File.WriteAllText(Path.Combine(store.DirectoryPath, "desktop-guns-status.json"), JsonSerializer.Serialize(new {
             started, time = DateTimeOffset.Now, pid = Environment.ProcessId, session = Environment.GetEnvironmentVariable("SESSIONNAME"),
-            desktop = DesktopForeground(), players = rows }, JsonDefaults.Options)); }
+            desktop = DesktopForeground(), players = rows,
+            inputTransport = new { raw.Generation, raw.LastRecovery, raw.RecoveryReason, raw.LastError, registered = raw.OwnsRegistration() } }, JsonDefaults.Options)); }
         catch (IOException) { }
     }
     public void Dispose()
     {
-        timer.Stop(); stop.Dispose(); raw.Dispose(); source.RemoveHook(Hook); source.Dispose();
+        timer.Stop(); stop.Dispose(); if (sessionNotifications) WTSUnRegisterSessionNotification(source.Handle); raw.Dispose(); source.RemoveHook(Hook); source.Dispose();
         foreach (var marker in markers.Values) marker.Close();
     }
 }

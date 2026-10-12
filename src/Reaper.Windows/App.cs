@@ -35,6 +35,17 @@ public static class App
                     AutomaticFixes.Run(state.Games, data).GetAwaiter().GetResult();
                     return;
                 }
+                if (args.Length == 1 && args[0] == "--audit-controls")
+                {
+                    using var raw = new RawInput(); raw.Refresh();
+                    GameControlAudit.Save(state.Games,data,state.Bindings,raw.Devices);
+                    return;
+                }
+                if (args.Length == 1 && args[0] == "--repair-controls")
+                {
+                    ControlMaintenance.Run(state.Games,data).GetAwaiter().GetResult();
+                    return;
+                }
                 if (args.Length == 1 && args[0] == "--inspect-gamepads")
                 {
                     using var raw = new RawInput(); raw.Refresh();

@@ -18,6 +18,7 @@ public sealed class GameSession
     private nint job;
     private nint gameWindow;
     private DolphinGunBridge? bridge;
+    public void ResetInput() => bridge?.ResetInput();
     public void Input(RawPacket packet)
     {
         var current=bridge;
