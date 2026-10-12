@@ -1,4 +1,4 @@
-Deadeye Arcade 0.3.24 completes more reviewed TeknoParrot gun controls.
+Deadeye Arcade 0.3.25 completes more reviewed TeknoParrot gun controls.
 
 Game profiles now use the RS3's physical or learned controls independently of custom frontend/menu actions. A missing menu Coin action cannot remove a game's coin input, and changing a menu Start shortcut cannot move the game's physical Start button.
 
