@@ -1,9 +1,7 @@
-Deadeye Arcade 0.3.23 improves input recovery and per-player game controls.
+Deadeye Arcade 0.3.24 completes more reviewed TeknoParrot gun controls.
 
-- Re-registers Raw Input after session unlock, resume and Remote Desktop transitions, checks registration ownership and clears stale held buttons in both the frontend and the desktop companion.
-- Waits for RS3 serial output to drain and settle before closing the connection, including the command that restores normal mouse input.
-- Completes reviewed Dolphin mappings for Umbrella Chronicles, Darkside Chronicles, Overkill, Ghost Squad and Link's Crossbow Training. Both players receive native bridge buttons for weapon selection and gesture actions.
-- Adds distinct RS3 bindings for TeknoParrot Change/Option actions and reads active game profiles into a local controls audit. Missing assignments and unreviewed title requirements remain visible in Automatic repairs.
-- Distinguishes USB detection from actual gun button input. Failed serial setup no longer retains a stale configured flag.
+Game profiles now use the RS3's physical or learned controls independently of custom frontend/menu actions. A missing menu Coin action cannot remove a game's coin input, and changing a menu Start shortcut cannot move the game's physical Start button.
 
-Physical input, gameplay completeness and independent two-player operation still require an on-screen gun test; software checks do not mark those tests as completed.
+Reviewed mappings include Star Trek Voyager Start/Reload, Rambo Rage, Silent Hill Option L/R, Transformers Human Alliance's two triggers, separate attack/defense lever buttons in Shadows Rising, and named pedal controls. The active profile supplies each legend label; cabinet controls requiring a different input system remain visible for review.
+
+Includes the input recovery, serial timing, per-player Wii weapon/gesture profiles and local library-wide controls audit from the current application. Windows installer and portable package are available with checksums; physical gun and post-resume tests remain separate from profile checks.
