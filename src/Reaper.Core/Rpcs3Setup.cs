@@ -56,7 +56,7 @@ public static class Rpcs3Setup
     public static int EncodeKey(int key)
     {
         uint scan = OperatingSystem.IsWindows() ? MapVirtualKey((uint)key, 4) : key switch {
-            49 => 2, 50 => 3, 53 => 6, 54 => 7, 77 => 50, 78 => 49, 81 => 16, 83 => 31,
+            49 => 2, 50 => 3, 53 => 6, 54 => 7, 77 => 50, 78 => 49, 81 => 16, 82 => 19, 83 => 31,
             38 => 0xe048, 40 => 0xe050, 37 => 0xe04b, 39 => 0xe04d, 85 => 22, 86 => 47, 87 => 17, 88 => 45, _ => 0
         };
         if (scan == 0) throw new ArgumentException("RPCS3 cannot map this keyboard control.");

@@ -24,10 +24,10 @@ public static class BlamconSetup
     public static bool ValidCommand(string command) => command is "ES" or "CM.0.0" or "CM.1.0" or "CM.1.1" or "CM.1.2"
         or "CM.2.0" or "CM.2.1" or "CM.2.2" or "CM.3.0" or "CM.3.1" or "CM.8.0" or "CM.8.1" or "CM.8.2"
         or "CM.12.0" or "CM.12.1" or "CM.12.2" or "CM.12.3" or "SM.0.1" or "SM.1.1" or "FB.0.1" or "FB.0.0" or "FB.1.1" or "FB.1.0";
-    public static string Canonical(string control) => control switch { "a" => "reload", "b" => "magazine", "select" => "coin", "magazine" or "pedal" => "side", "aux" => "stick", _ => control };
+    public static string Canonical(string control) => GunSystems.CanonicalControl("blamcon",control);
     public static string? Action(string control) => Canonical(control) switch
     {
-        "trigger" => "shoot", "reload" => "reload", "magazine" or "side" or "stick" => "secondary", "start" => "start", "coin" => "coin",
+        "trigger" => "shoot", "reload" => "reload", "magazine"=>"secondary", "side"=>"auxiliary", "stick"=>"mode", "start" => "start", "coin" => "coin",
         "up" or "down" or "left" or "right" => control, _ => null
     };
     public static GunBinding Learn(GunBinding binding, string control, string token)

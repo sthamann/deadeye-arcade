@@ -47,6 +47,8 @@ const actions = (): Record<string, string> => ({
   shoot: t("Abzug / Schie\u00DFen"),
   reload: t("Nachladen / Zur\u00FCck"),
   secondary: t("Zweite Aktion"),
+  auxiliary: t("Dritte Aktion"),
+  mode: t("Modus / Waffenwechsel"),
   start: t("Start / Best\u00E4tigen"),
   coin: t("M\u00FCnze"),
   up: t("Nach oben"),
@@ -140,7 +142,9 @@ export function GunStudio({
   test,
   busy,
   results,
+  openRange,
 }: {
+  openRange: () => void;
   state: State;
   signal: GunSignal | null;
   send: (type: string, payload?: unknown) => void;
@@ -198,7 +202,7 @@ export function GunStudio({
   const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(binding?.hardwarePlayer ?? player,model) : factoryMap(binding?.hardwarePlayer ?? player,model);
   const hardwarePlayer = binding?.hardwarePlayer ?? (binding?.systemId === "rs3" ? +(binding.mouseId.match(/PID_575([0-3])/i)?.[1] ?? (player - 1)) + 1 : player);
   const physicalControls = controls(model,hardwarePlayer);
-  const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? (model==="blamcon" && (id==="magazine" || id==="pedal") ? (binding?.blamcon?.pedalMode==="assignable"?"key:82":binding?.blamcon?.pedalMode==="right"?"mouse:2":binding?.blamcon?.pedalMode==="middle"?"mouse:3":undefined) : physicalControls.find(c=>c.id===id)?.token);
+  const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? (model==="blamcon" && (id==="magazine" || id==="pedal") ? ((binding?.blamcon?.pedalMode??"assignable")==="assignable"?"key:82":(binding?.blamcon?.pedalMode??"assignable")==="right"?"mouse:2":(binding?.blamcon?.pedalMode??"assignable")==="middle"?"mouse:3":undefined) : physicalControls.find(c=>c.id===id)?.token);
   const controlNames = (token:string) => physicalControls.filter(c=>tokenFor(c.id)===token).map(c=>t(c.label)).join(' / ') || tokenLabel(token);
   const unknownControls = online && binding?.systemId===model ? physicalControls.filter(c=>!c.hardware&&!tokenFor(c.id)) : [];
   const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token] || model === "rs3" && c.id === "trigger" && held["hid:1"];}).map(c=>c.id));
@@ -301,6 +305,7 @@ export function GunStudio({
               : t("{0} \u00B7 Kein zugeordnetes Ger\u00E4t", selected.name)}
           </div>
         </div>
+        <button className="primary range-open" data-test-navigation onClick={openRange}><Target size={20}/>{t("Schießstand · 1–2 Spieler")}</button>
         <div className="studio-tabs">
           {[
             ["buttons", t("Tasten & Live-Eingabe")],
@@ -365,7 +370,7 @@ export function GunStudio({
                   <b>{i+1}</b><span><strong>{t(control.label)}</strong><small>{control.hardware?t("Hardware-Schalter · kein HID-Taster"):token?tokenLabel(token)+" · "+(actions()[map[token]]??t("Nicht belegt")):t("Eingang erfassen")}</small></span><span>{state.learning?.control===control.id?t("Taste drücken …"):control.hardware?"":t("Erfassen")}</span>
                 </button>;
               })}</div>
-              <p className="studio-caption">{model==="sinden"?t("Sinden: Bildschirmrand und Start/Stop bleiben Aufgaben der Herstellersoftware. Tasten können am Bildschirm und außerhalb verschiedene Eingänge senden."):model==="xgunner"?t("X-Gunner: Werkstasten laut Anleitung. Geänderte Firmware-Belegungen kannst du für jeden Knopf neu erfassen. Schalter und Magazinentriegelung arbeiten direkt an der Gun."):model==="blamcon"?t("Vyper: Magazinzug, A/B, Stick und Start/Select. Feuerwahl steuert den Rückstoß am Gerät."):t("Reaper: P1 Pfeiltasten / Q, P2 U/V/W/X / S. Münztaste vier Sekunden halten sendet Esc; beide Grifftasten teilen den Reload-Eingang.")}</p>
+              <p className="studio-caption">{model==="sinden"?t("Sinden: Bildschirmrand und Start/Stop bleiben Aufgaben der Herstellersoftware. Tasten können am Bildschirm und außerhalb verschiedene Eingänge senden."):model==="xgunner"?t("XGunner: Die Magazinentriegelung ist laut Anleitung mechanisch. Nachladen erfolgt über die rechte Maustaste oder Space; für die Entriegelung ist kein separater HID-Eingang dokumentiert."):model==="blamcon"?t("Vyper: Magazinzug = Nachladen, A = zweite Aktion, B = dritte Aktion. Magazin und optionales Pedal teilen den Anschluss. Der zweistufige Abzugsweg hat einen elektrischen Schusseingang."):t("Reaper: P1 Pfeiltasten / Q, P2 U/V/W/X / S. Münztaste vier Sekunden halten sendet Esc; beide Grifftasten teilen den Reload-Eingang.")}</p>
               <div className="live-stats">
                 <span>
                   <b>

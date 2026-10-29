@@ -50,6 +50,7 @@ public sealed class ArcadeWindow : Window
     private readonly TriggerHold buttonTestHold = new();
     private int? buttonTestPlayer;
     private bool buttonTestRelease;
+    private bool rangeTesting;
     private InGameOverlay? overlay;
     private StartupOverlay? startupOverlay;
     private GameEntry? activeGame;
@@ -141,7 +142,7 @@ public sealed class ArcadeWindow : Window
             emergencyExit?.Dispose(); emergencyExit = null;
             if (status == "running")
             {
-                buttonTestPlayer = null; buttonTestRelease = false; buttonTestHold.Reset();
+                rangeTesting=false; buttonTestPlayer = null; buttonTestRelease = false; buttonTestHold.Reset();
                 Send("button-test-ended", new {});
                 desktopTrigger.Reset();
                 try { emergencyExit = new EmergencyExit(() => { Dispatcher.BeginInvoke(new Action(() => Log("exit: independent Start+Coin / F12"))); session.End().GetAwaiter().GetResult(); }, () => Dispatcher.BeginInvoke(new Action(() => { OpenOverlay(0); overlay?.Arm(); })), state.Bindings); }
@@ -181,7 +182,7 @@ public sealed class ArcadeWindow : Window
                 gestures.Clear(); Send("button-test-ended", new {});
                 Send("notice", new { message = I18n.T("Tastentest beendet. Abzug loslassen; die Gun steuert wieder das Menü.") });
             }
-            if (buttonTestPlayer is not null || buttonTestRelease) return;
+            if (rangeTesting || buttonTestPlayer is not null || buttonTestRelease) return;
             if (session.Active)
             {
                 // Independent fallback for games that capture mouse input or change Raw Input registration.
@@ -372,7 +373,7 @@ public sealed class ArcadeWindow : Window
         }
         var binding = state.Bindings.FirstOrDefault(b => string.Equals(b.MouseId, packet.DeviceId, StringComparison.OrdinalIgnoreCase) || string.Equals(b.KeyboardId, packet.DeviceId, StringComparison.OrdinalIgnoreCase)
             || packet.Kind == "hid" && guns.Any(g => g.Id == b.PhysicalId && g.InputIds.Contains(packet.DeviceId, StringComparer.OrdinalIgnoreCase)));
-        if (packet.Kind == "keyboard" && binding is not null && buttonTestPlayer is null && !buttonTestRelease)
+        if (packet.Kind == "keyboard" && binding is not null && buttonTestPlayer is null && !buttonTestRelease && !rangeTesting)
         {
             if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
             gesture.Key(packet.Key, packet.Down, DateTimeOffset.UtcNow);
@@ -408,7 +409,11 @@ public sealed class ArcadeWindow : Window
                     bool firstSignal = !gunSignals.ContainsKey(binding.PhysicalId); gunSignals[binding.PhysicalId] = DateTimeOffset.UtcNow;
                     if (firstSignal) SendState();
                 }
-                Send("gun-input", new { player = binding.Player, token = signal.Token, down = signal.Down, action });
+                var rangePoint = rangeTesting && packet.Kind == "mouse" ? web.PointFromScreen(PacketPoint(packet)) : default;
+                Send("gun-input", new { player = binding.Player, token = signal.Token, down = signal.Down, action,
+                    x = rangeTesting && packet.Kind == "mouse" ? (double?)(rangePoint.X / Math.Max(1,web.ActualWidth)) : null,
+                    y = rangeTesting && packet.Kind == "mouse" ? (double?)(rangePoint.Y / Math.Max(1,web.ActualHeight)) : null });
+                if(rangeTesting) continue;
                 if(menuLearning is not null && learningPlayer==binding.Player && !session.Active)
                 {
                     string? control=menuLearning.Current;
@@ -438,6 +443,13 @@ public sealed class ArcadeWindow : Window
                     learningPlayer=null; learningAction=null; learningControl=null; Persist(); return;
                 }
             }
+        }
+        if(rangeTesting) {
+            if(!remoteSession && binding is not null && packet.Kind=="mouse") {
+                var point=web.PointFromScreen(PacketPoint(packet));
+                Send("range-aim",new {player=binding.Player,x=point.X/Math.Max(1,web.ActualWidth),y=point.Y/Math.Max(1,web.ActualHeight)});
+            }
+            return;
         }
         if (session.Active || remoteSession || learningPlayer is not null || binding is not null && buttonTestRelease) return;
         bool testing = binding is not null && buttonTestPlayer == binding.Player;
@@ -474,9 +486,10 @@ public sealed class ArcadeWindow : Window
         CloseStartupControls();
         overlayOpener = player;
         foreach (var hold in triggerHolds.Values.Where(h => h.Pressed)) hold.Consume();
-        var controls = OverlayControls.Read(activeGame, store.DirectoryPath, state.Bindings,raw.Devices);
+        var bindings=state.Bindings.Select(b=>GameGunProfiles.ForGame(activeGame,b)).ToArray();
+        var controls = OverlayControls.Read(activeGame, store.DirectoryPath, bindings,raw.Devices);
         session.HideForOverlay();
-        overlay = new InGameOverlay(activeGame, controls, state.Bindings, action => _ = OverlayCommand(action),session.GameWindow);
+        overlay = new InGameOverlay(activeGame, controls, bindings, action => _ = OverlayCommand(action),session.GameWindow);
         overlay.Closed += (_, _) => { if (overlay is not null) { overlay = null; session.RestoreFromOverlay(); } };
         overlay.Show(); Log("overlay: opened P" + player);
     }
@@ -490,8 +503,9 @@ public sealed class ArcadeWindow : Window
         if(!session.Active || activeGame is null || overlay is not null || closing) return;
         CloseStartupControls();
         try {
-            var controls=OverlayControls.Read(activeGame,store.DirectoryPath,state.Bindings,raw.Devices);
-            var window=new StartupOverlay(activeGame,controls,state.Bindings,handle,session.HasGameForeground);
+            var bindings=state.Bindings.Select(b=>GameGunProfiles.ForGame(activeGame,b)).ToArray();
+            var controls=OverlayControls.Read(activeGame,store.DirectoryPath,bindings,raw.Devices);
+            var window=new StartupOverlay(activeGame,controls,bindings,handle,session.HasGameForeground);
             startupOverlay=window;
             window.Closed+=(_,_)=> {if(startupOverlay==window)startupOverlay=null;Log("startup controls: closed");};
             window.Show(); Log("startup controls: shown · "+activeGame.Title);
@@ -667,6 +681,12 @@ public sealed class ArcadeWindow : Window
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException(I18n.T("Bitte zuerst die Dateiauswahl schließen."));
         if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); return; }
+        if(type=="range-test") {
+            if(session.Active)return;
+            rangeTesting=payload.GetProperty("enabled").GetBoolean();
+            buttonTestPlayer=null; buttonTestRelease=false; buttonTestHold.Reset(); gestures.Clear();
+            learningPlayer=null;learningControl=null;learningAction=null;menuLearning=null;return;
+        }
         if (type == "button-test")
         {
             if (session.Active) return;

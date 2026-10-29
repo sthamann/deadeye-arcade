@@ -42,8 +42,12 @@ public sealed class LibraryStore(string directory)
     {
         if (!File.Exists(FilePath)) return LibraryState.Empty;
         // A damaged library must never silently become an empty library and overwrite the user's data.
-        return JsonSerializer.Deserialize<LibraryState>(File.ReadAllText(FilePath), JsonDefaults.Options)
+        var state = JsonSerializer.Deserialize<LibraryState>(File.ReadAllText(FilePath), JsonDefaults.Options)
                ?? throw new InvalidDataException(I18n.T("Die gespeicherte Bibliothek ist ungültig."));
+        return state with {
+            Bindings=state.Bindings.Select(b=>b with {ButtonMap=GunSystems.UpgradeMap(b)}).ToList(),
+            GunProfiles=state.GunProfiles.Select(b=>b with {ButtonMap=GunSystems.UpgradeMap(b)}).ToList()
+        };
     }
     public void Save(LibraryState state)
     {

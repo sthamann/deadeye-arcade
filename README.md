@@ -101,6 +101,16 @@ continuous force slider. Installed helpers such as DemulShooter and Hook of the
 Reaper can run with a game session, with matching per-game setup for game-driven
 feedback. [Calibration and compatibility](docs/compatibility.md).
 
+## Try your guns before launching a game
+
+Open **My Guns → Firing range** to shoot destructible barrels with one or two players. Each player gets a separate crosshair, twelve-round magazine, hit counter, reload count and weapon selection. Live illustrations show the physical button you pressed, with its assigned action. Magazine pulls, reload, Start, Coin and extra actions can be checked without a game installation. Aim at **Back to My Guns** to return.
+
+Vyper's magazine pull uses its wired FOOT channel for reload, with A and B kept as separate actions. Sinden's pump and four side buttons can be captured and routed to supported game profiles. MAME receives separate raw keyboards for P1 and P2, including mixed gun families with matching key codes. [Hardware references and routing](docs/HARDWARE-CONTROLS.md).
+
+![Two-player firing range with live gun controls](docs/images/deadeye-firing-range.png)
+
+*Two-player input fixture shown for the UI check. Hardware tracking is tested at the physical display.*
+
 ## Automatic setup and repairs
 
 Deadeye carries **17 reviewed rules** for common setup pitfalls. It checks the

@@ -29,7 +29,7 @@ public static class GunSystems
     public static Dictionary<string, string> DefaultMap(int player, string system = "rs3")
     {
         var map = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload" };
-        if (system == "blamcon") return new(map) { ["mouse:3"] = "secondary" };
+        if (system == "blamcon") return new() { ["mouse:1"]="shoot", ["key:82"]="reload", ["mouse:2"]="secondary", ["mouse:3"]="auxiliary" };
         if (system == "xgunner") return new(map) { ["mouse:3"]="secondary", ["key:49"]="start", ["key:13"]="start", ["key:53"]="coin", ["key:32"]="reload", ["key:81"]="secondary", ["key:69"]="secondary", ["key:87"]="up", ["key:83"]="down", ["key:65"]="left", ["key:68"]="right" };
         if (system != "rs3") return map;
         map["mouse:3"]="secondary"; map["key:"+(48+player)]="start"; map["key:"+(52+player)]="coin";
@@ -45,7 +45,7 @@ public static class GunSystems
         if(!ValidControl(binding.SystemId,control)||!ValidToken(token))throw new ArgumentException("Invalid physical control.");
         var hardware=StartupControls.Hardware(binding);var old=hardware.FirstOrDefault(h=>h.Id==control)?.Token;
         var map=UpgradeMap(binding);
-        string? action=control switch {"up" or "down" or "left" or "right"=>control,"trigger"=>"shoot","start"=>"start","coin"=>"coin","reload"=>"reload",_=>old is null?null:map.GetValueOrDefault(old)};
+        string? action=systemAction(binding.SystemId,control) ?? (old is null?null:map.GetValueOrDefault(old));
         if(action is not null)
         {
             if(old is not null && map.GetValueOrDefault(old)==action && !hardware.Any(h=>h.Id!=control&&h.Token==old))map.Remove(old);
@@ -53,6 +53,15 @@ public static class GunSystems
         }
         return binding with {ControlMap=new Dictionary<string,string>(binding.ControlMap??[]){[control]=token},ButtonMap=map};
     }
+    public static string CanonicalControl(string system,string control) => system switch {
+        "blamcon" => control switch { "a"=>"magazine", "b"=>"side", "select"=>"coin", "magazine" or "pedal"=>"reload", "aux"=>"stick", _=>control },
+        "sinden" => control switch { "pump"=>"reload", "front-left"=>"start", "back-left"=>"coin", "back-right"=>"magazine", "front-right"=>"side", _=>control },
+        _=>control
+    };
+    private static string? systemAction(string system,string control) => CanonicalControl(system,control) switch {
+        "trigger"=>"shoot", "reload"=>"reload", "magazine"=>"secondary", "side" when system is "blamcon" or "sinden"=>"auxiliary", "stick" when system=="blamcon"=>"mode",
+        "start"=>"start", "coin"=>"coin", "up" or "down" or "left" or "right"=>control, _=>null
+    };
     public static Dictionary<string,string> DefaultFor(GunBinding binding)
     {
         var reset = binding with { ControlMap = null, ButtonMap = DefaultMap(binding.DevicePlayer,binding.SystemId) };
@@ -63,7 +72,16 @@ public static class GunSystems
     public static Dictionary<string,string> UpgradeMap(GunBinding binding)
     {
         if(binding.ButtonMap is null) return DefaultMap(binding.DevicePlayer,binding.SystemId);
-        if (binding.SystemId == "blamcon" && binding.ButtonMap.Count == 2 && binding.ButtonMap.GetValueOrDefault("mouse:1") == "shoot" && binding.ButtonMap.GetValueOrDefault("mouse:2") == "reload") return DefaultMap(binding.DevicePlayer, "blamcon");
+        // Upgrade only the old untouched Vyper factory actions; preserve learned menu keys.
+        if (binding.SystemId == "blamcon" && binding.ButtonMap.GetValueOrDefault("mouse:1") == "shoot" && binding.ButtonMap.GetValueOrDefault("mouse:2") == "reload"
+            && (!binding.ButtonMap.ContainsKey("mouse:3") || binding.ButtonMap["mouse:3"] == "secondary")
+            && !binding.ButtonMap.ContainsKey("key:82") && binding.ButtonMap.All(p=>p.Key is "mouse:1" or "mouse:2" or "mouse:3" || p.Value is "start" or "coin" or "up" or "down" or "left" or "right")) {
+            var upgraded = new Dictionary<string,string>(binding.ButtonMap);
+            upgraded["mouse:2"]="secondary"; upgraded["mouse:3"]="auxiliary";
+            string? reload=StartupControls.Hardware(binding).FirstOrDefault(h=>h.Id=="magazine")?.Token;
+            if(reload is not null) upgraded[reload]="reload";
+            return upgraded;
+        }
         // Upgrade only the exact factory map from <=0.3.3. Preserve every custom map.
         var old = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload", ["mouse:3"]="secondary", ["key:"+(binding.DevicePlayer==1?49:50)]="start", ["key:"+(binding.DevicePlayer==1?53:54)]="coin", ["key:85"]="up", ["key:86"]="down", ["key:87"]="left", ["key:88"]="right" };
         return binding.SystemId=="rs3" && binding.ButtonMap.Count==old.Count && old.All(p=>binding.ButtonMap.GetValueOrDefault(p.Key)==p.Value) ? DefaultMap(binding.DevicePlayer) : new(binding.ButtonMap);
@@ -74,7 +92,7 @@ public static class GunSystems
         "xgunner" => new[]{"trigger","reload","magazine","start","coin","side","side-a","side-b","stick","up","down","left","right"},
         "blamcon" => new[]{"trigger","magazine","pedal","aux","a","b","up","down","left","right","select","start"}, _ => Array.Empty<string>()
     }).Contains(control);
-    public static readonly string[] Actions = ["shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right", "none"];
+    public static readonly string[] Actions = ["shoot", "reload", "secondary", "auxiliary", "mode", "start", "coin", "up", "down", "left", "right", "none"];
     public static bool ValidToken(string token) => Regex.IsMatch(token, @"^(key:([1-9]\d{0,2})|mouse:[1-5])$") && (!token.StartsWith("key:") || int.Parse(token[4..]) <= 255);
     public static Dictionary<string, string> ValidateMap(Dictionary<string, string> map)
     {

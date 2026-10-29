@@ -222,6 +222,8 @@ public sealed class GameSession
         }
         if (game.Source == "mame")
         {
+            info.ArgumentList.Add("-multikeyboard");
+            info.ArgumentList.Add("-keyboardprovider");info.ArgumentList.Add("rawinput");
             // MAME creates its own game window; its console must not cover it.
             info.CreateNoWindow = true;
             string ctrl = Path.Combine(dataDirectory, "controllers"); Directory.CreateDirectory(ctrl);

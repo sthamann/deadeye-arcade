@@ -18,7 +18,7 @@ export function controls(model:string,player=1):Control[] {
  }
 }
 export function factoryMap(player:number,model='rs3'):Record<string,string>{
- if(model==='blamcon')return {'mouse:1':'shoot','mouse:2':'reload','mouse:3':'secondary'};
+ if(model==='blamcon')return {'mouse:1':'shoot','key:82':'reload','mouse:2':'secondary','mouse:3':'auxiliary'};
  if(model==='xgunner')return {'mouse:1':'shoot','mouse:2':'reload','mouse:3':'secondary','key:49':'start','key:13':'start','key:53':'coin','key:32':'reload','key:81':'secondary','key:69':'secondary','key:87':'up','key:83':'down','key:65':'left','key:68':'right'};
  if(model!=='rs3')return {'mouse:1':'shoot','mouse:2':'reload'};
  const keys=player===1?[38,40,37,39]:[85,86,87,88];

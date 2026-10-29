@@ -1,9 +1,9 @@
-# Deadeye Arcade 0.3.31
+# Deadeye Arcade 0.3.32
 
-Gun Studio and the startup overlay share the same model drawings. The XGunner view identifies Enter on the opposite side, the directional joystick and the firmware button. Physical hotspots can be selected with gun aiming or directional navigation. Action rows show the actual button names, and missing captured inputs remain visible.
+My Guns now includes a firing range for one or two assigned guns: destructible barrels, separate crosshairs and magazines, reload, weapon changes and live physical control highlights. Start and Coin stay inside the test, and either gun can aim at the return button.
 
-Common action remaps now reach supported TeknoParrot, Dolphin, RPCS3 and RetroArch physical-control routes as well as the existing MAME and Supermodel action routes. Extra title functions retain their individual controls. Fixed mouse layouts and installed multiplayer patches keep their required mappings. The independent emergency chord continues to use the physical Start and Coin/Select inputs.
+Vyper's wired magazine/FOOT channel now defaults to reload. A and B retain separate actions; two mechanical trigger stages are not presented as separate electrical inputs. Sinden capture covers the pump, four side buttons and D-pad, including supported Dolphin bridge profiles. The XGunner guide distinguishes its mechanical battery-magazine release from its documented HID buttons.
 
-Vyper button recapture removes obsolete action routes, guided menu capture rejects duplicate inputs and restoring defaults preserves learned physical signals. A Vyper's reported hardware player stays separate from its selected game slot.
+MAME profiles now separate raw keyboards as well as gun mice, preventing identical Start/Coin codes on mixed gun families from reaching both players. Captured magazine reload is used by supported RetroArch and Supermodel profiles. Installed Blue Estate and HOTD 2: Remake plugins temporarily receive the Vyper right-mouse reload mode, with saved settings restored on return.
 
-Sinden and XGunner setup scans the downloaded vendor programs for supported Microsoft runtime dependencies, opens official installers when needed and checks again before starting the program. Sinden's fresh setup enables automatic start. Pending ARC installation keeps its Steam action status instead of appearing installed.
+Manufacturer setup, calibration guidance, player assignment and automatic repairs remain available in My Guns. Physical controls not yet captured and pending vendor installations remain visible rather than being marked ready.

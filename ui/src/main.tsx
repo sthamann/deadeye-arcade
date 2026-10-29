@@ -48,6 +48,7 @@ import {
 import "./style.css";
 import { GunStudio, GunHeader } from "./GunStudio";
 import { GunNavigation, navigateGun, activateGunControl } from "./GunNavigation";
+import { ShootingRange } from "./ShootingRange";
 import { GunScroll } from "./GunScroll";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
@@ -112,6 +113,8 @@ function App() {
   setLanguage(state.settings.language);
   const [picker, setPicker] = useState<PickerState | null>(null);
   const [keyboard, setKeyboard] = useState<"search" | "cover" | null>(null);
+  const [range,setRange]=useState(false);
+  const rangeRef=useRef(false);
   const [page, setPage] = useState<Page>("play");
   const [demo, setDemo] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -161,6 +164,7 @@ function App() {
     timer.current = setTimeout(() => setToast(""), 6500);
   };
   const send = (type: string, payload: unknown = {}) => {
+    if(type === "range-test" && !window.chrome?.webview) return;
     if (type === "button-test") {
       navigationRef.current?.clear();
       const player = (payload as {player?:unknown}).player;
@@ -203,6 +207,8 @@ function App() {
         if (timer.current) clearTimeout(timer.current);
       };
   }, []);
+  const closeRange=()=>{rangeRef.current=false;setRange(false);send("range-test",{enabled:false});navigationRef.current?.clear();};
+  const openRange=()=>{rangeRef.current=true;setRange(true);send("range-test",{enabled:true});navigationRef.current?.clear();};
   const handleShot = (x: number, y: number, player: number) => {
     const current = modalRef.current;
     if (current?.type !== "test" || stepRef.current >= 5) return;
@@ -277,12 +283,14 @@ function App() {
         setSession(payload.status === "running");
         if (payload.status === "ended") setJustEnded(true);
       }
-      if (type === "gun-input") setGunSignal(payload);
+      if(type==="range-aim"){if(rangeRef.current)window.dispatchEvent(new CustomEvent("deadeye-range-aim",{detail:payload}));return;}
+      if (type === "gun-input") {setGunSignal(payload);if(rangeRef.current){window.dispatchEvent(new CustomEvent("deadeye-range-input",{detail:payload}));return;}}
       if (type === "button-test-ended") {
         buttonTestRef.current = null;
         window.dispatchEvent(new Event("deadeye-button-test-ended"));
       }
       if (type === "menu-action") {
+        if(rangeRef.current)return;
         if (buttonTestRef.current !== null && (payload.player === undefined || payload.player === buttonTestRef.current)) return;
         const keys: Record<string, string> = {
           start: "Enter",
@@ -302,6 +310,7 @@ function App() {
           );
       }
       if (type === "input") {
+        if(rangeRef.current)return;
         if (stateRef.current.remoteSession) return;
         const input = payload as Input;
         setLastInput(input);
@@ -382,7 +391,7 @@ function App() {
     };
     document.addEventListener("click", legacy, true);
     const testLegacy = (event: Event) => {
-      if (buttonTestRef.current !== null && !stateRef.current.remoteSession && (event.isTrusted || event.type === "contextmenu" || event.type === "auxclick")) {
+      if ((rangeRef.current || buttonTestRef.current !== null) && !stateRef.current.remoteSession && (event.isTrusted || event.type === "contextmenu" || event.type === "auxclick")) {
         event.preventDefault(); event.stopImmediatePropagation();
       }
     };
@@ -408,6 +417,7 @@ function App() {
         return;
       }
       let k = event.key;
+      if(rangeRef.current){if(k==="Escape"){event.preventDefault();closeRange();}return;}
 
       if (k === "Escape" || (state.native && k === "5")) {
         event.preventDefault();
@@ -512,10 +522,10 @@ function App() {
   );
   return (
     <div className="arcade-app">
-      <GunScroll hidden={!!modal||!!state.bindingStage||!!picker||!!keyboard||!!state.learning||session}/>
+      <GunScroll hidden={range||!!modal||!!state.bindingStage||!!picker||!!keyboard||!!state.learning||session}/>
       <aside
         className="sidebar"
-        inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
+        inert={range || !!modal || !!state.bindingStage || !!picker || !!keyboard}
       >
         <button
           className="brand"
@@ -565,7 +575,7 @@ function App() {
       )}
       <div
         className="main-shell"
-        inert={!!modal || !!state.bindingStage || !!picker || !!keyboard}
+        inert={range || !!modal || !!state.bindingStage || !!picker || !!keyboard}
       >
         <header className="topbar">
           <div className="breadcrumb">
@@ -958,7 +968,7 @@ function App() {
               )}
             </>
           )}
-          {page === "guns" && (
+          {page === "guns" && !range && (
             <GunStudio
               state={state}
               signal={gunSignal}
@@ -966,6 +976,7 @@ function App() {
               test={test}
               busy={!!busy}
               results={testResults}
+              openRange={openRange}
             />
           )}
           {page === "import" && (
@@ -1892,6 +1903,7 @@ function App() {
         </div>
       )}
       {picker && <FilePicker picker={picker} send={send} />}
+      {range && <ShootingRange state={state} close={closeRange}/>}
       {keyboard && (
         <ArcadeKeyboard
           title={

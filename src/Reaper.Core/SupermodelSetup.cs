@@ -19,8 +19,7 @@ public static class SupermodelSetup
             string Button(string action)
             {
                 if(binding is null)return "\"NONE\"";
-                var map=binding.ButtonMap??GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId);
-                string? token=map.FirstOrDefault(x=>x.Value==action).Key;
+                string? token=StartupControls.ActionToken(binding,action);
                 if(token?.StartsWith("mouse:")==true) return $"\"MOUSE{mice[binding.MouseId]}_"+(token[6..] switch {"1"=>"LEFT_BUTTON","2"=>"RIGHT_BUTTON","3"=>"MIDDLE_BUTTON",_=>"NONE"})+"\"";
                 if(token?.StartsWith("key:")==true && binding.KeyboardId is not null && keyboards.TryGetValue(binding.KeyboardId,out int keyboard))
                 {

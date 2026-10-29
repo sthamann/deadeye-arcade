@@ -12,7 +12,7 @@ public sealed class GunMenuLearning
     public GunMenuLearning(string system) => Controls = system switch {
         "blamcon" => ["start","select","up","down","left","right"],
         "rs3" or "xgunner" => ["start","coin","up","down","left","right"],
-        "sinden" => ["up","down","left","right"],
+        "sinden" => ["front-left","back-left","pump","back-right","front-right","up","down","left","right"],
         _ => throw new ArgumentException("Unknown lightgun system.")
     };
     public bool Accept(string token,bool down)

@@ -38,15 +38,15 @@ public static class StartupControls
                 Add("up","Steuerkreuz oben",150,124,"key:87"); Add("down","Steuerkreuz unten",150,156,"key:83");
                 Add("left","Steuerkreuz links",134,140,"key:65"); Add("right","Steuerkreuz rechts",166,140,"key:68"); break;
             case "blamcon":
-                Add("trigger","Abzug",342,157,"mouse:1"); Add("magazine","Magazin ziehen",246,239, binding.Blamcon?.PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
+                Add("trigger","Abzug",342,157,"mouse:1"); Add("magazine","Magazin ziehen",246,239, (binding.Blamcon ?? new()).PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
                 Add("a","Taste A · Vordergriff",118,103,"mouse:2"); Add("b","Taste B · Vordergriff",154,103,"mouse:3");
                 Pad(273,96); Add("select","Select",249,65); Add("start","Start",296,65);
-                Add("pedal","Optionales Pedal",480,249,binding.Blamcon?.PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
+                Add("pedal","Optionales Pedal",480,249,(binding.Blamcon ?? new()).PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
                 Add("aux","Feuerwahl als Taste",376,134); break;
         }
         return rows.ToArray();
     }
-    public static GunControl[] PhysicalGameHardware(GunBinding binding) => Hardware(binding).Select(h => binding.SystemId == "blamcon" ? h with { Id = BlamconSetup.Canonical(h.Id) } : h).ToArray();
+    public static GunControl[] PhysicalGameHardware(GunBinding binding) => Hardware(binding).Select(h => h with { Id = GunSystems.CanonicalControl(binding.SystemId,h.Id) }).DistinctBy(h=>h.Id).ToArray();
     // Keep physical identification separate from the player's chosen actions.
     // Extra game controls (selector, stick press, magazine pull) retain their
     // individual routes; the common actions follow the Studio mapping.
@@ -54,7 +54,7 @@ public static class StartupControls
     {
         var map = GunSystems.UpgradeMap(binding);
         return PhysicalGameHardware(binding).Select(h => {
-            string? action = h.Id switch { "trigger" => "shoot", "reload" => "reload", "magazine" => "secondary", "start" => "start", "coin" => "coin", "up" or "down" or "left" or "right" => h.Id, _ => null };
+            string? action = h.Id switch { "trigger" => "shoot", "reload" => "reload", "magazine" => "secondary", "side" when binding.SystemId is "blamcon" or "sinden"=>"auxiliary", "stick" when binding.SystemId=="blamcon"=>"mode", "start" => "start", "coin" => "coin", "up" or "down" or "left" or "right" => h.Id, _ => null };
             if (action is null) return h;
             string? token = h.Token is not null && map.GetValueOrDefault(h.Token) == action ? h.Token : map.FirstOrDefault(p => p.Value == action).Key;
             // Older partial profiles can omit an action. Retain its physical
@@ -62,6 +62,12 @@ public static class StartupControls
             if (token is null && h.Token is not null && !map.ContainsKey(h.Token)) token = h.Token;
             return h with { Token = token };
         }).ToArray();
+    }
+    public static string? ActionToken(GunBinding binding, string action)
+    {
+        string id = action switch { "shoot"=>"trigger", "secondary"=>"magazine", "auxiliary"=>"side", "mode"=>"stick", _=>action };
+        return GameHardware(binding).FirstOrDefault(h=>h.Id==id)?.Token
+            ?? GunSystems.UpgradeMap(binding).FirstOrDefault(p=>p.Value==action).Key;
     }
     public static string? KeyToken(string key)
     {
@@ -122,10 +128,10 @@ public static class StartupControls
             label=label.Replace(" & !",I18n.T(" ohne ")).Replace(" & "," + ").Replace(" | ",I18n.T(" oder "));
         }
         else if(row.Evidence=="Reaper-MAME-Controller") {
-            const string pattern=@"GUNCODE_([12])_BUTTON([1-5])|KEYCODE_([A-Z0-9]+)";
+            const string pattern=@"GUNCODE_([12])_BUTTON([1-5])|KEYCODE_(?:([12])_)?([A-Z0-9]+)";
             string remainder=Regex.Replace(Regex.Replace(expression,pattern,""),@"\bOR\b|\s","");
             if(remainder.Length>0)return new(row.Function,row.Input,[],false);
-            label=Regex.Replace(expression,pattern,m=>Replace(m.Groups[1].Success?(int.Parse(m.Groups[1].Value)==binding.Player?"mouse:"+m.Groups[2].Value:null):KeyToken(m.Groups[3].Value),m.Value)).Replace(" OR ",I18n.T(" oder "));
+            label=Regex.Replace(expression,pattern,m=>Replace(m.Groups[1].Success?(int.Parse(m.Groups[1].Value)==binding.Player?"mouse:"+m.Groups[2].Value:null):!m.Groups[3].Success||int.Parse(m.Groups[3].Value)==binding.Player?KeyToken(m.Groups[4].Value):null,m.Value)).Replace(" OR ",I18n.T(" oder "));
         }
         else return new(row.Function,row.Input,[],false);
         return known && ids.Count>0 ? new(row.Function,label,ids.Distinct().ToArray(),true) : new(row.Function,row.Input,[],false);

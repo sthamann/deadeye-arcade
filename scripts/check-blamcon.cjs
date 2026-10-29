@@ -15,7 +15,7 @@ const assert=require('node:assert/strict');
  assert(await page.evaluate(()=>window.fixture.sent.some(m=>m.type==='assign-gun'&&m.payload.id==='physical-3'&&m.payload.player===1)));
  await page.evaluate(()=>{const s={...window.fixture.state,bindings:[window.fixture.binding(3,1),window.fixture.binding(4,2)]};window.fixture.state=s;window.fixture.emit('state',s);});
  assert.equal(await page.locator('.physical-controls button:not([disabled])').count(),12);
- await page.getByText('Capture 9 remaining buttons',{exact:true}).waitFor();
+ await page.getByText('Capture 7 remaining buttons',{exact:true}).waitFor();
  await click(page.locator('.gun-hotspot[data-control="a"]'));
  await click(page.getByRole('button',{name:'End button test',exact:true}));
  await page.locator('.gun-hotspot[data-control="a"]').focus();

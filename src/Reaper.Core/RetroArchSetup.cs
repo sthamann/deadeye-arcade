@@ -55,7 +55,7 @@ public static class RetroArchSetup
             foreach (string function in new[] { "gun_trigger", "gun_reload", "gun_aux_a", "gun_aux_b", "gun_aux_c", "gun_start", "gun_select", "gun_offscreen_shot", "gun_dpad_up", "gun_dpad_down", "gun_dpad_left", "gun_dpad_right", "start", "select", "a", "b", "up", "down", "left", "right" })
                 foreach (string suffix in new[] { "", "_mbtn", "_btn", "_axis" }) values[prefix + function + suffix] = "nul";
             if (binding is null || index < 0) continue;
-            string? Token(string action) => (binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer, binding.SystemId)).FirstOrDefault(p => p.Value == action).Key;
+            string? Token(string action) => StartupControls.ActionToken(binding, action);
             void Bind(string function, string? token)
             {
                 if (token?.StartsWith("mouse:") == true) values[prefix + function + "_mbtn"] = token[6..];
