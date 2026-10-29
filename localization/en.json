@@ -912,5 +912,10 @@
   "Software wird automatisch eingerichtet …": "Setting up software automatically…",
   "ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen.": "ARC installation opened in Steam. Complete sign-in or confirmation in Steam.",
   "RS3-Kalibrierung vorbereitet · Windows HID bereit": "RS3 calibration prepared · Windows HID ready",
-  "Einrichtung fehlgeschlagen; erneuter Versuch in einer Minute: ": "Setup failed; retrying in one minute: "
+  "Einrichtung fehlgeschlagen; erneuter Versuch in einer Minute: ": "Setup failed; retrying in one minute: ",
+  "Menütasten nacheinander einrichten": "Set up menu buttons step by step",
+  "Schritt {0} von {1}: {2}": "Step {0} of {1}: {2}",
+  "Diese Taste drücken und wieder loslassen. Die nächste folgt automatisch. Reload bricht ab.": "Press and release this button. The next follows automatically. Reload cancels.",
+  "Menütasten gespeichert. Steuerkreuz und Start können jetzt die Oberfläche bedienen.": "Menu buttons saved. The D-pad and Start can now control the interface.",
+  "Gun zuerst verbinden.": "Connect the gun first."
 }

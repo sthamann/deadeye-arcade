@@ -351,6 +351,10 @@ export function GunStudio({
                   "Modellansicht nach Herstellerunterlagen. Nummern entsprechen den physischen Bedienelementen. Unbekannte Eingänge einmal erfassen; die Anzeige bleibt unabhängig von deiner Aktionsbelegung.",
                 )}
               </p>
+              {sameModel && <section className="menu-learning">
+                <button data-test-navigation className="primary" disabled={busy||!!state.learning} onClick={()=>send("learn-menu",{player})}>{t("Menütasten nacheinander einrichten")}</button>
+                {state.learning?.player===player && state.learning.total && <div role="status"><h2>{t("Schritt {0} von {1}: {2}",(state.learning.step??0)+1,state.learning.total,t(physicalControls.find(c=>c.id===state.learning?.control)?.label??state.learning.control??""))}</h2><p>{t("Diese Taste drücken und wieder loslassen. Die nächste folgt automatisch. Reload bricht ab.")}</p><button data-test-navigation className="secondary" onClick={()=>send("cancel-learn")}>{t("Belegung abbrechen")}</button></div>}
+              </section>}
               <div className="physical-controls">{physicalControls.map((control,i)=>{
                 const token=tokenFor(control.id);
                 return <button data-test-navigation key={control.id} className={"physical-row "+(pressed.has(control.id)?"pressed":"")} disabled={!sameModel||busy||control.hardware} onClick={()=>send("learn-control",{player,control:control.id})}>

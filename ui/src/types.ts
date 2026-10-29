@@ -101,6 +101,7 @@ export type State = {
     player: number;
     action: string | null;
     control?: string | null;
+    step?: number | null; total?: number | null;
   };
   games: Game[];
   bindings: Binding[];

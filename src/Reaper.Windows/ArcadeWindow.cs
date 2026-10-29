@@ -42,6 +42,7 @@ public sealed class ArcadeWindow : Window
     private int? learningPlayer;
     private string? learningAction;
     private string? learningControl;
+    private GunMenuLearning? menuLearning;
     private readonly DispatcherTimer gunTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
     private readonly GameSession session = new();
     private readonly Dictionary<int, TriggerHold> triggerHolds = [];
@@ -295,7 +296,7 @@ public sealed class ArcadeWindow : Window
             gunIssues,
             gunSignals,
             inputTransport = new { raw.Generation, raw.LastRecovery, raw.RecoveryReason, raw.LastError, registered = raw.OwnsRegistration() },
-            learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction, control = learningControl },
+            learning = learningPlayer is null ? null : new { player = learningPlayer, action = learningAction, control = learningControl, step=menuLearning?.Index, total=menuLearning?.Controls.Length },
             ports = SerialPort.GetPortNames().OrderBy(x => x),
             settings = new { state.Settings.StartWithWindows, state.Settings.Fullscreen, language = I18n.Normalize(state.Settings.Language), state.Settings.CheckForUpdates, state.Settings.DesktopCrosshairs, hasCoverKey = state.Settings.CoverKey is not null },
             bindingStage = bindPlayer is null ? null : new { player = bindPlayer, stage = bindMouse is null ? "trigger" : "start" },
@@ -408,6 +409,19 @@ public sealed class ArcadeWindow : Window
                     if (firstSignal) SendState();
                 }
                 Send("gun-input", new { player = binding.Player, token = signal.Token, down = signal.Down, action });
+                if(menuLearning is not null && learningPlayer==binding.Player && !session.Active)
+                {
+                    string? control=menuLearning.Current;
+                    if(action=="reload" && signal.Down){menuLearning=null;learningPlayer=null;learningControl=null;SendState();return;}
+                    if(control is not null && menuLearning.Accept(signal.Token,signal.Down))
+                    {
+                        state.Bindings[state.Bindings.IndexOf(binding)]=GunSystems.LearnControl(binding,control,signal.Token);
+                        learningControl=menuLearning.Current;
+                        if(menuLearning.Complete){menuLearning=null;learningPlayer=null;Send("notice",new {message=I18n.T("Menütasten gespeichert. Steuerkreuz und Start können jetzt die Oberfläche bedienen.")});}
+                        Persist();
+                    }
+                    return;
+                }
                 if (learningPlayer == binding.Player && signal.Down && !session.Active)
                 {
                     int index = state.Bindings.IndexOf(binding);
@@ -655,7 +669,7 @@ public sealed class ArcadeWindow : Window
         if (type == "show-overlay") { OpenOverlay(0); overlay?.Arm(); return; }
         if (type == "cancel-bind") { bindPlayer = null; bindMouse = null; SendState(); return; }
         if (session.Active && type != "fullscreen") throw new InvalidOperationException(I18n.T("Bitte zuerst das laufende Spiel beenden."));
-        if (type == "cancel-learn") { learningPlayer = null; learningAction = null; learningControl = null; SendState(); return; }
+        if (type == "cancel-learn") { menuLearning=null;learningPlayer = null; learningAction = null; learningControl = null; SendState(); return; }
         if(calibration is not null) throw new InvalidOperationException(I18n.T("Bitte zuerst die Kalibrierung beenden."));
         if (busy || scanningGuns || preparingGunSoftware && type=="setup-gun") throw new InvalidOperationException(I18n.T("Die laufende Aktion wird noch abgeschlossen."));
         switch (type)
@@ -798,18 +812,24 @@ public sealed class ArcadeWindow : Window
                     break;
                 }
             case "refresh": raw.Refresh(); await DiscoverGuns(); break;
+            case "learn-menu":
+                {
+                    var binding=state.Bindings.First(b=>b.Player==Player());
+                    if(!guns.Any(g=>GunAssignments.Matches(binding,g)&&g.DriverHealthy))throw new InvalidOperationException(I18n.T("Gun zuerst verbinden."));
+                    menuLearning=new(binding.SystemId);learningPlayer=binding.Player;learningAction=null;learningControl=menuLearning.Current;SendState();break;
+                }
             case "learn-control":
                 {
                     int player=Player(); var binding=state.Bindings.First(b=>b.Player==player); string control=Str("control");
                     if(!GunSystems.ValidControl(binding.SystemId,control)) throw new ArgumentException(I18n.T("Ungültige Gun-Belegung."));
-                    learningPlayer=player; learningControl=control; learningAction=null; SendState(); break;
+                    menuLearning=null;learningPlayer=player; learningControl=control; learningAction=null; SendState(); break;
                 }
             case "learn-button":
                 {
                     int player = Player(); string action = Str("action");
                     if (!GunSystems.Actions.Contains(action) || action == "none") throw new ArgumentException(I18n.T("Unbekannte Aktion."));
                     if (!state.Bindings.Any(b => b.Player == player)) throw new InvalidOperationException(I18n.T("Bitte zuerst die Gun einrichten."));
-                    learningPlayer = player; learningAction = action; learningControl = null; SendState(); break;
+                    menuLearning=null;learningPlayer = player; learningAction = action; learningControl = null; SendState(); break;
                 }
             case "reset-button-map":
                 {
@@ -897,7 +917,7 @@ public sealed class ArcadeWindow : Window
                     int player = Player(); var gun = guns.First(g => g.Id == Str("id"));
                     if (session.Active) throw new InvalidOperationException(I18n.T("Spiel zuerst beenden, dann Guns zuordnen."));
                     state = GunAssignments.Assign(state, gun, player);
-                    learningPlayer = null; learningControl = null; learningAction = null;
+                    menuLearning=null;learningPlayer = null; learningControl = null; learningAction = null;
                     triggerHolds.Clear(); gestures.Clear(); aim.RetainDevices([]);
                     Persist(); break;
                 }

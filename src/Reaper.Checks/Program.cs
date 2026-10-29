@@ -4,6 +4,10 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+var captureMenu=new GunMenuLearning("blamcon");
+Check(captureMenu.Current=="start" && captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:53",true) && captureMenu.Current=="select","Vyper guided capture requires releasing a held button and ignores firmware repeats");
+captureMenu.Accept("key:49",false);Check(captureMenu.Accept("key:53",true)&&captureMenu.Current=="up","Releasing the first captured button advances to the correct next physical control");
+
 var learnedXgun=GunSystems.LearnControl(new(1,"xm","xk",SystemId:"xgunner"),"down","key:90");
 Check(learnedXgun.ButtonMap!.GetValueOrDefault("key:90")=="down" && !learnedXgun.ButtonMap.ContainsKey("key:83") && StartupControls.Hardware(learnedXgun).Single(h=>h.Id=="down").Token=="key:90","Learning a changed XGunner direction updates real menu navigation and removes the stale factory direction");
 var learnedSinden=GunSystems.LearnControl(new(1,"sm","sk",SystemId:"sinden"),"up","key:87");
