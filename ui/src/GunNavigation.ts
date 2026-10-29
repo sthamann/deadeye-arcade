@@ -16,9 +16,9 @@ export class GunNavigation {
 export function navigateGun(direction:string){
  const dialog=document.querySelector<HTMLElement>('[role="dialog"]:not([inert])');
  const scope:ParentNode=dialog??document;
- const buttons=Array.from(scope.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(b=>b.getClientRects().length>0&&!b.closest('[inert],.gun-scroll')&&getComputedStyle(b).visibility!=='hidden');
+ const buttons=Array.from(scope.querySelectorAll<HTMLElement>('button:not(:disabled), [role="button"][tabindex="0"]')).filter(b=>b.getClientRects().length>0&&!b.closest('[inert],.gun-scroll')&&getComputedStyle(b).visibility!=='hidden');
  let active=document.activeElement as HTMLElement;
- if(!buttons.includes(active as HTMLButtonElement)){
+ if(!buttons.includes(active)){
   active=(scope.querySelector('.game-tile.selected')??buttons.find(b=>b.closest('.main-shell'))??buttons[0]) as HTMLElement;
   active?.focus({preventScroll:true});active?.scrollIntoView({block:'center',behavior:'instant'});return;
  }
@@ -30,4 +30,10 @@ export function navigateGun(direction:string){
  const next=options[0]?.b;
  if(next){next.focus({preventScroll:true});const r=next.getBoundingClientRect();if(r.top<90||r.bottom>innerHeight-170)next.scrollIntoView({block:'center',behavior:'instant'});}
  else if(!horizontal)(dialog??document.scrollingElement)?.scrollBy({top:(direction==='down'?1:-1)*innerHeight*.55,behavior:'instant'});
+}
+
+export function activateGunControl(control:Element){
+ if(control.matches(':disabled,[aria-disabled="true"]')||control.closest('[inert]'))return;
+ if(control instanceof HTMLElement)control.click();
+ else control.dispatchEvent(new MouseEvent('click',{bubbles:true}));
 }

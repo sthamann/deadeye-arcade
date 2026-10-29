@@ -917,5 +917,21 @@
   "Schritt {0} von {1}: {2}": "Step {0} of {1}: {2}",
   "Diese Taste drücken und wieder loslassen. Die nächste folgt automatisch. Reload bricht ab.": "Press and release this button. The next follows automatically. Reload cancels.",
   "Menütasten gespeichert. Steuerkreuz und Start können jetzt die Oberfläche bedienen.": "Menu buttons saved. The D-pad and Start can now control the interface.",
-  "Gun zuerst verbinden.": "Connect the gun first."
+  "Gun zuerst verbinden.": "Connect the gun first.",
+  "Auswählen": "Select",
+  "Bestätigen": "Confirm",
+  "Zurück": "Back",
+  "{0} Tasten noch erfassen": "Capture {0} remaining buttons",
+  "USB ist verbunden. Diese Eingänge sind noch nicht bekannt und können erst nach dem Erfassen automatisch in Spielprofile übernommen werden.": "USB is connected. These inputs are not yet identified. Capture them once to use them in automatic game profiles.",
+  "Die Grundaktionen werden beim Spielstart in unterstützte MAME-, TeknoParrot-RawInput-, Dolphin-, RPCS3-, RetroArch- und Supermodel-Profile übertragen. Zusätzliche Spielfunktionen bleiben auf eigenen Tasten. Spiele mit festem Maus-/Patch-Layout behalten ihre vorgegebene Belegung. Der Notausgang verwendet weiterhin die physischen Start- und Coin-Tasten.": "At launch, common actions are applied to supported MAME, TeknoParrot RawInput, Dolphin, RPCS3, RetroArch and Supermodel profiles. Extra game functions keep their own controls. Games with fixed mouse or patch layouts retain their required bindings. Emergency exit still uses the physical Start and Coin buttons.",
+  "Diese Taste wurde schon erfasst. Bitte die angezeigte andere Taste drücken.": "That button has already been captured. Press the different button shown on screen.",
+  "Laufzeitinstallation nicht abgeschlossen: ": "Runtime installation not completed: ",
+  "Herstellerprogramm benötigt noch Laufzeiten. Einrichtung erneut starten.": "The manufacturer app still needs runtimes. Run setup again.",
+  "{0} benötigte Laufzeiten fehlen": "{0} required runtimes are missing",
+  "Herstellerprogramm: benötigte Laufzeiten geprüft": "Manufacturer app: required runtimes checked",
+  "{0} Programmdateien geprüft": "{0} program files checked",
+  "{0} zusätzliche Abhängigkeiten separat prüfen": "Check {0} additional dependencies separately",
+  "Enter · Rückseite": "Enter · opposite side",
+  "Firmware-Taste · Rückseite": "Firmware button · opposite side",
+  "Obere Markierungen: Gegenseite": "Top markers: opposite side"
 }

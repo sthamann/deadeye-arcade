@@ -7,9 +7,12 @@ using System.Text.RegularExpressions;
 
 namespace Reaper.Windows;
 
+public sealed class GunSetupActionRequiredException(string message) : InvalidOperationException(message);
+
 public static class GunSoftware
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string,string> preparation = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string,DependencyReport> dependencyReports = new();
     public static void SetStatus(string id,string status)=>preparation[id]=status;
     private const string SindenHash = "60261a5a913c80d7a409336a5bc591272ac64ed7351fc6a726e8bd35fd7a8db5";
     private const string XgunnerHash = "4a5fe747e40ec9b21be371cc308eaee131c9445d79ef58469f3ca626fb520d94";
@@ -26,6 +29,7 @@ public static class GunSoftware
     public static object[] Status(string data) => new[] { "rs3", "sinden", "xgunner", "blamcon" }.Select(id => (object)new
     {
         id, downloaded = IsPrepared(id,data),
+        dependencies = dependencyReports.TryGetValue(id,out var report) ? new { report.CheckedBinaries, missing = report.Findings.Count(f=>f.Missing&&f.Required), packages = report.MissingPackages, uncheckedFiles = report.Unchecked.Length } : null,
         status = preparation.GetValueOrDefault(id) ?? (IsPrepared(id,data) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen"))
     }).ToArray();
     private static string Executable(string data, string id) => Path.Combine(data, "gun-software", id, id == "sinden" ? "Lightgun.exe" : "XGunner-Config-V261009.exe");
@@ -80,12 +84,13 @@ public static class GunSoftware
                 }
                 // Preserve manufacturer license and recoil confirmations. Only prepare documented detection/border defaults.
                 string config = exe + ".config"; var doc = XDocument.Load(config);
-                foreach (var key in new[] { "chkAutoDetect", "chkShowPrimaryBorder", "chkShowSecondaryBorder" })
+                foreach (var key in new[] { "chkAutoDetect", "chkAutoStart", "chkShowPrimaryBorder", "chkShowSecondaryBorder" })
                     doc.Descendants("add").FirstOrDefault(e => (string?)e.Attribute("key") == key)?.SetAttributeValue("value", "1");
                 doc.Save(config);
             }
         }
         if (!File.Exists(exe)) throw new IOException(I18n.T("Herstellerprogramm fehlt nach dem Entpacken."));
+        await PrepareDependencies(id,exe,data,progress);
         if (!launch) return I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen");
         progress(I18n.T("Herstellerprogramm wird geöffnet …"));
         bool running = false;
@@ -94,5 +99,19 @@ public static class GunSoftware
                 try { running |= string.Equals(process.MainModule?.FileName, exe, StringComparison.OrdinalIgnoreCase); } catch { }
         if (!running) Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = folder });
         return I18n.T("Herstellerprogramm geöffnet. Erkennung und Bildschirmrand sind vorbereitet; Herstellerbestätigungen und Zielkalibrierung erfolgen dort. Die App meldet deshalb noch keinen abgeschlossenen Hardwaretest.");
+    }
+    private static async Task PrepareDependencies(string id,string executable,string data,Action<string> progress)
+    {
+        var program = new GameEntry("gun-software-"+id,id,"Gun software",executable,[],Path.GetDirectoryName(executable)!,"custom",executable);
+        var report = await Task.Run(()=>RuntimeInstaller.Scan([program]));
+        dependencyReports[id] = report;
+        foreach (string packageId in report.Findings.Where(f=>f.Missing&&f.Required&&f.PackageId is not null).Select(f=>f.PackageId!).Distinct())
+        {
+            var package = RuntimeCatalog.Get(packageId); if(package is null) continue;
+            int code = await RuntimeInstaller.Install(package,data,progress);
+            if(code is not (0 or 3010)) throw new GunSetupActionRequiredException(I18n.T("Laufzeitinstallation nicht abgeschlossen: ")+package.Name);
+        }
+        report = await Task.Run(()=>RuntimeInstaller.Scan([program]));dependencyReports[id]=report;
+        if(report.Findings.Any(f=>f.Missing&&f.Required)) throw new GunSetupActionRequiredException(I18n.T("Herstellerprogramm benötigt noch Laufzeiten. Einrichtung erneut starten."));
     }
 }

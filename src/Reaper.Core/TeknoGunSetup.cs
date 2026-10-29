@@ -15,7 +15,7 @@ public static class TeknoGunSetup
         void Set(XElement node,string name,string value){var child=node.Element(name);if(child?.Value==value)return;if(child is null)node.Add(new XElement(name,value));else child.Value=value;changes++;}
         foreach(var player in players.Where(p=>p.Player is 1 or 2))
         {
-            var map=player.ButtonMap??GunSystems.DefaultMap(player.Player,player.SystemId);
+            var map=player.ButtonMap??GunSystems.DefaultMap(player.DevicePlayer,player.SystemId);
             foreach(var row in document.Descendants("JoystickButtons"))
             {
                 var name=row.Element("ButtonName")?.Value??"";
@@ -34,8 +34,8 @@ public static class TeknoGunSetup
                 // Extermination uses the reload/right-mouse control for its flame weapon.
                 if(control=="Flame" && document.Root?.Element("EmulationProfile")?.Value=="AliensExtermination") action="reload";
                 string? token=aim?null:map.Where(p=>p.Value==action).Select(p=>p.Key).FirstOrDefault();
-                // Menu actions are independent of a game's physical gun controls.
-                // A custom menu Start/Coin map must not remove the game's coin input.
+                // Use the same action projection as the other managed emulators.
+                // Hardware identification and the independent exit chord stay physical.
                 if(player.SystemId is "rs3" or "xgunner" or "blamcon" && action is not null)
                 {
                     string physical=action switch {"shoot"=>"trigger","reload"=>"reload","secondary"=>"magazine",_=>action};

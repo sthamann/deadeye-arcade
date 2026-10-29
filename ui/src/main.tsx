@@ -47,7 +47,7 @@ import {
 } from "./types";
 import "./style.css";
 import { GunStudio, GunHeader } from "./GunStudio";
-import { GunNavigation, navigateGun } from "./GunNavigation";
+import { GunNavigation, navigateGun, activateGunControl } from "./GunNavigation";
 import { GunScroll } from "./GunScroll";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
@@ -349,15 +349,15 @@ function App() {
               input.x * window.innerWidth,
               input.y * window.innerHeight,
             );
-            const button = hit?.closest("button") as HTMLButtonElement | null;
+            const button = hit?.closest("button,[role=button]") as HTMLElement | null;
             if (
               modalRef.current?.type === "test" &&
               stepRef.current < 5 &&
               (!button || button.classList.contains("test-target"))
             )
               handleShot(input.x, input.y, input.player);
-            else if (button && !button.disabled && !button.closest("[inert]") && (!testing || button.hasAttribute("data-test-navigation")))
-              button.click();
+            else if (button && !button.hasAttribute("disabled") && !button.closest("[inert]") && (!testing || button.hasAttribute("data-test-navigation")))
+              activateGunControl(button);
             else if (
               !testing && (hit instanceof HTMLInputElement ||
               hit instanceof HTMLSelectElement)
@@ -420,10 +420,11 @@ function App() {
       }
       if (
         k === "Enter" &&
-        document.activeElement instanceof HTMLButtonElement
+        (document.activeElement instanceof HTMLElement || document.activeElement instanceof SVGElement) &&
+        document.activeElement.matches("button,[role=button]")
       ) {
         event.preventDefault();
-        document.activeElement.click();
+        activateGunControl(document.activeElement);
         return;
       }
       if (!k.startsWith("Arrow")) return;

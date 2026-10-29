@@ -37,7 +37,7 @@ public static class FlycastSetup
     }
     private static string KeyboardMapping(GunBinding binding)
     {
-        var actions = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player, binding.SystemId);
+        var actions = binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer, binding.SystemId);
         var binds = new List<string>();
         foreach (var pair in actions.Where(p => p.Key.StartsWith("key:")))
         {

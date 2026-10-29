@@ -8,6 +8,25 @@ var captureMenu=new GunMenuLearning("blamcon");
 Check(captureMenu.Current=="start" && captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:53",true) && captureMenu.Current=="select","Vyper guided capture requires releasing a held button and ignores firmware repeats");
 captureMenu.Accept("key:49",false);Check(captureMenu.Accept("key:53",true)&&captureMenu.Current=="up","Releasing the first captured button advances to the correct next physical control");
 
+var duplicateMenu=new GunMenuLearning("blamcon");duplicateMenu.Accept("key:49",true);duplicateMenu.Accept("key:49",false);
+Check(!duplicateMenu.Accept("key:49",true)&&duplicateMenu.Duplicate&&duplicateMenu.Current=="select","A guided menu cannot bind Start and Select to the same signal");
+var recaptured=BlamconSetup.Learn(BlamconSetup.Learn(new(1,"v",SystemId:"blamcon"),"start","key:49"),"start","key:50");
+Check(recaptured.ButtonMap!.GetValueOrDefault("key:50")=="start"&&!recaptured.ButtonMap.ContainsKey("key:49"),"Recapturing Vyper Start removes its obsolete action route");
+var resetKnown=GunSystems.DefaultFor(recaptured with {ButtonMap=new(){["key:50"]="coin"}});
+Check(resetKnown.GetValueOrDefault("key:50")=="start"&&!resetKnown.ContainsKey("key:49"),"Restoring defaults keeps learned physical inputs instead of restoring obsolete firmware keys");
+var hardwareVyper=new PhysicalGun("v","Blamcon Lightgun - P1","blamcon","",["vm"],"vm","vk","COM6",true,[]);
+Check(GunAssignments.Profile(LibraryState.Empty,hardwareVyper,2).DevicePlayer==1,"A Vyper used as game P2 retains the P1 identity reported by its USB product name");
+Check(LaunchRules.MameController([new(1,"HID#VID_0483&PID_5751")]).Contains("KEYCODE_6"),"A P2 receiver used as game P1 keeps its physical factory Coin key in generated MAME controls");
+var remappedActions=GunSystems.DefaultMap(1);remappedActions.Remove("mouse:1");remappedActions["key:90"]="shoot";
+var remappedGun=new GunBinding(1,"remap-mouse","remap-keys",ButtonMap:remappedActions);
+Check(StartupControls.Hardware(remappedGun).Single(h=>h.Id=="trigger").Token=="mouse:1"&&StartupControls.GameHardware(remappedGun).Single(h=>h.Id=="trigger").Token=="key:90","Action remapping changes game input without changing the physical trigger identity");
+await using(var remappedBridge=new DolphinGunBridge([remappedGun]))
+{
+ remappedBridge.Mouse("remap-mouse",true,30000,30000,1);Check(remappedBridge.Frame(1)[55]==0,"Dolphin ignores the previous shoot input after remapping");
+ remappedBridge.Key("remap-keys",90,true);Check(remappedBridge.Frame(1)[55]==255,"The new shoot assignment reaches actual Dolphin DSU frames");
+}
+Check(StartupControls.PhysicalGameHardware(remappedGun).Single(h=>h.Id=="start").Token=="key:49","The emergency chord retains physical Start independently of game actions");
+
 var learnedXgun=GunSystems.LearnControl(new(1,"xm","xk",SystemId:"xgunner"),"down","key:90");
 Check(learnedXgun.ButtonMap!.GetValueOrDefault("key:90")=="down" && !learnedXgun.ButtonMap.ContainsKey("key:83") && StartupControls.Hardware(learnedXgun).Single(h=>h.Id=="down").Token=="key:90","Learning a changed XGunner direction updates real menu navigation and removes the stale factory direction");
 var learnedSinden=GunSystems.LearnControl(new(1,"sm","sk",SystemId:"sinden"),"up","key:87");
@@ -467,9 +486,10 @@ RButton::y
     extraButtons=XDocument.Load(repairProfile);
     extraButtons.Root!.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Coin Chute")),new XElement("JoystickButtons",new XElement("ButtonName","Player 2 Rage")),new XElement("JoystickButtons",new XElement("ButtonName","Player 2 Start/Reload")));
     extraButtons.Save(repairProfile);
-    var customMenu=specialGuns[0] with{ButtonMap=new(){["key:53"]="start"}};
+    var customMap=GunSystems.DefaultMap(1); customMap.Remove("key:49"); customMap["key:90"]="start";
+    var customMenu=specialGuns[0] with{ButtonMap=customMap};
     TeknoGunSetup.Configure(repair,[customMenu,specialGuns[1]]);extraButtons=XDocument.Load(repairProfile);
-    Check(SpecialKey("Coin Chute")=="D5" && SpecialKey("Player 1 Start")=="D1","A custom menu map cannot remove Coin or move a game's physical Start button");
+    Check(SpecialKey("Coin Chute")=="D5" && SpecialKey("Player 1 Start")=="Z","Studio remapping propagates to TeknoParrot Start while keeping the separate Coin input");
     Check(extraButtons.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Rage").Element("RawInputButton")!.Element("MouseButton")!.Value=="MiddleButton" && extraButtons.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Start/Reload").Element("RawInputButton")!.Element("MouseButton")!.Value=="RightButton","Rage and combined Start/Reload are reachable on separate gun controls for P2");
     string alienProfile=Path.Combine(tp,"UserProfiles","AliensExtermination.xml");
     File.WriteAllText(alienProfile,"<GameProfile><EmulationProfile>AliensExtermination</EmulationProfile><ConfigValues><FieldInformation><CategoryName>General</CategoryName><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>Windowed</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>CustomResolution</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionWidth</FieldName><FieldValue>1920</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionHeight</FieldName><FieldValue>1080</FieldValue></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 2 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Special</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");

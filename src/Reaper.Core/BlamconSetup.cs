@@ -35,7 +35,13 @@ public static class BlamconSetup
         if (binding.SystemId != "blamcon" || !GunSystems.ValidControl("blamcon", control) || !GunSystems.ValidToken(token)) throw new ArgumentException("Invalid Blamcon control.");
         var controls = new Dictionary<string,string>(binding.ControlMap ?? []) { [control] = token };
         var map = GunSystems.UpgradeMap(binding);
-        if (Action(control) is { } action) map[token] = action;
+        var hardware = StartupControls.Hardware(binding);
+        string? old = hardware.FirstOrDefault(h => h.Id == control)?.Token;
+        if (Action(control) is { } action)
+        {
+            if (old is not null && map.GetValueOrDefault(old) == action && !hardware.Any(h => h.Id != control && h.Token == old)) map.Remove(old);
+            map[token] = action;
+        }
         return binding with { ControlMap = controls, ButtonMap = map };
     }
 }

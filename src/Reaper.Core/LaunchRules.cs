@@ -104,7 +104,7 @@ public static class LaunchRules
         var input = new XElement("input", devices.Select(b => new XElement("mapdevice", new XAttribute("device", b.MouseId), new XAttribute("controller", "GUNCODE_" + b.Player))));
         foreach (var binding in devices)
         {
-            var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId);
+            var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId);
             foreach (var action in new[] { "shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right" })
             {
                 string type = action switch

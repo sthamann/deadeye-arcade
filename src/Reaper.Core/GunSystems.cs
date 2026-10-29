@@ -22,7 +22,8 @@ public static class GunSystems
         ?? (Regex.IsMatch(instance, @"VID_1209&PID_000[1-4](?:&[^\\]*)?\\XGUNNER-P[1-4]$", RegexOptions.IgnoreCase) ? "xgunner" : null);
     public static int HardwarePlayer(string system, string mouseId, int fallback)
     {
-        var match = Regex.Match(mouseId, system == "rs3" ? @"VID_0483&PID_575([0-3])" : @"VID_1209&PID_000([1-4])", RegexOptions.IgnoreCase);
+        var pattern = system switch { "rs3" => @"VID_0483&PID_575([0-3])", "xgunner" => @"VID_1209&PID_000([1-4])", _ => "(?!)" };
+        var match = Regex.Match(mouseId, pattern, RegexOptions.IgnoreCase);
         return match.Success ? int.Parse(match.Groups[1].Value) + (system == "rs3" ? 1 : 0) : fallback;
     }
     public static Dictionary<string, string> DefaultMap(int player, string system = "rs3")
@@ -51,6 +52,13 @@ public static class GunSystems
             map[token]=action;
         }
         return binding with {ControlMap=new Dictionary<string,string>(binding.ControlMap??[]){[control]=token},ButtonMap=map};
+    }
+    public static Dictionary<string,string> DefaultFor(GunBinding binding)
+    {
+        var reset = binding with { ControlMap = null, ButtonMap = DefaultMap(binding.DevicePlayer,binding.SystemId) };
+        foreach(var pair in binding.ControlMap ?? [])
+            if(ValidControl(binding.SystemId,pair.Key)&&ValidToken(pair.Value)) reset=LearnControl(reset,pair.Key,pair.Value);
+        return reset.ButtonMap!;
     }
     public static Dictionary<string,string> UpgradeMap(GunBinding binding)
     {

@@ -136,6 +136,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  for(const model of ['Sinden Lightgun','X-Gunner Wireless','Blamcon Vyper','RS3 Reaper Pro']){
   await native.locator('.system-card').filter({hasText:model}).evaluate(b=>b.click());
   studioPaths.push(await native.locator('.gun-live-panel .gun-shape').innerHTML());
+  if(process.env.REAPER_SHAPES_DIR)await native.locator('.gun-live-panel .gun-shape').screenshot({path:require('node:path').join(process.env.REAPER_SHAPES_DIR,model.replaceAll(' ','-')+'.png')});
  }
  assert.equal(new Set(studioPaths).size,4,'All manufacturers have distinct anatomy and physical controls');
  await native.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).evaluate(b=>b.click());

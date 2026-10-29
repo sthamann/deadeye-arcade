@@ -14,6 +14,7 @@ public sealed class DolphinGunBridge : IAsyncDisposable
     private readonly UdpClient socket = new(new IPEndPoint(IPAddress.Loopback, 0));
     private readonly CancellationTokenSource cancel = new();
     private readonly GunBinding[] bindings;
+    private readonly Dictionary<int,Dictionary<string,string[]>> routes;
     private readonly Dictionary<int, (double X, double Y, HashSet<string> Down)> states = [];
     private readonly Dictionary<(IPEndPoint Client, int Player), DateTime> clients = [];
     private readonly object sync = new();
@@ -25,6 +26,8 @@ public sealed class DolphinGunBridge : IAsyncDisposable
     public DolphinGunBridge(IEnumerable<GunBinding> players)
     {
         bindings = players.Where(b => b.Player is 1 or 2).ToArray();
+        routes = bindings.ToDictionary(b=>b.Player,b=>StartupControls.GameHardware(b).Where(h=>h.Token is not null)
+            .GroupBy(h=>h.Id).ToDictionary(g=>g.Key,g=>g.Select(h=>h.Token!).Distinct().ToArray()));
         foreach (var b in bindings) states[b.Player] = (0, 0, []);
         receiving = Receive(); sending = SendFrames();
     }
@@ -83,8 +86,7 @@ public sealed class DolphinGunBridge : IAsyncDisposable
             bytes[40] = bytes[41] = bytes[42] = bytes[43] = 128;
             if (states.TryGetValue(player, out var state))
             {
-                var binding = bindings.First(b => b.Player == player);
-                bool Held(string physical) => !paused && StartupControls.GameHardware(binding).Any(h => h.Id == physical && h.Token is not null && state.Down.Contains(h.Token));
+                bool Held(string physical) => !paused && routes[player].TryGetValue(physical,out var tokens) && tokens.Any(state.Down.Contains);
                 if (Held("coin")) bytes[36] |= 1; if (Held("stick")) bytes[36] |= 4; if (Held("start")) bytes[36] |= 8;
                 foreach (var (physical, offset) in new (string, int)[] { ("left", 44), ("down", 45), ("right", 46), ("up", 47), ("magazine", 48), ("reload", 49), ("side", 50), ("trigger", 55) }) if (Held(physical)) bytes[offset] = 255;
                 // DSU's axis scale in Dolphin is 1 / gravity; signs follow its names.

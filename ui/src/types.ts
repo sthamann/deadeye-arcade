@@ -95,6 +95,7 @@ export type State = {
   gunSoftware?: {
     id: string;
     downloaded: boolean;
+    dependencies?: {checkedBinaries:number;missing:number;packages:string[];uncheckedFiles:number}|null;
     status: string;
   }[];
   learning?: null | {

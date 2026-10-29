@@ -32,7 +32,7 @@ public static class StartupControls
                 Add("front-right","Vorne rechts · Rückseite",139,45); Add("back-right","Hinten rechts · Rückseite",187,45); Pad(267,159); break;
             case "xgunner":
                 Add("trigger","Abzug",330,180,"mouse:1"); Add("reload","Rechte Maustaste",368,164,"mouse:2");
-                Add("magazine","Mittlere Maustaste",350,135,"mouse:3"); Add("stick","Stick drücken",423,142,"key:13");
+                Add("magazine","Mittlere Maustaste",350,135,"mouse:3"); Add("stick","Enter · Rückseite",150,65,"key:13");
                 Add("start","Start",235,155,"key:49"); Add("coin","Münztaste",200,155,"key:53");
                 Add("side","Leertaste",280,164,"key:32"); Add("side-a","Taste Q · Rückseite",200,65,"key:81"); Add("side-b","Taste E · Rückseite",235,65,"key:69");
                 Add("up","Steuerkreuz oben",150,124,"key:87"); Add("down","Steuerkreuz unten",150,156,"key:83");
@@ -46,7 +46,23 @@ public static class StartupControls
         }
         return rows.ToArray();
     }
-    public static GunControl[] GameHardware(GunBinding binding) => Hardware(binding).Select(h => binding.SystemId == "blamcon" ? h with { Id = BlamconSetup.Canonical(h.Id) } : h).ToArray();
+    public static GunControl[] PhysicalGameHardware(GunBinding binding) => Hardware(binding).Select(h => binding.SystemId == "blamcon" ? h with { Id = BlamconSetup.Canonical(h.Id) } : h).ToArray();
+    // Keep physical identification separate from the player's chosen actions.
+    // Extra game controls (selector, stick press, magazine pull) retain their
+    // individual routes; the common actions follow the Studio mapping.
+    public static GunControl[] GameHardware(GunBinding binding)
+    {
+        var map = GunSystems.UpgradeMap(binding);
+        return PhysicalGameHardware(binding).Select(h => {
+            string? action = h.Id switch { "trigger" => "shoot", "reload" => "reload", "magazine" => "secondary", "start" => "start", "coin" => "coin", "up" or "down" or "left" or "right" => h.Id, _ => null };
+            if (action is null) return h;
+            string? token = h.Token is not null && map.GetValueOrDefault(h.Token) == action ? h.Token : map.FirstOrDefault(p => p.Value == action).Key;
+            // Older partial profiles can omit an action. Retain its physical
+            // route only when that token has not been assigned elsewhere.
+            if (token is null && h.Token is not null && !map.ContainsKey(h.Token)) token = h.Token;
+            return h with { Token = token };
+        }).ToArray();
+    }
     public static string? KeyToken(string key)
     {
         key=key.ToUpperInvariant();
@@ -92,7 +108,7 @@ public static class StartupControls
                 string unknown=Regex.Replace(Regex.Replace(expression,bridgePattern,""),@"[\s&!|()]","");
                 if(unknown.Length>0) return new(row.Function,row.Input,[],false);
                 label=Regex.Replace(expression,bridgePattern,m=>{
-                    var control=hardware.FirstOrDefault(h=>DolphinGunBridge.Input(binding.SystemId=="blamcon"?BlamconSetup.Canonical(h.Id):h.Id)==m.Groups[1].Value);
+                    var control=GameHardware(binding).FirstOrDefault(h=>DolphinGunBridge.Input(h.Id)==m.Groups[1].Value);
                     return Replace(control?.Token,m.Value);
                 }).Replace(" & !",I18n.T(" ohne ")).Replace(" & "," + ").Replace(" | ",I18n.T(" oder "));
                 return known && ids.Count>0?new(row.Function,label,ids.Distinct().ToArray(),true):new(row.Function,row.Input,[],false);

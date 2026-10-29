@@ -30,7 +30,7 @@ internal sealed class EmergencyExit : IDisposable
     {
         this.requestExit = requestExit; this.requestOverlay = requestOverlay;
         callback = OnKeyboard;
-        pairs = (bindings ?? []).Select(b => StartupControls.GameHardware(b))
+        pairs = (bindings ?? []).Select(b => StartupControls.PhysicalGameHardware(b))
             .Select(c => (Start: Key(c.FirstOrDefault(x => x.Id == "start")?.Token), Coin: Key(c.FirstOrDefault(x => x.Id == "coin")?.Token)))
             .Where(p => p.Start > 0 && p.Coin > 0 && p.Start != p.Coin).Distinct().ToArray();
         if (pairs.Length == 0) pairs = [(0x31, 0x35), (0x32, 0x36)];

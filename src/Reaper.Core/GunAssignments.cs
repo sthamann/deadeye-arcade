@@ -12,6 +12,8 @@ public static class GunAssignments
         if (gun.MouseId is null || !gun.DriverHealthy) throw new InvalidOperationException(I18n.T("Keine nutzbare Maus-Schnittstelle der Gun gefunden."));
         var saved = state.Bindings.Concat(state.GunProfiles).FirstOrDefault(b => Matches(b, gun) && b.SystemId == gun.SystemId);
         int hardware = GunSystems.HardwarePlayer(gun.SystemId, gun.MouseId, saved?.DevicePlayer ?? player);
+        var blamconPlayer = System.Text.RegularExpressions.Regex.Match(gun.Name, @"\bBlamcon\s*Lightgun\s*-\s*P([1-4])\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (gun.SystemId == "blamcon" && blamconPlayer.Success) hardware = int.Parse(blamconPlayer.Groups[1].Value);
         return saved is null ? new(player, gun.MouseId, gun.KeyboardId, gun.Port, gun.SystemId, gun.Id,
             GunSystems.DefaultMap(hardware, gun.SystemId), SoftwareConfigured: gun.SystemId == "xgunner" && gun.KeyboardId is not null, HardwarePlayer: hardware)
             : saved with { Player = player, MouseId = gun.MouseId, KeyboardId = gun.KeyboardId, SerialPort = gun.Port, PhysicalId = gun.Id, HardwarePlayer = hardware };

@@ -194,10 +194,13 @@ export function GunStudio({
   );
   const online = !!gun;
   const selected = models().find((m) => m.id === model)!;
+  const softwareDependencies = state.gunSoftware?.find(s=>s.id===model)?.dependencies;
   const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(binding?.hardwarePlayer ?? player,model) : factoryMap(binding?.hardwarePlayer ?? player,model);
   const hardwarePlayer = binding?.hardwarePlayer ?? (binding?.systemId === "rs3" ? +(binding.mouseId.match(/PID_575([0-3])/i)?.[1] ?? (player - 1)) + 1 : player);
   const physicalControls = controls(model,hardwarePlayer);
   const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? (model==="blamcon" && (id==="magazine" || id==="pedal") ? (binding?.blamcon?.pedalMode==="assignable"?"key:82":binding?.blamcon?.pedalMode==="right"?"mouse:2":binding?.blamcon?.pedalMode==="middle"?"mouse:3":undefined) : physicalControls.find(c=>c.id===id)?.token);
+  const controlNames = (token:string) => physicalControls.filter(c=>tokenFor(c.id)===token).map(c=>t(c.label)).join(' / ') || tokenLabel(token);
+  const unknownControls = online && binding?.systemId===model ? physicalControls.filter(c=>!c.hardware&&!tokenFor(c.id)) : [];
   const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token] || model === "rs3" && c.id === "trigger" && held["hid:1"];}).map(c=>c.id));
   const feedback = binding?.feedback ?? {
     recoil: true,
@@ -245,6 +248,7 @@ export function GunStudio({
         })}</div>
       </section>
       <GunMenuGuide binding={binding}/>
+      {sameModel && unknownControls.length>0 && <div className="setup-note" role="status"><strong>{t("{0} Tasten noch erfassen",unknownControls.length)}</strong><p>{unknownControls.map(c=>t(c.label)).join(' · ')}</p><p>{t("USB ist verbunden. Diese Eingänge sind noch nicht bekannt und können erst nach dem Erfassen automatisch in Spielprofile übernommen werden.")}</p></div>}
       <div className="system-cards">
         {models().map((m) => (
           <button
@@ -415,7 +419,7 @@ export function GunStudio({
                     <span>
                       <strong>{title}</strong>
                       <small>
-                        {tokens.map(tokenLabel).join(" / ") ||
+                        {tokens.map(controlNames).join(" / ") ||
                           t("Nicht belegt")}
                       </small>
                     </span>
@@ -440,7 +444,7 @@ export function GunStudio({
               )}
               <p className="studio-caption">
                 {t(
-                  "Diese Belegung steuert das Deadeye-Men\u00FC. MAME \u00FCbernimmt die unterst\u00FCtzten Spielaktionen beim Start; weitere Emulatoren verwenden ihre eigenen Profile. Außerhalb des Tastentests bleibt Start + Coin halten der unabhängige Notausgang.",
+                  "Die Grundaktionen werden beim Spielstart in unterstützte MAME-, TeknoParrot-RawInput-, Dolphin-, RPCS3-, RetroArch- und Supermodel-Profile übertragen. Zusätzliche Spielfunktionen bleiben auf eigenen Tasten. Spiele mit festem Maus-/Patch-Layout behalten ihre vorgegebene Belegung. Der Notausgang verwendet weiterhin die physischen Start- und Coin-Tasten.",
                 )}
               </p>
               <button
@@ -852,6 +856,7 @@ export function GunStudio({
                   "Downloads kommen aus den Herstellerquellen und werden vor dem \u00D6ffnen anhand der gepr\u00FCften Paket-Pr\u00FCfsumme kontrolliert. Firmware-Updates werden nicht automatisch ausgef\u00FChrt.",
                 )}
               </p>
+              {softwareDependencies && <div className="setup-note" role="status"><strong>{softwareDependencies.missing?t("{0} benötigte Laufzeiten fehlen",softwareDependencies.missing):t("Herstellerprogramm: benötigte Laufzeiten geprüft")}</strong><p>{t("{0} Programmdateien geprüft",softwareDependencies.checkedBinaries)}</p>{softwareDependencies.uncheckedFiles>0&&<p>{t("{0} zusätzliche Abhängigkeiten separat prüfen",softwareDependencies.uncheckedFiles)}</p>}</div>}
               <details>
                 <summary>{t("Technische Eing\u00E4nge anzeigen")}</summary>
                 {state.devices.map((d) => (

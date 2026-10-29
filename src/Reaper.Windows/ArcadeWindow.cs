@@ -381,7 +381,7 @@ public sealed class ArcadeWindow : Window
         {
             foreach (var signal in Signals(packet))
             {
-                var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId);
+                var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId);
                 string action = map.GetValueOrDefault(signal.Token, "none");
                 // RS3 joystick mode exposes its primary trigger on HID button usage 1.
                 if (packet.Kind == "hid" && binding.SystemId == "rs3" && packet.Key == 1) action = "shoot";
@@ -420,6 +420,7 @@ public sealed class ArcadeWindow : Window
                         if(menuLearning.Complete){menuLearning=null;learningPlayer=null;Send("notice",new {message=I18n.T("Menütasten gespeichert. Steuerkreuz und Start können jetzt die Oberfläche bedienen.")});}
                         Persist();
                     }
+                    else if(menuLearning?.Duplicate==true) Send("notice",new {message=I18n.T("Diese Taste wurde schon erfasst. Bitte die angezeigte andere Taste drücken.")});
                     return;
                 }
                 if (learningPlayer == binding.Player && signal.Down && !session.Active)
@@ -447,7 +448,7 @@ public sealed class ArcadeWindow : Window
         if (binding is not null && packet.Kind == "mouse" && !testing)
             foreach (var signal in Signals(packet).Where(s => s.Down))
             {
-                string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
+                string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
                 if (action is not ("shoot" or "reload" or "none")) Send("menu-action", new { action, player = binding.Player });
             }
         // No global shared cursor is used for absolute lightgun packets.
@@ -458,14 +459,14 @@ public sealed class ArcadeWindow : Window
             if (binding is not null)
                 foreach (var signal in Signals(packet).Where(s => s.Down))
                 {
-                    string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
+                    string action = (binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId)).GetValueOrDefault(signal.Token, "none");
                     if (testing ? signal.Token == (binding.ControlMap?.GetValueOrDefault("trigger") ?? "mouse:1") : action == "shoot") menuButtons |= 1;
                     if (!testing && action == "reload") menuButtons |= 4;
                 }
             var client = web.PointFromScreen(point);
             Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, x = client.X / Math.Max(1, web.ActualWidth), y = client.Y / Math.Max(1, web.ActualHeight), buttons = menuButtons });
         }
-        else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down, action = binding is null ? null : (binding.ButtonMap ?? GunSystems.DefaultMap(binding.Player,binding.SystemId)).GetValueOrDefault("key:" + packet.Key, "none") });
+        else Send("input", new { packet.DeviceId, kind = packet.Kind, player = binding?.Player ?? 0, packet.Key, packet.Down, action = binding is null ? null : (binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId)).GetValueOrDefault("key:" + packet.Key, "none") });
     }
     private void OpenOverlay(int player)
     {
@@ -620,10 +621,18 @@ public sealed class ArcadeWindow : Window
                             await GunSoftware.Prepare(system,store.DirectoryPath,_=>{},launch:true);
                             GunSoftware.SetStatus(system,I18n.T("ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen."));
                         }
-                        else GunSoftware.SetStatus(system,I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
+                        else GunSoftware.SetStatus(system,system=="blamcon" && !GunSoftware.IsPrepared(system,store.DirectoryPath)
+                            ? I18n.T("ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen.")
+                            : I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
                     }
                     if(system=="rs3")GunSoftware.SetStatus(system,I18n.T("RS3-Kalibrierung vorbereitet · Windows HID bereit"));
                     preparedVendors[system]=DateTimeOffset.MaxValue;
+                }
+                catch(GunSetupActionRequiredException error)
+                {
+                    preparedVendors[system]=DateTimeOffset.MaxValue;
+                    GunSoftware.SetStatus(system,error.Message);
+                    Log("gun software requires user action: "+system+" "+error.Message);
                 }
                 catch(Exception error)
                 {
@@ -834,7 +843,7 @@ public sealed class ArcadeWindow : Window
             case "reset-button-map":
                 {
                     int i = state.Bindings.FindIndex(b => b.Player == Player()); if (i < 0) throw new InvalidOperationException(I18n.T("Keine Gun zugeordnet."));
-                    state.Bindings[i] = state.Bindings[i] with { ButtonMap = GunSystems.DefaultMap(state.Bindings[i].DevicePlayer,state.Bindings[i].SystemId) }; Persist(); break;
+                    state.Bindings[i] = state.Bindings[i] with { ButtonMap = GunSystems.DefaultFor(state.Bindings[i]) }; Persist(); break;
                 }
             case "set-gun-feedback":
                 {

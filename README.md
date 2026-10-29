@@ -14,11 +14,11 @@ setup problems, and return to the library with your gun.
 
 **[Download the latest Windows installer](https://github.com/sthamann/deadeye-arcade/releases/latest)** · [Portable downloads and checksums](https://github.com/sthamann/deadeye-arcade/releases)
 
-Deadeye recovers its input subscriptions after Windows unlock, resume and Remote Desktop transitions. The header distinguishes USB presence from a received gun button event. Game button assignments stay independent of menu shortcuts. Reviewed Wii profiles include per-player weapon selection, reload gestures and special actions; the startup legend reads the active mappings. Automatic repairs also inspect every library entry for missing player actions and keep a local controls report. A profile check does not replace a physical two-player test.
+Deadeye recovers its input subscriptions after Windows unlock, resume and Remote Desktop transitions. The header distinguishes USB presence from a received gun button event. Physical button identity stays separate from assigned actions; the emergency exit retains its physical shortcut. Reviewed Wii profiles include per-player weapon selection, reload gestures and special actions; the startup legend reads the active mappings. Automatic repairs also inspect every library entry for missing player actions and keep a local controls report. A profile check does not replace a physical two-player test.
 
 Gun controls also drive the frontend: hold a D-pad or stick direction to move through games and scroll the focused item into view. Gun-specific menu hints use each device's saved controls. Active player badges, receiver ports and a standby state make multi-gun selection visible; either player can sit out. Capturing a changed directional control updates menu navigation as well as its physical visualization.
 
-Connected guns trigger software preparation automatically: RS3 calibration support, the verified XGunner configuration package, Sinden software with its runtime, and the official Blamcon ARC installation through Steam. Progress and failures appear beside the guns; temporary failures retry without restarting the app. Steam login, vendor confirmations and physical calibration remain explicit setup steps.
+Connected guns trigger software preparation automatically: RS3 calibration support, the verified XGunner configuration package, Sinden software with its runtime, and the official Blamcon ARC installation through Steam. Progress and failures appear beside the guns; temporary failures retry without restarting the app. Sinden and XGunner program files are scanned for required Microsoft runtimes, missing supported components open their official installer, and setup checks again before starting the vendor app. Steam login, vendor confirmations and physical calibration remain explicit setup steps.
 
 ## See it in action
 
@@ -71,7 +71,16 @@ Choose any connected gun for P1 or P2, including mixed setups with more than two
 Each family has its own illustrated controls. Press a button to see its live
 highlight, capture the signal from your device and bind it to a menu or game action.
 Physical control capture and action bindings are stored separately, so the diagram
-can show what you pressed even when you change what the button does.
+can show what you pressed even when you change what the button does. The Studio
+and startup overlay share the same drawing, and actions show physical button names.
+Unknown inputs stay visible until captured; guided capture rejects duplicate menu
+buttons, and restoring defaults preserves your captured signals.
+
+Common action changes are applied at launch to supported MAME, TeknoParrot
+RawInput, Dolphin, RPCS3, RetroArch and Supermodel profiles. Extra title functions
+retain their individual controls. Fixed mouse layouts and game-specific patches
+keep their own required bindings, which are shown in the game controls. The
+emergency exit uses physical Start and Coin/Select independently of action remaps.
 [Physical controls and hardware references](docs/HARDWARE-CONTROLS.md).
 
 For **RS3 Reaper Pro**, Deadeye provides USB/COM detection, automatic player
@@ -80,7 +89,7 @@ recoil and rumble test pulses. Prepare the checked manufacturer calibration modu
 then run a fullscreen four-target calibration for the selected player and a
 separate five-target aim test at the physical monitor.
 
-For **XGunner Wireless**, Deadeye recognizes the receiver’s USB identity even when Windows supplies generic names. The controls diagram covers the trigger, right and middle mouse buttons, Start/Coin, Space, Q/E, Enter/stick and WASD directions. The setup includes the checked V261009 manufacturer application, a calibration guide, lightgun mode and aspect selection, and separate local recoil/motor test pulses. Reviewed TeknoParrot and Dolphin profiles support mixed RS3/XGunner assignments.
+For **XGunner Wireless**, Deadeye recognizes the receiver’s USB identity even when Windows supplies generic names. The controls diagram covers the trigger, right and middle mouse buttons, Start/Coin, Space, Q/E, the Enter button on the opposite side and WASD directions. The setup includes the checked V261009 manufacturer application, a calibration guide, lightgun mode and aspect selection, and separate local recoil/motor test pulses. Reviewed TeknoParrot and Dolphin profiles support mixed RS3/XGunner assignments.
 
 For **Blamcon Vyper**, Deadeye includes A/B defaults, magazine/pedal and auxiliary control capture, saved player assignments, native mouse-mode/aspect/reload/recoil settings, existing calibration profile selection and bounded local recoil/rumble tests. The setup guide covers separate hardware IDs for two Vypers, onboard calibration and ARC camera/smoothing checks. Captured Start/Select and D-pad inputs feed the menu, emergency exit, TeknoParrot profiles and Dolphin's independent per-gun bridge. ARC is installed or opened through Steam. Physical input, tracking and feedback still require testing with the connected guns.
 

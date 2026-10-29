@@ -1,9 +1,9 @@
-# Deadeye Arcade 0.3.30
+# Deadeye Arcade 0.3.31
 
-Hold a gun's D-pad or stick direction to browse games and scroll. Navigation repeats independently of firmware keyboard repeat, stops on release and clears during session or device changes. The focused game stays visible; selecting it returns to the game preview. Captured direction controls update both the physical display and menu actions.
+Gun Studio and the startup overlay share the same model drawings. The XGunner view identifies Enter on the opposite side, the directional joystick and the firmware button. Physical hotspots can be selected with gun aiming or directional navigation. Action rows show the actual button names, and missing captured inputs remain visible.
 
-The player selector now distinguishes playing P1/P2 guns from standby devices, shows receiver ports in the header and supports sitting out. A per-gun guide explains the available menu controls.
+Common action remaps now reach supported TeknoParrot, Dolphin, RPCS3 and RetroArch physical-control routes as well as the existing MAME and Supermodel action routes. Extra title functions retain their individual controls. Fixed mouse layouts and installed multiplayer patches keep their required mappings. The independent emergency chord continues to use the physical Start and Coin/Select inputs.
 
-Software preparation runs automatically for connected gun families, displays progress and retries temporary failures without re-scanning USB or restarting the app. RS3 calibration support, XGunner configuration software and Sinden runtime preparation are included; Blamcon ARC installation opens through Steam when needed. Steam authentication, vendor confirmations and physical calibration remain visible steps. Gun firmware is not flashed automatically.
+Vyper button recapture removes obsolete action routes, guided menu capture rejects duplicate inputs and restoring defaults preserves learned physical signals. A Vyper's reported hardware player stays separate from its selected game slot.
 
-A guided menu-button setup captures Start, Coin/Select and all four directions in sequence, waits for release between steps and saves the actual per-device signals. Reload cancels the sequence.
+Sinden and XGunner setup scans the downloaded vendor programs for supported Microsoft runtime dependencies, opens official installers when needed and checks again before starting the program. Sinden's fresh setup enables automatic start. Pending ARC installation keeps its Steam action status instead of appearing installed.

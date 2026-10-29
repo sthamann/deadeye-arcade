@@ -1,6 +1,6 @@
 # Physical lightgun controls
 
-Gun Studio uses separate, original vector drawings for each hardware family. Numbered controls identify physical inputs; live highlights use received input tokens, independently of the assigned gameplay action. **Capture** associates a control with the signal from your own device. **Bind** assigns a gameplay/menu action. Captures and bindings persist across updates.
+Gun Studio uses original vector drawings for each hardware family, shared by the Studio and native game overlay. Numbered controls identify physical inputs; live highlights use received input tokens, independently of the assigned gameplay action. **Capture** associates a control with the signal from your own device. **Bind** assigns a gameplay/menu action. Captures and bindings persist across updates.
 
 ## RS3 Reaper Pro
 
@@ -18,7 +18,7 @@ Reference: [Retro Shooter's PC button diagram, page 7](https://retroshooter.com/
 
 Holding Coin for four seconds sends Escape. The recoil selector and DIP switches are physical settings. Both grip buttons share the same signal; an offscreen shot may also send a reload signal. HID alone cannot distinguish controls that emit the same token. Changed firmware or vendor mappings should be captured on the device.
 
-The 0.3.4 migration corrects only the exact earlier factory map. Custom action bindings remain untouched.
+Factory migrations preserve custom action bindings. Restoring default actions also preserves captured physical signals.
 
 ## Sinden
 
@@ -32,7 +32,7 @@ Reference: [official product photos](https://hwhxg.com/product/xgunner-blue-p1/)
 
 The USB receiver can expose generic Windows mouse, keyboard and serial names. Detection uses the XGUNNER receiver serial together with VID `1209` and PID `0001` through `0004`, grouped by physical Windows Container ID. Receiver presence and a received wireless input remain separate states.
 
-The [X-GUNNER manual](https://ae01.alicdn.com/kf/Sa61a9e8ad5144b66a36d572d7548dc22q.pdf) supplies the physical controls: trigger/left mouse, right and middle mouse buttons, Start, `5` (Coin), Space, Q, E, Enter/stick and WASD. The diagram also identifies physical power, vibration and rapid-fire switches and the magazine release. Capture modified firmware mappings on the actual device.
+The [X-GUNNER manual](https://ae01.alicdn.com/kf/Sa61a9e8ad5144b66a36d572d7548dc22q.pdf) supplies the physical controls: trigger/left mouse, right and middle mouse buttons, Start, `5` (Coin), Space, Q, E, the Enter button on the opposite side and WASD. The diagram also identifies physical power, vibration and rapid-fire switches, the magazine release and the firmware button. Enter is labelled separately from the directional joystick. Capture modified firmware mappings on the actual device.
 
 Calibration is performed by the gun: disable Rapid Fire, press Space + Start, pull the trigger, then confirm center, up, down, left and right. Changing square/diamond IR layout requires recalibration. Deadeye opens the checked V261009 official configuration tool for calibration, button settings and firmware information; firmware is not flashed automatically.
 
