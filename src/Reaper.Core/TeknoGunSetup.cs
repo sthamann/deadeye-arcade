@@ -36,17 +36,17 @@ public static class TeknoGunSetup
                 string? token=aim?null:map.Where(p=>p.Value==action).Select(p=>p.Key).FirstOrDefault();
                 // Menu actions are independent of a game's physical gun controls.
                 // A custom menu Start/Coin map must not remove the game's coin input.
-                if(player.SystemId is "rs3" or "xgunner" && action is not null)
+                if(player.SystemId is "rs3" or "xgunner" or "blamcon" && action is not null)
                 {
                     string physical=action switch {"shoot"=>"trigger","reload"=>"reload","secondary"=>"magazine",_=>action};
-                    token=StartupControls.Hardware(player).FirstOrDefault(h=>h.Id==physical)?.Token;
+                    token=StartupControls.GameHardware(player).FirstOrDefault(h=>h.Id==physical)?.Token;
                 }
                 // These are distinct vendor actions, not aliases of grenades/action.
                 // Keep weapon change and Option reachable on separate RS3 controls.
                 if(control is "Footpedal" or "Foot Pedal" or "Pedal" &&
                     (!string.IsNullOrWhiteSpace(row.Element("BindName")?.Value) || !string.IsNullOrWhiteSpace(row.Element("RawInputButton")?.Element("DevicePath")?.Value))) continue;
-                if(player.SystemId is "rs3" or "xgunner" && control is "Change" or "Option" or "Sub Trigger" or "Controller Select" or "Option L" or "Option R" or "Footpedal" or "Foot Pedal" or "Pedal" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)")
-                    token=StartupControls.Hardware(player).FirstOrDefault(h=>h.Id==(control is "Change" or "Controller Select" or "Option R" or "Hyperenergy Tech Lever Backwards (Defense)"?"stick":"side"))?.Token;
+                if(player.SystemId is "rs3" or "xgunner" or "blamcon" && control is "Change" or "Option" or "Sub Trigger" or "Controller Select" or "Option L" or "Option R" or "Footpedal" or "Foot Pedal" or "Pedal" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)")
+                    token=StartupControls.GameHardware(player).FirstOrDefault(h=>h.Id==(control is "Change" or "Controller Select" or "Option R" or "Hyperenergy Tech Lever Backwards (Defense)"?"stick":"side"))?.Token;
                 if(!aim&&(token is null||!GunSystems.ValidToken(token)))continue;
                 bool keyboard=token?.StartsWith("key:")==true;
                 string? device=keyboard?player.KeyboardId:player.MouseId;

@@ -4,6 +4,34 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+Check(GunSystems.DefaultMap(1,"blamcon").GetValueOrDefault("mouse:3")=="secondary",
+    "Vyper B button is usable as a secondary action without manual mapping");
+Check(GunSystems.UpgradeMap(new(1,"old-vyper",SystemId:"blamcon",ButtonMap:new(){["mouse:1"]="shoot",["mouse:2"]="reload"})).GetValueOrDefault("mouse:3")=="secondary", "Existing factory Vyper maps gain B without overwriting custom controls");
+var vyper = new GunBinding(1,"vyper-mouse","vyper-keys","COM8","blamcon","vyper",Blamcon: new());
+foreach(var (control,key) in new[]{("start",49),("select",53),("up",38),("down",40),("left",37),("right",39)}) vyper=BlamconSetup.Learn(vyper,control,"key:"+key);
+Check(vyper.ButtonMap!.GetValueOrDefault("key:53")=="coin" && StartupControls.GameHardware(vyper).Single(h=>h.Id=="coin").Token=="key:53",
+    "Capturing Vyper Select feeds both menu Coin and the independent emergency exit");
+Check(StartupControls.GameHardware(vyper).Single(h=>h.Id=="reload").Token=="mouse:2" && StartupControls.GameHardware(vyper).Single(h=>h.Id=="magazine").Token=="mouse:3" && StartupControls.GameHardware(vyper).First(h=>h.Id=="side").Token=="key:82",
+    "Vyper A, B and the configured magazine channel feed separate canonical game controls");
+var vyperCommands=BlamconSetup.Configure(new(Aspect:"4:3",CalibrationProfile:4,RecoilMode:"off"));
+Check(vyperCommands.Contains("CM.3.1") && vyperCommands.Contains("CM.12.3") && vyperCommands.Contains("CM.8.0") && vyperCommands.All(BlamconSetup.ValidCommand),
+    "Vyper configuration uses documented aspect, recoil and existing calibration profile commands");
+Check(BlamconSetup.Pulse("recoil").SequenceEqual(new[]{"SM.0.1","FB.0.1","FB.0.0","ES"}) && BlamconSetup.Pulse("rumble")[^1]=="ES" && !BlamconSetup.ValidCommand("FB.0.1.999") && !BlamconSetup.ValidCommand("ZS"),
+    "Vyper tests are bounded single pulses which end serial mode and reject RS3 or arbitrary commands");
+bool invalidVyper=false;try{BlamconSetup.Configure(new(CalibrationProfile:0));}catch(ArgumentException){invalidVyper=true;}
+Check(invalidVyper,"An invalid Vyper calibration slot cannot reach the serial port");
+var vyperProfile=DolphinSetup.BridgeButtons(DolphinSetup.ReaperButtons("RZJE69",vyper),vyper);
+Check(vyperProfile["Nunchuk/Buttons/C"]=="`Circle` & !`Cross`" && vyperProfile["Shake/X"]=="`Cross` & `Square`",
+    "Dolphin maps Vyper magazine, A/B and the A+B shake combination without a phantom RS3 stick");
+bool missingVyper=false;try{DolphinSetup.ReaperButtons("RZJE69",new(1,"unlearned",SystemId:"blamcon"));}catch(ArgumentException){missingVyper=true;}
+Check(missingVyper,"An unlearned Vyper keyboard never silently inherits guessed Reaper key defaults");
+await using(var vyperBridge=new DolphinGunBridge([vyper,new(2,"other-vyper","other-keys",SystemId:"blamcon",Blamcon:new())]))
+{
+    vyperBridge.Mouse("vyper-mouse",true,50000,20000,4|16);vyperBridge.Key("vyper-keys",53,true);vyperBridge.Key("vyper-keys",82,true);
+    var first=vyperBridge.Frame(1);var second=vyperBridge.Frame(2);
+    Check(first[49]==255 && first[48]==255 && first[50]==255 && (first[36]&1)!=0 && second[49]==0 && second[50]==0,
+        "Actual Vyper DSU frames isolate A, B, magazine and Select from the other gun");
+}
 Check(GunSystems.DefaultMap(2,"xgunner").ContainsValue("start") && GunSystems.DefaultMap(2,"xgunner").ContainsValue("coin"),
     "XGunner factory controls include Start and Coin even when both RS3 slots are occupied");
 
@@ -249,6 +277,11 @@ RButton::y
     Check(StartupControls.ForPlayer(rpcLegend,p2).Any(h=>h.ControlIds.Contains("trigger")&&h.Resolved) && StartupControls.ForPlayer(rpcLegend,p2).Any(h=>h.ControlIds.Contains("coin")&&h.Resolved),"RPCS3 legend reads active Move actions through raw bindings to the real P2 gun controls");
     Rpcs3Setup.Configure(rpcGame,[p1]);rpcRaw=File.ReadAllText(Path.Combine(rpcRoot,"config","raw_mouse.yml"));
     Check(Rpcs3Setup.YamlValue(rpcRaw,["Player 2"],"Device")=="" && OverlayControls.Read(rpcGame,root,[p2]).Rows.Length==0,"Disconnected RPCS3 P2 is cleared and its legend cannot claim a working mapping");
+    var rpcVyper = vyper with { ControlMap = new(vyper.ControlMap!) { ["magazine"] = "key:77", ["pedal"] = "key:77" } };
+    Rpcs3Setup.Configure(rpcGame,[rpcVyper]);
+    string vyperRaw=File.ReadAllText(Path.Combine(rpcRoot,"config","raw_mouse.yml"));
+    Check(Rpcs3Setup.YamlValue(vyperRaw,["Player 1"],"Button 2")=="Button 2" && Rpcs3Setup.YamlValue(vyperRaw,["Player 1"],"Button 3")=="Button 3" && Rpcs3Setup.YamlValue(vyperRaw,["Player 1"],"Button 4")=="Key "+Rpcs3Setup.EncodeKey(77) && Rpcs3Setup.YamlValue(vyperRaw,["Player 1"],"Button 7")=="Key "+Rpcs3Setup.EncodeKey(53),"RPCS3 writes Vyper A, B, captured magazine and Select to separate raw Move channels");
+    rpcRaw=vyperRaw;
     File.WriteAllText(rpcExe,"older unsupported emulator");
     Check(Rpcs3Setup.Configure(rpcGame,[p1,p2])==rpcGame && File.ReadAllText(Path.Combine(rpcRoot,"config","raw_mouse.yml"))==rpcRaw,"Older RPCS3 builds remain unchanged until their Raw Mouse backend is available");
     string raRoot = Path.Combine(root,"retroarch"); Directory.CreateDirectory(raRoot);
@@ -290,6 +323,10 @@ RButton::y
     RetroArchSetup.Configure(nesGame,root,[p1,p2],[p2.MouseId,p1.MouseId]);
     string nesText=File.ReadAllText(RetroArchSetup.ProfilePath(nesGame,root));
     Check(nesText.Contains("input_libretro_device_p2 = \"258\"") && nesText.Contains("input_player2_mouse_index = \"1\"") && nesText.Contains("deadeye_player2_physical = \"1\""),"NES Zapper uses original hardware port 2 while the gun and legend remain physical P1");
+    var vyperRa=raGame with {Id="vyper-retroarch"};
+    RetroArchSetup.Configure(vyperRa,root,[vyper],[vyper.MouseId]);
+    string vyperRaText=File.ReadAllText(RetroArchSetup.ProfilePath(vyperRa,root));
+    Check(vyperRaText.Contains("input_player1_gun_aux_a_mbtn = \"3\"") && vyperRaText.Contains("input_player1_gun_aux_b = \"r\"") && vyperRaText.Contains("input_player1_gun_select = \"num5\""),"RetroArch emits Vyper B, magazine and Select instead of Reaper physical names");
     string flycastRoot=Path.Combine(root,"flycast");Directory.CreateDirectory(flycastRoot);
     var flycastGame=multiGame with {Executable=Path.Combine(flycastRoot,"flycast.exe"),WorkingDirectory=flycastRoot};
     var flyP1=p1 with {KeyboardId=p1.MouseId.Replace("COL01","COL02")};
@@ -559,6 +596,14 @@ RButton::y
     string mixedProfile=File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!);
     Check(DolphinSetup.Value(mixedProfile,"Profile","Device")=="DSUClient/0/DeadeyeGuns" && DolphinSetup.Value(mixedProfile,"Profile","Nunchuk/Buttons/C")=="`Circle` & !`Cross`",
         "Mixed Dolphin profile translates XGunner Space/reload controls into per-device bridge inputs");
+    var vyper2=vyper with {Player=2,MouseId="vyper-two",KeyboardId="vyper-two-keys",PhysicalId="vyper-two"};
+    Check(DolphinSetup.Configure(deadspace,pack,[vyper,vyper2],26763),"Dolphin writes real profiles for two independently assigned Vypers");
+    var vyper1Text=File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!);var vyper2Text=File.ReadAllText(DolphinSetup.ProfilePath(deadspace,2)!);
+    Check(DolphinSetup.Value(vyper1Text,"Profile","Device")=="DSUClient/0/DeadeyeGuns" && DolphinSetup.Value(vyper2Text,"Profile","Device")=="DSUClient/1/DeadeyeGuns" && DolphinSetup.Value(vyper1Text,"Profile","Shake/X")=="`Cross` & `Square`",
+        "Vyper P1/P2 keep separate aim devices and use A+B for Dead Space shake");
+    var vyperLegend=StartupControls.ForPlayer(OverlayControls.Read(deadspace,root,[vyper,vyper2]),vyper);
+    Check(vyperLegend.Any(h=>h.Function.StartsWith("Nahkampf") && h.Resolved && h.ControlIds.Contains("a") && h.ControlIds.Contains("magazine")),
+        "The game overlay resolves actual Vyper labels for Dead Space combinations");
     Check(DolphinSetup.Configure(deadspace,pack,[xgun],26762) && DolphinSetup.Value(File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!),"Profile","Device")=="DSUClient/0/DeadeyeGuns" && File.ReadAllText(Path.Combine(DolphinSetup.UserDirectory(deadspace),"Config","DSUClient.ini")).Contains(":26762;"),
         "A single XGunner also configures its absolute-aim bridge and writes the active port");
     await using(var mixedBridge=new DolphinGunBridge([xgun,p2]))

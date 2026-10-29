@@ -1,7 +1,5 @@
-# Deadeye Arcade 0.3.27
+# Deadeye Arcade 0.3.28
 
-Choose any connected lightgun for P1 or P2, including mixed RS3 Reaper and XGunner setups. Player swaps preserve each gun’s controls and feedback settings; explicit selections survive reconnects and restarts.
+Blamcon Vyper now has its own configuration panel with documented mouse-mode, aspect, recoil, reload, pedal and calibration-profile commands, bounded local feedback tests and an onboard calibration guide. A/B defaults and captured auxiliary controls feed the menu and reviewed game input paths. Two Vypers and mixed pairs can use Dolphin’s independent gun bridge; missing keyboard controls produce a capture instruction instead of guessed Reaper inputs.
 
-XGunner receivers are recognized from their USB identity when Windows uses generic names. The controls view includes the documented keyboard and mouse controls, calibration guidance, the checked V261009 manufacturer software, aspect/mode configuration and bounded local recoil/rumble tests. The header counts connected receivers separately from input verification.
-
-Reviewed TeknoParrot and Dolphin input profiles now use the selected mixed gun pair. RS3 hardware IDs remain independent of game slots for serial setup and calibration.
+ARC installation detection supports additional Steam libraries. Detecting a gun prepares its status without opening Steam unexpectedly. The guide explains separate hardware IDs for two Vypers, IR visibility, smoothing and physical verification. Firmware and calibration data remain under the owner’s control.

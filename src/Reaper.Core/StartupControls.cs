@@ -5,8 +5,7 @@ namespace Reaper.Core;
 public record GunControl(string Id, string Label, double X, double Y, string? Token);
 public record StartupControlHint(string Function, string Input, string[] ControlIds, bool Resolved);
 
-// The same physical positions as Gun Studio. Only RS3 has a known factory keyboard map;
-// other models require learned physical controls, rather than guessed vendor defaults.
+// Physical positions match Gun Studio. Unpublished vendor keyboard defaults are learned.
 public static class StartupControls
 {
     public const int DurationMilliseconds = 10_000;
@@ -39,12 +38,15 @@ public static class StartupControls
                 Add("up","Steuerkreuz oben",150,124,"key:87"); Add("down","Steuerkreuz unten",150,156,"key:83");
                 Add("left","Steuerkreuz links",134,140,"key:65"); Add("right","Steuerkreuz rechts",166,140,"key:68"); break;
             case "blamcon":
-                Add("trigger","Abzug",342,157,"mouse:1"); Add("magazine","Magazin ziehen",246,239);
-                Add("a","Taste A · Vordergriff",118,103); Add("b","Taste B · Vordergriff",154,103);
-                Pad(273,96); Add("select","Select",249,65); Add("start","Start",296,65); break;
+                Add("trigger","Abzug",342,157,"mouse:1"); Add("magazine","Magazin ziehen",246,239, binding.Blamcon?.PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
+                Add("a","Taste A · Vordergriff",118,103,"mouse:2"); Add("b","Taste B · Vordergriff",154,103,"mouse:3");
+                Pad(273,96); Add("select","Select",249,65); Add("start","Start",296,65);
+                Add("pedal","Optionales Pedal",480,249,binding.Blamcon?.PedalMode switch { "assignable" => "key:82", "right" => "mouse:2", "middle" => "mouse:3", _ => null });
+                Add("aux","Feuerwahl als Taste",376,134); break;
         }
         return rows.ToArray();
     }
+    public static GunControl[] GameHardware(GunBinding binding) => Hardware(binding).Select(h => binding.SystemId == "blamcon" ? h with { Id = BlamconSetup.Canonical(h.Id) } : h).ToArray();
     public static string? KeyToken(string key)
     {
         key=key.ToUpperInvariant();
@@ -90,7 +92,7 @@ public static class StartupControls
                 string unknown=Regex.Replace(Regex.Replace(expression,bridgePattern,""),@"[\s&!|()]","");
                 if(unknown.Length>0) return new(row.Function,row.Input,[],false);
                 label=Regex.Replace(expression,bridgePattern,m=>{
-                    var control=hardware.FirstOrDefault(h=>DolphinGunBridge.Input(h.Id)==m.Groups[1].Value);
+                    var control=hardware.FirstOrDefault(h=>DolphinGunBridge.Input(binding.SystemId=="blamcon"?BlamconSetup.Canonical(h.Id):h.Id)==m.Groups[1].Value);
                     return Replace(control?.Token,m.Value);
                 }).Replace(" & !",I18n.T(" ohne ")).Replace(" & "," + ").Replace(" | ",I18n.T(" oder "));
                 return known && ids.Count>0?new(row.Function,label,ids.Distinct().ToArray(),true):new(row.Function,row.Input,[],false);

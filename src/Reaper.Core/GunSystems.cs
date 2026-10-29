@@ -28,6 +28,7 @@ public static class GunSystems
     public static Dictionary<string, string> DefaultMap(int player, string system = "rs3")
     {
         var map = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload" };
+        if (system == "blamcon") return new(map) { ["mouse:3"] = "secondary" };
         if (system == "xgunner") return new(map) { ["mouse:3"]="secondary", ["key:49"]="start", ["key:13"]="start", ["key:53"]="coin", ["key:32"]="reload", ["key:81"]="secondary", ["key:69"]="secondary", ["key:87"]="up", ["key:83"]="down", ["key:65"]="left", ["key:68"]="right" };
         if (system != "rs3") return map;
         map["mouse:3"]="secondary"; map["key:"+(48+player)]="start"; map["key:"+(52+player)]="coin";
@@ -40,6 +41,7 @@ public static class GunSystems
     public static Dictionary<string,string> UpgradeMap(GunBinding binding)
     {
         if(binding.ButtonMap is null) return DefaultMap(binding.DevicePlayer,binding.SystemId);
+        if (binding.SystemId == "blamcon" && binding.ButtonMap.Count == 2 && binding.ButtonMap.GetValueOrDefault("mouse:1") == "shoot" && binding.ButtonMap.GetValueOrDefault("mouse:2") == "reload") return DefaultMap(binding.DevicePlayer, "blamcon");
         // Upgrade only the exact factory map from <=0.3.3. Preserve every custom map.
         var old = new Dictionary<string,string> { ["mouse:1"]="shoot", ["mouse:2"]="reload", ["mouse:3"]="secondary", ["key:"+(binding.DevicePlayer==1?49:50)]="start", ["key:"+(binding.DevicePlayer==1?53:54)]="coin", ["key:85"]="up", ["key:86"]="down", ["key:87"]="left", ["key:88"]="right" };
         return binding.SystemId=="rs3" && binding.ButtonMap.Count==old.Count && old.All(p=>binding.ButtonMap.GetValueOrDefault(p.Key)==p.Value) ? DefaultMap(binding.DevicePlayer) : new(binding.ButtonMap);
@@ -48,7 +50,7 @@ public static class GunSystems
         "rs3" => new[]{"trigger","reload","magazine","start","coin","side","up","down","left","right","stick"},
         "sinden" => new[]{"trigger","pump","front-left","back-left","front-right","back-right","up","down","left","right"},
         "xgunner" => new[]{"trigger","reload","magazine","start","coin","side","side-a","side-b","stick","up","down","left","right"},
-        "blamcon" => new[]{"trigger","magazine","a","b","up","down","left","right","select","start"}, _ => Array.Empty<string>()
+        "blamcon" => new[]{"trigger","magazine","pedal","aux","a","b","up","down","left","right","select","start"}, _ => Array.Empty<string>()
     }).Contains(control);
     public static readonly string[] Actions = ["shoot", "reload", "secondary", "start", "coin", "up", "down", "left", "right", "none"];
     public static bool ValidToken(string token) => Regex.IsMatch(token, @"^(key:([1-9]\d{0,2})|mouse:[1-5])$") && (!token.StartsWith("key:") || int.Parse(token[4..]) <= 255);

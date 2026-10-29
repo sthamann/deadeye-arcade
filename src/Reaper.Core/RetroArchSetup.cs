@@ -68,7 +68,7 @@ public static class RetroArchSetup
             Bind("gun_trigger", Token("shoot")); Bind("gun_reload", Token("reload"));
             Bind("gun_start", Token("start")); Bind("start", Token("start"));
             Bind("gun_select", Token("coin")); Bind("select", Token("coin"));
-            var hardware = StartupControls.Hardware(binding);
+            var hardware = StartupControls.GameHardware(binding);
             Bind("gun_aux_a", hardware.FirstOrDefault(c => c.Id == "magazine")?.Token);
             Bind("gun_aux_b", hardware.FirstOrDefault(c => c.Id == "side")?.Token);
             foreach (string direction in new[] { "up", "down", "left", "right" }) { var token = hardware.FirstOrDefault(c => c.Id == direction)?.Token; Bind("gun_dpad_" + direction, token); Bind(direction, token); }

@@ -7,6 +7,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
 {
     private readonly GunSerial serial = new();
     private readonly List<GunBinding> changed = [];
+    private readonly List<(PhysicalGun Gun, BlamconSettings Settings)> blamcons = [];
     private readonly string data;
     public GunBinding[] Players { get; private set; } = [];
     public GameEntry Game { get; private set; } = null!;
@@ -32,7 +33,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             if (DolphinSetup.IsDolphin(game) && setup.Players.Any(b => b.Player == 1 && DolphinSetup.Supports(b)))
             {
                 string pack = await DolphinAccuracyPackage.Prepare(data);
-                if(setup.Players.Count(DolphinSetup.Supports)>1 || setup.Players.Any(b=>b.SystemId=="xgunner")) setup.Bridge=new(setup.Players);
+                if(setup.Players.Count(DolphinSetup.Supports)>1 || setup.Players.Any(b=>b.SystemId is "xgunner" or "blamcon")) setup.Bridge=new(setup.Players);
                 if (!DolphinSetup.Configure(game, pack, setup.Players,setup.Bridge?.Port))
                 {
                     setup.Log("No accuracy profile for this Dolphin disc region; existing controls retained.");
@@ -54,6 +55,14 @@ internal sealed class GameInputPreparation : IAsyncDisposable
                 // Keep mouse/keyboard mode until an independent joystick profile is
                 // actually installed. Switching an unconfigured P2 loses its input.
             }
+            foreach (var binding in setup.Players.Where(b => b.SystemId == "blamcon" && b.Blamcon is not null && b.SerialPort is not null))
+            {
+                var gun = GunDiscovery.Scan(raw.Devices).Single(g => GunAssignments.Matches(binding,g));
+                setup.blamcons.Add((gun,binding.Blamcon!));
+                try { await BlamconSerial.Send(gun,BlamconSetup.Configure(binding.Blamcon! with { Aspect = game.Aspect })); }
+                catch(Exception error) when(error is IOException or UnauthorizedAccessException or TimeoutException)
+                { setup.Log($"P{binding.Player} Blamcon settings unavailable: {error.Message}"); }
+            }
             KnownFixes.RecordChanges(game, data, DolphinSetup.IsDolphin(game) ? "dolphin-accuracy" : "usb-identity", before, KnownFixes.InputFiles(game, data));
             return setup;
         }
@@ -71,6 +80,10 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             try { await serial.Command(binding.SerialPort!, binding.DevicePlayer, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); }
             catch (Exception error) { Log($"Menu input restore failed for P{binding.Player}: {error.Message}"); }
         changed.Clear();
+        foreach(var (gun,settings) in blamcons)
+            try { await BlamconSerial.Send(gun,BlamconSetup.Configure(settings)); }
+            catch(Exception error) { Log("Blamcon menu settings restore failed: "+error.Message); }
+        blamcons.Clear();
     }
     private void Log(string message)
     {

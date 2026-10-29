@@ -78,10 +78,9 @@ separate five-target aim test at the physical monitor.
 
 For **XGunner Wireless**, Deadeye recognizes the receiver’s USB identity even when Windows supplies generic names. The controls diagram covers the trigger, right and middle mouse buttons, Start/Coin, Space, Q/E, Enter/stick and WASD directions. The setup includes the checked V261009 manufacturer application, a calibration guide, lightgun mode and aspect selection, and separate local recoil/motor test pulses. Reviewed TeknoParrot and Dolphin profiles support mixed RS3/XGunner assignments.
 
-For Sinden and Blamcon, Deadeye provides product or receiver detection, input
-assignment and access to the supported manufacturer setup software. A wireless
-receiver alone does not establish the number of active guns; live input and
-model-specific calibration remain part of setup.
+For **Blamcon Vyper**, Deadeye includes A/B defaults, magazine/pedal and auxiliary control capture, saved player assignments, native mouse-mode/aspect/reload/recoil settings, existing calibration profile selection and bounded local recoil/rumble tests. The setup guide covers separate hardware IDs for two Vypers, onboard calibration and ARC camera/smoothing checks. Captured Start/Select and D-pad inputs feed the menu, emergency exit, TeknoParrot profiles and Dolphin's independent per-gun bridge. ARC is installed or opened through Steam. Physical input, tracking and feedback still require testing with the connected guns.
+
+For Sinden, Deadeye provides product detection, input assignment and access to the supported manufacturer setup software. A wireless receiver alone does not establish the number of active guns; live input and model-specific calibration remain part of setup.
 
 RS3 recoil and grip rumble are separate mechanisms. Hardware switches and the
 specified power supply determine the mechanical recoil; there is no documented

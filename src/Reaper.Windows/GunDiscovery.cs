@@ -77,9 +77,10 @@ public static class GunDiscovery
             if (identified is null) continue;
             var matched = interfaces.Where(input => group.Any(n => Normalize(input.Id).Equals(n.Instance, StringComparison.OrdinalIgnoreCase))).GroupBy(input => Normalize(input.Id), StringComparer.OrdinalIgnoreCase).Select(g => g.OrderBy(d => d.Kind == "hid" ? 1 : 0).First()).ToArray();
             string system = GunSystems.Identify(identified.Name, identified.Instance)!;
+            bool ambiguous = system == "blamcon" && group.Where(n=>n.Port is not null).Select(n=>n.Port).Distinct().Count()>1;
             result.Add(new(group.Key, system == "xgunner" ? "X-Gunner Wireless · " + group.FirstOrDefault(n => n.Instance.Contains("XGUNNER-", StringComparison.OrdinalIgnoreCase))?.Instance.Split('\\').Last() : identified.Name, system, I18n.T("Windows USB-Produktname + Container-ID"), matched.Select(d => d.Id).ToArray(),
                 matched.FirstOrDefault(d => d.Kind == "mouse")?.Id, matched.FirstOrDefault(d => d.Kind == "keyboard")?.Id,
-                group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Distinct().ToArray(), inputs.Any(d => d.Kind == "mouse" && matched.Any(m => m.Kind == "mouse" && Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
+                ambiguous ? null : group.Select(n => n.Port).FirstOrDefault(p => p is not null), !ambiguous && group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Concat(ambiguous ? [I18n.T("Mehrere Blamcons teilen eine Gerätekennung. In ARC unterschiedliche Player-IDs einstellen.")] : []).Distinct().ToArray(), inputs.Any(d => d.Kind == "mouse" && matched.Any(m => m.Kind == "mouse" && Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
         }
         return result.ToArray();
     }

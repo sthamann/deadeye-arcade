@@ -32,6 +32,7 @@ export type Game = {
     workingDirectory: string;
   }[];
 };
+export type BlamconSettings = { aspect:string; recoilMode:string; reloadMode:string; calibrationProfile:number; pedalMode:string };
 export type Binding = {
   player: number;
   mouseId: string;
@@ -49,6 +50,7 @@ export type Binding = {
   } | null;
   softwareConfigured?: boolean;
   hardwarePlayer?: number | null;
+  blamcon?: BlamconSettings | null;
 };
 export type Device = {
   id: string;

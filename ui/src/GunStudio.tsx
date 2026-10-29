@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { State, GunSignal } from "./types";
 import "./gun-studio.css";
+import {BlamconPanel,BlamconGuide} from "./BlamconPanel";
 import {GunShape, controls, factoryMap} from "./GunHardware";
 export {GunShape} from "./GunHardware";
 const models = () => [
@@ -196,7 +197,7 @@ export function GunStudio({
   const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(binding?.hardwarePlayer ?? player,model) : factoryMap(binding?.hardwarePlayer ?? player,model);
   const hardwarePlayer = binding?.hardwarePlayer ?? (binding?.systemId === "rs3" ? +(binding.mouseId.match(/PID_575([0-3])/i)?.[1] ?? (player - 1)) + 1 : player);
   const physicalControls = controls(model,hardwarePlayer);
-  const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? physicalControls.find(c=>c.id===id)?.token;
+  const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? (model==="blamcon" && (id==="magazine" || id==="pedal") ? (binding?.blamcon?.pedalMode==="assignable"?"key:82":binding?.blamcon?.pedalMode==="right"?"mouse:2":binding?.blamcon?.pedalMode==="middle"?"mouse:3":undefined) : physicalControls.find(c=>c.id===id)?.token);
   const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token] || model === "rs3" && c.id === "trigger" && held["hid:1"];}).map(c=>c.id));
   const feedback = binding?.feedback ?? {
     recoil: true,
@@ -238,7 +239,7 @@ export function GunStudio({
             <GunShape model={g.systemId} mini />
             <div><strong>{g.name}</strong><small>{g.port ?? "USB"} · {slot ? t("Aktiv für P{0}",slot) : t("Bereit zur Auswahl")}</small>
             {g.systemId === "xgunner" && <small>{state.gunSignals?.[g.id] ? t("Eingabe empfangen") : t("Empfänger erkannt · Eingabetest offen")}</small>}</div>
-            <div className="assignment-buttons">{[1,2].map(p=><button key={p} className={slot===p ? "primary" : "secondary"} aria-pressed={slot===p} disabled={busy || !g.driverHealthy || !g.mouseId || slot===p} onClick={()=>{setPlayer(p);setModel(g.systemId);send("assign-gun",{player:p,id:g.id});}}>{t("P{0} verwenden",p)}</button>)}</div>
+            <div className="assignment-buttons">{[1,2].map(p=><button data-test-navigation key={p} className={slot===p ? "primary" : "secondary"} aria-pressed={slot===p} disabled={busy || !g.driverHealthy || !g.mouseId || slot===p} onClick={()=>{setPlayer(p);setModel(g.systemId);send("assign-gun",{player:p,id:g.id});}}>{t("P{0} verwenden",p)}</button>)}</div>
           </article>;
         })}</div>
       </section>
@@ -246,6 +247,7 @@ export function GunStudio({
         {models().map((m) => (
           <button
             key={m.id}
+            data-test-navigation
             className={"system-card " + (model === m.id ? "selected" : "")}
             onClick={() => setModel(m.id)}
           >
@@ -349,7 +351,7 @@ export function GunStudio({
               </p>
               <div className="physical-controls">{physicalControls.map((control,i)=>{
                 const token=tokenFor(control.id);
-                return <button key={control.id} className={"physical-row "+(pressed.has(control.id)?"pressed":"")} disabled={!sameModel||busy||control.hardware} onClick={()=>send("learn-control",{player,control:control.id})}>
+                return <button data-test-navigation key={control.id} className={"physical-row "+(pressed.has(control.id)?"pressed":"")} disabled={!sameModel||busy||control.hardware} onClick={()=>send("learn-control",{player,control:control.id})}>
                   <b>{i+1}</b><span><strong>{t(control.label)}</strong><small>{control.hardware?t("Hardware-Schalter · kein HID-Taster"):token?tokenLabel(token)+" · "+(actions()[map[token]]??t("Nicht belegt")):t("Eingang erfassen")}</small></span><span>{state.learning?.control===control.id?t("Taste drücken …"):control.hardware?"":t("Erfassen")}</span>
                 </button>;
               })}</div>
@@ -560,6 +562,8 @@ export function GunStudio({
                     )}
                   </p>
                 </>
+              ) : model === "blamcon" ? (
+                <BlamconPanel binding={binding?.systemId===model?binding:undefined} player={player} connected={!!sameModel && !!gun?.port && gun.driverHealthy} busy={busy} remote={!!state.remoteSession} send={send}/>
               ) : model === "xgunner" ? (
                 <>
                   <p>{t("Die XGunner unterstützt automatischen Rückstoß beim Schuss und Motorvibration außerhalb des Bildschirms. Der Vibration-Schalter an der Gun bleibt maßgeblich.")}</p>
@@ -778,6 +782,7 @@ export function GunStudio({
                 </p>
               </div>
             </section>
+            {model === "blamcon" && <BlamconGuide busy={busy} send={send}/>}
             {model === "xgunner" && <section className="xgunner-guide">
               <h2>{t("XGunner kalibrieren")}</h2>
               <ol><li>{t("Rapid Fire an der Gun ausschalten. Vier IR-Punkte passend zum gewählten Layout anbringen.")}</li><li>{t("Space und Start an der Gun gleichzeitig drücken. Dann einmal den Abzug drücken.")}</li><li>{t("Ziele in dieser Reihenfolge bestätigen: Mitte, oben, unten, links, rechts. Die Gun speichert die Kalibrierung anschließend selbst.")}</li></ol>

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Xml.Linq;
+using System.Text.RegularExpressions;
 
 namespace Reaper.Windows;
 
@@ -10,11 +11,20 @@ public static class GunSoftware
 {
     private const string SindenHash = "60261a5a913c80d7a409336a5bc591272ac64ed7351fc6a726e8bd35fd7a8db5";
     private const string XgunnerHash = "4a5fe747e40ec9b21be371cc308eaee131c9445d79ef58469f3ca626fb520d94";
-    public static bool IsPrepared(string id, string data) => id is "sinden" or "xgunner" && File.Exists(Executable(data, id));
-    public static object[] Status(string data) => new[] { "sinden", "xgunner" }.Select(id => (object)new
+    private static string? SteamRoot()
+    { using var key=Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"); return key?.GetValue("SteamPath") as string; }
+    private static bool BlamconInstalled()
     {
-        id, downloaded = File.Exists(Executable(data, id)),
-        status = File.Exists(Executable(data, id)) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen")
+        string? root=SteamRoot(); if(root is null)return false;
+        var roots=new List<string>{root}; string vdf=Path.Combine(root,"steamapps","libraryfolders.vdf");
+        if(File.Exists(vdf)) roots.AddRange(Regex.Matches(File.ReadAllText(vdf),"\"path\"\\s*\"([^\"]+)\"").Select(m=>m.Groups[1].Value.Replace("\\\\","\\")));
+        return roots.Any(r=>File.Exists(Path.Combine(r,"steamapps","appmanifest_3324170.acf")));
+    }
+    public static bool IsPrepared(string id, string data) => id == "blamcon" ? BlamconInstalled() : id is "sinden" or "xgunner" && File.Exists(Executable(data, id));
+    public static object[] Status(string data) => new[] { "sinden", "xgunner", "blamcon" }.Select(id => (object)new
+    {
+        id, downloaded = IsPrepared(id,data),
+        status = IsPrepared(id,data) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen")
     }).ToArray();
     private static string Executable(string data, string id) => Path.Combine(data, "gun-software", id, id == "sinden" ? "Lightgun.exe" : "XGunner-Config-V261009.exe");
     public static async Task<string> Prepare(string id, string data, Action<string> progress, bool launch = true)
@@ -24,7 +34,8 @@ public static class GunSoftware
             using var steam = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam");
             string? root = steam?.GetValue("SteamPath") as string;
             if (root is null || !File.Exists(Path.Combine(root, "steam.exe"))) throw new InvalidOperationException(I18n.T("Blamcon ARC benötigt Steam. Installiere Steam; danach kann dieser Knopf die ARC-Installation öffnen."));
-            bool installed = File.Exists(Path.Combine(root, "steamapps", "appmanifest_3324170.acf"));
+            bool installed = BlamconInstalled();
+            if (!launch) return installed ? I18n.T("Blamcon ARC ist installiert. Hardwareprüfung offen.") : I18n.T("Blamcon ARC kann über den Einrichten-Knopf installiert werden.");
             Process.Start(new ProcessStartInfo(Path.Combine(root, "steam.exe")) { UseShellExecute = true, Arguments = installed ? "steam://run/3324170" : "steam://install/3324170" });
             return installed ? I18n.T("Blamcon ARC wird geöffnet. Gun anschließen und Kalibrierung in ARC prüfen.") : I18n.T("Steam-Installation von Blamcon ARC geöffnet. Steam-Anmeldung oder Installationsbestätigung gegebenenfalls in Steam abschließen.");
         }

@@ -4,7 +4,7 @@ namespace Reaper.Core;
 
 public static class DolphinSetup
 {
-    public static bool Supports(GunBinding binding) => binding.SystemId is "rs3" or "xgunner";
+    public static bool Supports(GunBinding binding) => binding.SystemId is "rs3" or "xgunner" or "blamcon";
     public static bool IsDolphin(GameEntry game) => Path.GetFileName(game.Executable).Equals("Dolphin.exe",StringComparison.OrdinalIgnoreCase);
     public static string UserDirectory(GameEntry game)
     {
@@ -86,6 +86,7 @@ public static class DolphinSetup
         string? name=Value(settings,"Controls","WiimoteProfile1");
         if(name is null || !Regex.IsMatch(name,"^[A-Za-z0-9_-]+$"))return false;
         string source=Path.Combine(pack,"Config","Profiles","Wiimote",name+".ini");if(!File.Exists(source))return false;
+        foreach(var binding in bindings.Where(b=>b.SystemId=="blamcon")) _=ReaperButtons(id,binding);
         string user=UserDirectory(game), managed="Deadeye_RS3_"+id;
         string profile=Path.Combine(user,"Config","Profiles","Wiimote",managed+".ini");
         Directory.CreateDirectory(Path.GetDirectoryName(profile)!);
@@ -134,7 +135,7 @@ public static class DolphinSetup
     }
     public static Dictionary<string,string> BridgeButtons(Dictionary<string,string> values,GunBinding binding)
     {
-        var hardware=StartupControls.Hardware(binding);
+        var hardware=StartupControls.GameHardware(binding);
         string Replace(Match match)
         {
             string? token=match.Groups[1].Success?"mouse:"+(int.Parse(match.Groups[1].Value)+1):StartupControls.KeyToken(match.Groups[2].Success?match.Groups[2].Value:match.Groups[3].Value);
@@ -152,12 +153,14 @@ public static class DolphinSetup
     {
         string Input(string control,string fallback)
         {
-            string token=(binding is null?null:StartupControls.Hardware(binding).FirstOrDefault(h=>h.Id==control)?.Token)??fallback;
+            string? mapped=binding is null?null:StartupControls.GameHardware(binding).FirstOrDefault(h=>h.Id==control)?.Token;
+            if(binding?.SystemId=="blamcon" && mapped is null) throw new ArgumentException(I18n.T("Vyper: Diese Taste zuerst unter Meine Guns erfassen: ")+control);
+            string token=mapped??fallback;
             if(!GunSystems.ValidToken(token)) throw new ArgumentException("Invalid RS3 physical control mapping.");
             if(token.StartsWith("mouse:")) return "`Click "+(int.Parse(token[6..])-1)+"`";
             int key=int.Parse(token[4..]);return key switch {>=48 and <=90=>"`"+(char)key+"`",37=>"LEFT",38=>"UP",39=>"RIGHT",40=>"DOWN",13=>"RETURN",32=>"SPACE",_=>throw new ArgumentException("Dolphin cannot map this key automatically.")};
         }
-        string trigger=Input("trigger","mouse:1"),reload=Input("reload","mouse:2"),magazine=Input("magazine","mouse:3"),start=Input("start","key:49"),coin=Input("coin","key:53"),side=Input("side","key:77"),stick=Input("stick","key:81");
+        string trigger=Input("trigger","mouse:1"),reload=Input("reload","mouse:2"),magazine=Input("magazine","mouse:3"),start=Input("start","key:49"),coin=Input("coin","key:53"),side=Input("side","key:77"),stick=binding?.SystemId=="blamcon"?reload+" & "+magazine:Input("stick","key:81");
         var values=new Dictionary<string,string> { ["Device"]="DInput/0/Keyboard Mouse",["IR/Relative Input"]="False",["IR/Auto-Hide"]="False",["Buttons/A"]=magazine,["Buttons/B"]=trigger,["Buttons/1"]=side,["Buttons/2"]=stick,["Buttons/+"]=start,["Buttons/-"]=coin,["Buttons/Home"]="",["D-Pad/Up"]=Input("up","key:38"),["D-Pad/Down"]=Input("down","key:40"),["D-Pad/Left"]=Input("left","key:37"),["D-Pad/Right"]=Input("right","key:39") };
         if(id.StartsWith("RZJ"))
         {

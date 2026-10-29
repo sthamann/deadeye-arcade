@@ -84,7 +84,7 @@ public static class Rpcs3Setup
             var binding = players.FirstOrDefault(b => b.Player == p);
             var buttons = new Dictionary<string, string> { ["Device"] = JsonSerializer.Serialize(binding?.MouseId ?? ""), ["Mouse Acceleration"] = "100" };
             string[] controls = ["trigger", "reload", "magazine", "side", "stick", "start", "coin", "up"];
-            var hardware = binding is null ? [] : StartupControls.Hardware(binding);
+            var hardware = binding is null ? [] : StartupControls.GameHardware(binding);
             for (int i = 0; i < controls.Length; i++)
             {
                 string? token = hardware.FirstOrDefault(h => h.Id == controls[i])?.Token;
@@ -113,7 +113,7 @@ public static class Rpcs3Setup
                 string? logical = YamlValue(gemText, [section], function);
                 var match = Regex.Match(logical ?? "", "^Mouse Button ([1-8])$"); if (!match.Success) continue;
                 string? actual = YamlValue(rawText, [section], "Button " + match.Groups[1].Value);
-                string? token = StartupControls.Hardware(binding).Select(h => h.Token).OfType<string>().FirstOrDefault(t => RawToken(t) == actual);
+                string? token = StartupControls.GameHardware(binding).Select(h => h.Token).OfType<string>().FirstOrDefault(t => RawToken(t) == actual);
                 string label = function switch { "T" => I18n.T("Schießen (T)"), "Move" => I18n.T("Move / Deckung"), "Select" => "Select", _ => function };
                 rows.Add(new(binding.Player, label, actual ?? "Unassigned", "RPCS3 · Raw Mouse", token is null ? null : "P" + binding.Player + "|" + token));
             }

@@ -407,7 +407,7 @@ public sealed class ArcadeWindow : Window
                     int index = state.Bindings.IndexOf(binding);
                     if (learningControl is not null) {
                         var controls = new Dictionary<string,string>(binding.ControlMap ?? []); controls[learningControl]=signal.Token;
-                        state.Bindings[index] = binding with { ControlMap=controls };
+                        state.Bindings[index] = binding.SystemId=="blamcon" ? BlamconSetup.Learn(binding, learningControl, signal.Token) : binding with { ControlMap=controls };
                     } else {
                         var updated = new Dictionary<string,string>(map);
                         foreach(var old in updated.Where(kv=>kv.Value==learningAction).Select(kv=>kv.Key).ToArray()) updated.Remove(old);
@@ -780,6 +780,33 @@ public sealed class ArcadeWindow : Window
                     await serial.Command(b.SerialPort, b.DevicePlayer, GunSystems.ReaperConfiguration(feedback));
                     state.Bindings[i] = b with { Feedback = feedback, SoftwareConfigured = true }; Persist();
                     Send("notice", new { message = I18n.T("Mausmodus, Bildformat und Offscreen-Reload angefordert. Feedback-Auswahl für die Testimpulse gespeichert; die DIP-Schalter an der Gun bleiben maßgeblich.") }); break;
+                }
+            case "set-blamcon":
+                {
+                    var selected = state.Bindings.First(b => b.Player == Player() && b.SystemId == "blamcon");
+                    var gun = guns.First(g => GunAssignments.Matches(selected, g));
+                    var options = payload.GetProperty("options").Deserialize<BlamconSettings>(JsonDefaults.Options) ?? throw new ArgumentException("Missing Blamcon settings.");
+                    var commands = BlamconSetup.Configure(options);
+                    busy = true;
+                    try
+                    {
+                        await BlamconSerial.Send(gun, commands);
+                        state.Bindings[state.Bindings.IndexOf(selected)] = selected with { Blamcon = options, SoftwareConfigured = true };
+                        Persist(); Send("notice", new { message = I18n.T("Vyper-Einstellungen gesendet. Tasten und Zielgenauigkeit am Bildschirm prüfen.") });
+                    }
+                    finally { busy = false; SendState(); }
+                    break;
+                }
+            case "test-blamcon-feedback":
+                {
+                    if (remoteSession) throw new InvalidOperationException(I18n.T("Feedback am lokalen Bildschirm testen und die Gun dabei in der Hand halten."));
+                    var selected = state.Bindings.First(b => b.Player == Player() && b.SystemId == "blamcon");
+                    var gun = guns.First(g => GunAssignments.Matches(selected, g));
+                    var commands = BlamconSetup.Pulse(Str("effect"));
+                    busy = true;
+                    try { await BlamconSerial.Send(gun, commands); Send("notice", new { message = I18n.T("Vyper-Einzelimpuls gesendet. Automatisches Feedback anschließend wiederhergestellt.") }); }
+                    finally { busy = false; SendState(); }
+                    break;
                 }
             case "xgunner-mode":
                 {

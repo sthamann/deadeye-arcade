@@ -84,7 +84,7 @@ public sealed class DolphinGunBridge : IAsyncDisposable
             if (states.TryGetValue(player, out var state))
             {
                 var binding = bindings.First(b => b.Player == player);
-                bool Held(string physical) => !paused && StartupControls.Hardware(binding).Any(h => h.Id == physical && h.Token is not null && state.Down.Contains(h.Token));
+                bool Held(string physical) => !paused && StartupControls.GameHardware(binding).Any(h => h.Id == physical && h.Token is not null && state.Down.Contains(h.Token));
                 if (Held("coin")) bytes[36] |= 1; if (Held("stick")) bytes[36] |= 4; if (Held("start")) bytes[36] |= 8;
                 foreach (var (physical, offset) in new (string, int)[] { ("left", 44), ("down", 45), ("right", 46), ("up", 47), ("magazine", 48), ("reload", 49), ("side", 50), ("trigger", 55) }) if (Held(physical)) bytes[offset] = 255;
                 // DSU's axis scale in Dolphin is 1 / gravity; signs follow its names.
