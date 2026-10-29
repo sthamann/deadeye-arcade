@@ -86,6 +86,7 @@ export type GunSignal = {
   action: string;
 };
 export type State = {
+  inputTransport?: {generation:number};
   update?: { status: string; progress: number; error: string; checkedAt?: string | null; release?: null | {version: string; notes: string; page: string} };
   guns?: PhysicalGun[];
   gunSystems?: GunSystem[];

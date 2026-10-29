@@ -16,6 +16,10 @@ setup problems, and return to the library with your gun.
 
 Deadeye recovers its input subscriptions after Windows unlock, resume and Remote Desktop transitions. The header distinguishes USB presence from a received gun button event. Game button assignments stay independent of menu shortcuts. Reviewed Wii profiles include per-player weapon selection, reload gestures and special actions; the startup legend reads the active mappings. Automatic repairs also inspect every library entry for missing player actions and keep a local controls report. A profile check does not replace a physical two-player test.
 
+Gun controls also drive the frontend: hold a D-pad or stick direction to move through games and scroll the focused item into view. Gun-specific menu hints use each device's saved controls. Active player badges, receiver ports and a standby state make multi-gun selection visible; either player can sit out. Capturing a changed directional control updates menu navigation as well as its physical visualization.
+
+Connected guns trigger software preparation automatically: RS3 calibration support, the verified XGunner configuration package, Sinden software with its runtime, and the official Blamcon ARC installation through Steam. Progress and failures appear beside the guns; temporary failures retry without restarting the app. Steam login, vendor confirmations and physical calibration remain explicit setup steps.
+
 ## See it in action
 
 ![Deadeye Arcade library with real covers and a game-video preview](docs/images/deadeye-library.png)

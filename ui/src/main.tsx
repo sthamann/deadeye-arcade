@@ -47,6 +47,7 @@ import {
 } from "./types";
 import "./style.css";
 import { GunStudio, GunHeader } from "./GunStudio";
+import { GunNavigation, navigateGun } from "./GunNavigation";
 import { GunScroll } from "./GunScroll";
 import { MediaPreview } from "./MediaPreview";
 import { FilePicker, ArcadeKeyboard, type PickerState } from "./ArcadeDialogs";
@@ -146,6 +147,10 @@ function App() {
   const heroRef = useRef<HTMLElement>(null);
   const stateRef = useRef(state);
   const buttonTestRef = useRef<number | null>(null);
+  const navigationRef=useRef<GunNavigation|null>(null);
+  if(!navigationRef.current)navigationRef.current=new GunNavigation(navigateGun);
+  useEffect(()=>{const clear=()=>navigationRef.current?.clear();window.addEventListener("blur",clear);document.addEventListener("visibilitychange",clear);return()=>{clear();window.removeEventListener("blur",clear);document.removeEventListener("visibilitychange",clear);};},[]);
+  useEffect(()=>navigationRef.current?.clear(),[page,modal,picker,keyboard,state.remoteSession,state.inputTransport?.generation,JSON.stringify(state.bindings)]);
   const modalRef = useRef(modal);
   const stepRef = useRef(testStep);
   const errorsRef = useRef(testErrors);
@@ -157,6 +162,7 @@ function App() {
   };
   const send = (type: string, payload: unknown = {}) => {
     if (type === "button-test") {
+      navigationRef.current?.clear();
       const player = (payload as {player?:unknown}).player;
       buttonTestRef.current = typeof player === "number" ? player : null;
       if (!window.chrome?.webview) return;
@@ -239,6 +245,7 @@ function App() {
       const { type, payload } = event.data;
       if (type === "picker") setPicker(payload.closed ? null : payload);
       if (type === "state") {
+        if(payload.remoteSession || JSON.stringify(payload.bindings)!==JSON.stringify(stateRef.current.bindings))navigationRef.current?.clear();
         setLanguage(payload.settings?.language);
         setState({
           ...payload,
@@ -266,6 +273,7 @@ function App() {
         setPage("play");
       }
       if (type === "session") {
+        navigationRef.current?.clear();
         setSession(payload.status === "running");
         if (payload.status === "ended") setJustEnded(true);
       }
@@ -299,7 +307,13 @@ function App() {
         setLastInput(input);
         const testing = input.player === buttonTestRef.current;
         if (testing && input.kind !== "mouse") return;
-        if (input.kind === "keyboard" && input.down) {
+        const action=payload.action as string|undefined;
+        if (input.kind === "keyboard" && input.player>0 && ["up","down","left","right"].includes(action??"")) {
+          const binding=stateRef.current.bindings.find(b=>b.player===input.player);
+          if(binding && (!payload.deviceId||payload.deviceId===binding.keyboardId)) navigationRef.current?.input(`${input.player}:${payload.deviceId}:${payload.key}`,action!,!!input.down);
+          return;
+        }
+        if (input.kind === "keyboard" && input.down && input.player>0) {
           const keys: Record<string, string> = {
             start: "Enter",
             coin: "Escape",
@@ -389,18 +403,12 @@ function App() {
         event.target instanceof HTMLSelectElement
       )
         return;
-      const map: Record<string, string> = {
-        u: "ArrowUp",
-        v: "ArrowDown",
-        w: "ArrowLeft",
-        x: "ArrowRight",
-      };
       if (event.isTrusted && state.native && !state.remoteSession) {
         event.preventDefault();
         return;
       }
       let k = event.key;
-      if (state.native) k = map[k.toLowerCase()] ?? k;
+
       if (k === "Escape" || (state.native && k === "5")) {
         event.preventDefault();
         if (picker) send("cancel-picker");
@@ -411,14 +419,6 @@ function App() {
         return;
       }
       if (
-        state.native &&
-        (k === "1" ||
-          k === "2" ||
-          k.toLowerCase() === "q" ||
-          k.toLowerCase() === "s")
-      )
-        k = "Enter";
-      if (
         k === "Enter" &&
         document.activeElement instanceof HTMLButtonElement
       ) {
@@ -428,46 +428,7 @@ function App() {
       }
       if (!k.startsWith("Arrow")) return;
       event.preventDefault();
-      const buttons = Array.from(
-        document.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
-      ).filter(
-        (b) => b.getBoundingClientRect().width > 0 && !b.closest("[inert]"),
-      );
-      const active = document.activeElement as HTMLElement;
-      const rect = active?.getBoundingClientRect();
-      if (!rect || active === document.body) {
-        buttons[0]?.focus();
-        return;
-      }
-      const ax = rect.left + rect.width / 2,
-        ay = rect.top + rect.height / 2;
-      const options = buttons
-        .filter((b) => b !== active)
-        .map((b) => {
-          const r = b.getBoundingClientRect();
-          return {
-            b,
-            dx: r.left + r.width / 2 - ax,
-            dy: r.top + r.height / 2 - ay,
-          };
-        })
-        .filter((v) =>
-          k === "ArrowRight"
-            ? v.dx > 5
-            : k === "ArrowLeft"
-              ? v.dx < -5
-              : k === "ArrowDown"
-                ? v.dy > 5
-                : v.dy < -5,
-        );
-      options.sort((a, b) => {
-        const score = (v: typeof a) =>
-          k === "ArrowLeft" || k === "ArrowRight"
-            ? Math.abs(v.dx) + Math.abs(v.dy) * 3
-            : Math.abs(v.dy) + Math.abs(v.dx) * 3;
-        return score(a) - score(b);
-      });
-      options[0]?.b.focus();
+      navigateGun(k.slice(5).toLowerCase());
     };
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
@@ -614,7 +575,7 @@ function App() {
               .toUpperCase()}
           </div>
           <div className="top-status">
-            <GunHeader state={state} open={() => setPage("guns")} />
+            <GunHeader state={state} open={() => {setPage("guns");window.scrollTo({top:0,behavior:"instant"});}} />
             <span className="version-chip">{t("EARLY ACCESS")}</span>
           </div>
         </header>

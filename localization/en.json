@@ -901,5 +901,16 @@
   "Vyper-Einzelimpuls gesendet. Automatisches Feedback anschließend wiederhergestellt.": "Vyper single pulse sent. Automatic feedback restored afterwards.",
   "Mehrere Blamcons teilen eine Gerätekennung. In ARC unterschiedliche Player-IDs einstellen.": "Multiple Blamcons share a device identity. Select different player IDs in ARC.",
   "Blamcon ARC ist installiert. Hardwareprüfung offen.": "Blamcon ARC is installed. Hardware test pending.",
-  "Blamcon ARC kann über den Einrichten-Knopf installiert werden.": "Use the setup button to install Blamcon ARC."
+  "Blamcon ARC kann über den Einrichten-Knopf installiert werden.": "Use the setup button to install Blamcon ARC.",
+  "Menüsteuerung dieser Gun": "Menu controls for this gun",
+  "Steuerkreuz oder Stick: durch Spiele und Menüs bewegen. Gedrückt halten zum Weiterscrollen.": "D-pad or stick: move through games and menus. Hold to keep scrolling.",
+  "Zielen und abdrücken zum Auswählen. Die großen Hoch/Runter-Knöpfe scrollen Listen. Richtungstasten lassen sich unter Tasten erfassen.": "Aim and pull the trigger to select. The large Up/Down buttons scroll lists. Capture directional buttons under Buttons.",
+  "Spielt als P{0}": "Playing as P{0}",
+  "Wartet auf Einsatz": "Standing by",
+  "Nicht mitspielen": "Sit out",
+  "{0} aktiv · Spielerwahl": "{0} active · choose players",
+  "Software wird automatisch eingerichtet …": "Setting up software automatically…",
+  "ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen.": "ARC installation opened in Steam. Complete sign-in or confirmation in Steam.",
+  "RS3-Kalibrierung vorbereitet · Windows HID bereit": "RS3 calibration prepared · Windows HID ready",
+  "Einrichtung fehlgeschlagen; erneuter Versuch in einer Minute: ": "Setup failed; retrying in one minute: "
 }

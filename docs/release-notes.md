@@ -1,5 +1,7 @@
-# Deadeye Arcade 0.3.28
+# Deadeye Arcade 0.3.29
 
-Blamcon Vyper now has its own configuration panel with documented mouse-mode, aspect, recoil, reload, pedal and calibration-profile commands, bounded local feedback tests and an onboard calibration guide. A/B defaults and captured auxiliary controls feed the menu and reviewed game input paths. Two Vypers and mixed pairs can use Dolphin’s independent gun bridge; missing keyboard controls produce a capture instruction instead of guessed Reaper inputs.
+Hold a gun's D-pad or stick direction to browse games and scroll. Navigation repeats independently of firmware keyboard repeat, stops on release and clears during session or device changes. The focused game stays visible; selecting it returns to the game preview. Captured direction controls update both the physical display and menu actions.
 
-ARC installation detection supports additional Steam libraries. Detecting a gun prepares its status without opening Steam unexpectedly. The guide explains separate hardware IDs for two Vypers, IR visibility, smoothing and physical verification. Firmware and calibration data remain under the owner’s control.
+The player selector now distinguishes playing P1/P2 guns from standby devices, shows receiver ports in the header and supports sitting out. A per-gun guide explains the available menu controls.
+
+Software preparation runs automatically for connected gun families, displays progress and retries temporary failures without re-scanning USB or restarting the app. RS3 calibration support, XGunner configuration software and Sinden runtime preparation are included; Blamcon ARC installation opens through Steam when needed. Steam authentication, vendor confirmations and physical calibration remain visible steps. Gun firmware is not flashed automatically.

@@ -9,6 +9,8 @@ namespace Reaper.Windows;
 
 public static class GunSoftware
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string,string> preparation = new();
+    public static void SetStatus(string id,string status)=>preparation[id]=status;
     private const string SindenHash = "60261a5a913c80d7a409336a5bc591272ac64ed7351fc6a726e8bd35fd7a8db5";
     private const string XgunnerHash = "4a5fe747e40ec9b21be371cc308eaee131c9445d79ef58469f3ca626fb520d94";
     private static string? SteamRoot()
@@ -20,11 +22,11 @@ public static class GunSoftware
         if(File.Exists(vdf)) roots.AddRange(Regex.Matches(File.ReadAllText(vdf),"\"path\"\\s*\"([^\"]+)\"").Select(m=>m.Groups[1].Value.Replace("\\\\","\\")));
         return roots.Any(r=>File.Exists(Path.Combine(r,"steamapps","appmanifest_3324170.acf")));
     }
-    public static bool IsPrepared(string id, string data) => id == "blamcon" ? BlamconInstalled() : id is "sinden" or "xgunner" && File.Exists(Executable(data, id));
-    public static object[] Status(string data) => new[] { "sinden", "xgunner", "blamcon" }.Select(id => (object)new
+    public static bool IsPrepared(string id, string data) => id == "rs3" ? ReaperCalibrationPackage.Prepared(data) : id == "blamcon" ? BlamconInstalled() : id is "sinden" or "xgunner" && File.Exists(Executable(data, id));
+    public static object[] Status(string data) => new[] { "rs3", "sinden", "xgunner", "blamcon" }.Select(id => (object)new
     {
         id, downloaded = IsPrepared(id,data),
-        status = IsPrepared(id,data) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen")
+        status = preparation.GetValueOrDefault(id) ?? (IsPrepared(id,data) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen"))
     }).ToArray();
     private static string Executable(string data, string id) => Path.Combine(data, "gun-software", id, id == "sinden" ? "Lightgun.exe" : "XGunner-Config-V261009.exe");
     public static async Task<string> Prepare(string id, string data, Action<string> progress, bool launch = true)

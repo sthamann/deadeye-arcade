@@ -4,6 +4,11 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+var learnedXgun=GunSystems.LearnControl(new(1,"xm","xk",SystemId:"xgunner"),"down","key:90");
+Check(learnedXgun.ButtonMap!.GetValueOrDefault("key:90")=="down" && !learnedXgun.ButtonMap.ContainsKey("key:83") && StartupControls.Hardware(learnedXgun).Single(h=>h.Id=="down").Token=="key:90","Learning a changed XGunner direction updates real menu navigation and removes the stale factory direction");
+var learnedSinden=GunSystems.LearnControl(new(1,"sm","sk",SystemId:"sinden"),"up","key:87");
+Check(learnedSinden.ButtonMap!.GetValueOrDefault("key:87")=="up","A captured Sinden D-pad becomes usable menu navigation without Reaper defaults");
+
 Check(GunSystems.DefaultMap(1,"blamcon").GetValueOrDefault("mouse:3")=="secondary",
     "Vyper B button is usable as a secondary action without manual mapping");
 Check(GunSystems.UpgradeMap(new(1,"old-vyper",SystemId:"blamcon",ButtonMap:new(){["mouse:1"]="shoot",["mouse:2"]="reload"})).GetValueOrDefault("mouse:3")=="secondary", "Existing factory Vyper maps gain B without overwriting custom controls");

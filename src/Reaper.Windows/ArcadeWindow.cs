@@ -37,7 +37,8 @@ public sealed class ArcadeWindow : Window
     private readonly Dictionary<string, string> gunIssues = [];
     private readonly Dictionary<string, DateTimeOffset> gunSignals = [];
     private bool scanningGuns;
-    private readonly HashSet<string> preparedVendors = [];
+    private readonly Dictionary<string,DateTimeOffset> preparedVendors = [];
+    private readonly HashSet<string> requestedVendorInstalls = [];
     private int? learningPlayer;
     private string? learningAction;
     private string? learningControl;
@@ -167,6 +168,11 @@ public sealed class ArcadeWindow : Window
                     SendState();
                 }
                 else if (displayChanged) SendState();
+            }
+            if(ready && !busy && !session.Active && Environment.TickCount64>=nextSoftwareCheck)
+            {
+                nextSoftwareCheck=Environment.TickCount64+30_000;
+                _=PrepareGunSoftware();
             }
             if (buttonTestPlayer is not null && buttonTestHold.Ready(Environment.TickCount64))
             {
@@ -407,7 +413,7 @@ public sealed class ArcadeWindow : Window
                     int index = state.Bindings.IndexOf(binding);
                     if (learningControl is not null) {
                         var controls = new Dictionary<string,string>(binding.ControlMap ?? []); controls[learningControl]=signal.Token;
-                        state.Bindings[index] = binding.SystemId=="blamcon" ? BlamconSetup.Learn(binding, learningControl, signal.Token) : binding with { ControlMap=controls };
+                        state.Bindings[index] = GunSystems.LearnControl(binding, learningControl, signal.Token);
                     } else {
                         var updated = new Dictionary<string,string>(map);
                         foreach(var old in updated.Where(kv=>kv.Value==learningAction).Select(kv=>kv.Key).ToArray()) updated.Remove(old);
@@ -555,10 +561,7 @@ public sealed class ArcadeWindow : Window
                     Log("gun setup: " + error.Message);
                 }
             }
-            foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy))
-                if (preparedVendors.Add(gun.Id))
-                    try { string result = await GunSoftware.Prepare(gun.SystemId, store.DirectoryPath, text => Send("busy", new { message = text }), launch: false); Send("notice", new { message = result }); }
-                    catch (Exception error) { gunIssues[gun.Id] = error.Message; }
+            await PrepareGunSoftware();
             foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy && g.MouseId is not null))
             {
                 var existing = state.Bindings.FirstOrDefault(b => GunAssignments.Matches(b, gun));
@@ -575,6 +578,49 @@ public sealed class ArcadeWindow : Window
         }
         catch (Exception error) { Log("gun discovery: " + error.Message); Send("error", new { message = error.Message }); }
         finally { scanningGuns = false; Send("busy", new { message = "" }); }
+    }
+    private bool preparingGunSoftware;
+    private long nextSoftwareCheck;
+    private async Task PrepareGunSoftware()
+    {
+        if(preparingGunSoftware || session.Active || closing)return;
+        preparingGunSoftware=true;
+        try
+        {
+            foreach(var system in guns.Where(g=>g.DriverHealthy).Select(g=>g.SystemId).Distinct())
+            {
+                if(system=="blamcon" && requestedVendorInstalls.Contains(system) && GunSoftware.IsPrepared(system,store.DirectoryPath))
+                    GunSoftware.SetStatus(system,I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
+                if(preparedVendors.GetValueOrDefault(system)>DateTimeOffset.UtcNow)continue;
+                GunSoftware.SetStatus(system,I18n.T("Software wird automatisch eingerichtet …"));SendState();
+                try
+                {
+                    if(system=="rs3")await ReaperCalibrationPackage.Prepare(store.DirectoryPath);
+                    else
+                    {
+                        await GunSoftware.Prepare(system,store.DirectoryPath,text=>{GunSoftware.SetStatus(system,text);SendState();},launch:false);
+                        if(session.Active || closing){preparedVendors[system]=DateTimeOffset.UtcNow;continue;}
+                        if(system=="sinden")await GunSoftware.Prepare(system,store.DirectoryPath,_=>{},launch:true);
+                        if(system=="blamcon" && !GunSoftware.IsPrepared(system,store.DirectoryPath) && requestedVendorInstalls.Add(system))
+                        {
+                            await GunSoftware.Prepare(system,store.DirectoryPath,_=>{},launch:true);
+                            GunSoftware.SetStatus(system,I18n.T("ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen."));
+                        }
+                        else GunSoftware.SetStatus(system,I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
+                    }
+                    if(system=="rs3")GunSoftware.SetStatus(system,I18n.T("RS3-Kalibrierung vorbereitet · Windows HID bereit"));
+                    preparedVendors[system]=DateTimeOffset.MaxValue;
+                }
+                catch(Exception error)
+                {
+                    preparedVendors[system]=DateTimeOffset.UtcNow.AddMinutes(1);
+                    requestedVendorInstalls.Remove(system);
+                    GunSoftware.SetStatus(system,I18n.T("Einrichtung fehlgeschlagen; erneuter Versuch in einer Minute: ")+error.Message);
+                    Log("automatic gun software: "+system+" "+error.Message);
+                }
+            }
+        }
+        finally {preparingGunSoftware=false;SendState();}
     }
     private static string? Folder(string title) { var picker = new OpenFolderDialog { Title = title }; return picker.ShowDialog() == true ? picker.FolderName : null; }
     private static string? File(string title, string filter = "Windows-Anwendung|*.exe") { var picker = new OpenFileDialog { Title = title, Filter = I18n.T(filter) }; return picker.ShowDialog() == true ? picker.FileName : null; }
@@ -611,7 +657,7 @@ public sealed class ArcadeWindow : Window
         if (session.Active && type != "fullscreen") throw new InvalidOperationException(I18n.T("Bitte zuerst das laufende Spiel beenden."));
         if (type == "cancel-learn") { learningPlayer = null; learningAction = null; learningControl = null; SendState(); return; }
         if(calibration is not null) throw new InvalidOperationException(I18n.T("Bitte zuerst die Kalibrierung beenden."));
-        if (busy || scanningGuns) throw new InvalidOperationException(I18n.T("Die laufende Aktion wird noch abgeschlossen."));
+        if (busy || scanningGuns || preparingGunSoftware && type=="setup-gun") throw new InvalidOperationException(I18n.T("Die laufende Aktion wird noch abgeschlossen."));
         switch (type)
         {
 
@@ -842,7 +888,7 @@ public sealed class ArcadeWindow : Window
                     string system = Str("system"); if (!GunSystems.Catalog.Any(g => g.Id == system)) throw new ArgumentException(I18n.T("Unbekanntes Lightgun-System."));
                     if (system == "rs3") { await DiscoverGuns(); busy=true; try {await ReaperCalibrationPackage.Prepare(store.DirectoryPath);} finally {busy=false;SendState();} break; }
                     busy = true;
-                    try { var path = await GunSoftware.Prepare(system, store.DirectoryPath, text => Send("busy", new { message = text })); Send("notice", new { message = path }); }
+                    try { var path = await GunSoftware.Prepare(system, store.DirectoryPath, text => Send("busy", new { message = text })); GunSoftware.SetStatus(system,path);preparedVendors.Remove(system);Send("notice", new { message = path }); }
                     finally { busy = false; Send("busy", new { message = "" }); SendState(); }
                     break;
                 }

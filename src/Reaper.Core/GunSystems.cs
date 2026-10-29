@@ -38,6 +38,20 @@ public static class GunSystems
         for(int i=0;i<4;i++) map["key:"+keys[i]]=directions[i];
         return map;
     }
+    public static GunBinding LearnControl(GunBinding binding, string control, string token)
+    {
+        if(binding.SystemId=="blamcon") return BlamconSetup.Learn(binding,control,token);
+        if(!ValidControl(binding.SystemId,control)||!ValidToken(token))throw new ArgumentException("Invalid physical control.");
+        var hardware=StartupControls.Hardware(binding);var old=hardware.FirstOrDefault(h=>h.Id==control)?.Token;
+        var map=UpgradeMap(binding);
+        string? action=control switch {"up" or "down" or "left" or "right"=>control,"trigger"=>"shoot","start"=>"start","coin"=>"coin","reload"=>"reload",_=>old is null?null:map.GetValueOrDefault(old)};
+        if(action is not null)
+        {
+            if(old is not null && map.GetValueOrDefault(old)==action && !hardware.Any(h=>h.Id!=control&&h.Token==old))map.Remove(old);
+            map[token]=action;
+        }
+        return binding with {ControlMap=new Dictionary<string,string>(binding.ControlMap??[]){[control]=token},ButtonMap=map};
+    }
     public static Dictionary<string,string> UpgradeMap(GunBinding binding)
     {
         if(binding.ButtonMap is null) return DefaultMap(binding.DevicePlayer,binding.SystemId);

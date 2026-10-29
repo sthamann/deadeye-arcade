@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { State, GunSignal } from "./types";
 import "./gun-studio.css";
+import {GunMenuGuide} from "./GunMenuGuide";
 import {BlamconPanel,BlamconGuide} from "./BlamconPanel";
 import {GunShape, controls, factoryMap} from "./GunHardware";
 export {GunShape} from "./GunHardware";
@@ -89,7 +90,7 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
         <small>
           {configured}
           {" " + t("softwareseitig eingerichtet")}
-        </small>
+        </small><small>{t("{0} aktiv · Spielerwahl",state.bindings.filter(b=>guns.some(g=>g.id===b.physicalId||g.mouseId===b.mouseId)).length)}</small>
       </span>
       {[1, 2].map((p) => {
         const binding = state.bindings.find((b) => b.player === p);
@@ -97,12 +98,11 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
           (g) => g.id === binding?.physicalId || g.mouseId === binding?.mouseId,
         );
         const okay =
-          gun?.driverHealthy &&
-          (gun.systemId !== "xgunner" || !!state.gunSignals?.[gun.id]);
+          gun?.driverHealthy && !state.gunIssues?.[gun.id];
         return (
           <span
             key={p}
-            className={"header-player " + (okay ? "online" : "offline")}
+            className={"header-player " + (!okay ? "offline" : !state.gunSignals?.[gun!.id] ? "pending" : "online")}
           >
             <b>
               {t("P")}
@@ -115,7 +115,7 @@ export function GunHeader({ state, open }: { state: State; open: () => void }) {
                   ? models().find((m) => m.id === gun.systemId)?.name
                   : t("Keine Gun")}
               </strong>
-              <small>
+              <small>{gun?.port && <span>{gun.port} · </span>}
                 {!gun
                   ? t("Nicht verbunden")
                   : gun.systemId === "xgunner" && !state.gunSignals?.[gun.id]
@@ -237,12 +237,14 @@ export function GunStudio({
           const slot=state.bindings.find(b=>b.physicalId===g.id || b.mouseId===g.mouseId)?.player;
           return <article className={"assignment-gun " + (slot ? "assigned" : "")} key={g.id}>
             <GunShape model={g.systemId} mini />
-            <div><strong>{g.name}</strong><small>{g.port ?? "USB"} · {slot ? t("Aktiv für P{0}",slot) : t("Bereit zur Auswahl")}</small>
+            <div><span className={"assignment-badge "+(slot?"active":"standby")}>{slot?t("Spielt als P{0}",slot):t("Wartet auf Einsatz")}</span><strong>{g.name}</strong><small>{g.port ?? "USB"} · {slot ? t("Aktiv für P{0}",slot) : t("Bereit zur Auswahl")}</small>
+            {state.gunSoftware?.find(s=>s.id===g.systemId)?.status && <small className="software-progress">{message(state.gunSoftware.find(s=>s.id===g.systemId)!.status)}</small>}
             {g.systemId === "xgunner" && <small>{state.gunSignals?.[g.id] ? t("Eingabe empfangen") : t("Empfänger erkannt · Eingabetest offen")}</small>}</div>
-            <div className="assignment-buttons">{[1,2].map(p=><button data-test-navigation key={p} className={slot===p ? "primary" : "secondary"} aria-pressed={slot===p} disabled={busy || !g.driverHealthy || !g.mouseId || slot===p} onClick={()=>{setPlayer(p);setModel(g.systemId);send("assign-gun",{player:p,id:g.id});}}>{t("P{0} verwenden",p)}</button>)}</div>
+            <div className="assignment-buttons">{[1,2].map(p=><button data-test-navigation key={p} className={slot===p ? "primary" : "secondary"} aria-pressed={slot===p} disabled={busy || !g.driverHealthy || !g.mouseId || slot===p} onClick={()=>{setPlayer(p);setModel(g.systemId);send("assign-gun",{player:p,id:g.id});}}>{t("P{0} verwenden",p)}</button>)}{slot && <button data-test-navigation className="secondary" disabled={busy} onClick={()=>send("unbind",{player:slot})}>{t("Nicht mitspielen")}</button>}</div>
           </article>;
         })}</div>
       </section>
+      <GunMenuGuide binding={binding}/>
       <div className="system-cards">
         {models().map((m) => (
           <button
