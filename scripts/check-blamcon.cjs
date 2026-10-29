@@ -1,7 +1,7 @@
 const {chromium}=require(require.resolve('playwright',{paths:[require('node:path').join(__dirname,'..','ui')]}));
 const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1920,height:1080}});const errors=[];const click=async locator=>{await locator.scrollIntoViewIfNeeded();const box=await locator.boundingBox();assert(box);await page.evaluate(({x,y})=>window.fixture.emit('input',{kind:'mouse',player:1,x:x/innerWidth,y:y/innerHeight,buttons:1,down:true}),{x:box.x+box.width/2,y:box.y+box.height/2});};page.on('pageerror',e=>errors.push(e.message));
+ const browser=await chromium.launch();const page=await browser.newPage({viewport:{width:1920,height:1080}});const errors=[];const click=async locator=>{await locator.scrollIntoViewIfNeeded();await locator.evaluate(el=>el.scrollIntoView({block:'center',behavior:'instant'}));const box=await locator.boundingBox();assert(box);await page.evaluate(({x,y})=>window.fixture.emit('input',{kind:'mouse',player:1,x:x/innerWidth,y:y/innerHeight,buttons:1,down:true}),{x:box.x+box.width/2,y:box.y+box.height/2});};page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{
   const listeners=[];
   const guns=['rs3','rs3','xgunner','blamcon','blamcon'].map((systemId,i)=>({id:'physical-'+i,name:systemId==='blamcon'?'Blamcon Vyper '+(i-2):systemId,systemId,mouseId:'mouse-'+i,keyboardId:'keys-'+i,port:'COM'+(i+3),inputIds:['mouse-'+i,'keys-'+i],driverHealthy:true,issues:[],identityEvidence:'USB product name and container'}));
