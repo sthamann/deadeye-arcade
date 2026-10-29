@@ -12,7 +12,7 @@ public static class StartupControls
     public const int DurationMilliseconds = 10_000;
     public static GunControl[] Hardware(GunBinding binding)
     {
-        int p=binding.Player;
+        int p=binding.DevicePlayer;
         var rows = new List<GunControl>();
         void Add(string id,string label,double x,double y,string? token=null) => rows.Add(new(id,I18n.T(label),x,y,binding.ControlMap?.GetValueOrDefault(id)??token));
         void Pad(double x,double y,bool rs3=false) {
@@ -32,8 +32,12 @@ public static class StartupControls
                 Add("front-left","Vorne links",139,159); Add("back-left","Hinten links",187,159);
                 Add("front-right","Vorne rechts · Rückseite",139,45); Add("back-right","Hinten rechts · Rückseite",187,45); Pad(267,159); break;
             case "xgunner":
-                Add("trigger","Abzug",253,180,"mouse:1"); Add("side-a","Seitentaste A",327,158); Add("side-b","Seitentaste B",362,158);
-                Add("stick","Front-Stick drücken",423,142); Pad(423,142); break;
+                Add("trigger","Abzug",330,180,"mouse:1"); Add("reload","Rechte Maustaste",368,164,"mouse:2");
+                Add("magazine","Mittlere Maustaste",350,135,"mouse:3"); Add("stick","Stick drücken",423,142,"key:13");
+                Add("start","Start",235,155,"key:49"); Add("coin","Münztaste",200,155,"key:53");
+                Add("side","Leertaste",280,164,"key:32"); Add("side-a","Taste Q · Rückseite",200,65,"key:81"); Add("side-b","Taste E · Rückseite",235,65,"key:69");
+                Add("up","Steuerkreuz oben",150,124,"key:87"); Add("down","Steuerkreuz unten",150,156,"key:83");
+                Add("left","Steuerkreuz links",134,140,"key:65"); Add("right","Steuerkreuz rechts",166,140,"key:68"); break;
             case "blamcon":
                 Add("trigger","Abzug",342,157,"mouse:1"); Add("magazine","Magazin ziehen",246,239);
                 Add("a","Taste A · Vordergriff",118,103); Add("b","Taste B · Vordergriff",154,103);

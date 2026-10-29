@@ -4,6 +4,32 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+Check(GunSystems.DefaultMap(2,"xgunner").ContainsValue("start") && GunSystems.DefaultMap(2,"xgunner").ContainsValue("coin"),
+    "XGunner factory controls include Start and Coin even when both RS3 slots are occupied");
+
+Check(GunSystems.Identify("USB-Verbundgerät", @"USB\VID_1209&PID_0002\XGUNNER-P2")=="xgunner" && GunSystems.Identify("USB-Verbundgerät", @"USB\VID_1209&PID_0002\Other")==null,
+    "Generic XGunner receiver names resolve through the observed USB serial without classifying arbitrary shared VID devices");
+var firstGun = new PhysicalGun("r1","Reaper one","rs3","",["HID#VID_0483&PID_5750"],"HID#VID_0483&PID_5750","k1","COM3",true,[]);
+var secondGun = new PhysicalGun("r2","Reaper two","rs3","",["HID#VID_0483&PID_5751"],"HID#VID_0483&PID_5751","k2","COM4",true,[]);
+var wirelessGun = new PhysicalGun("x2","XGunner two","xgunner","",["HID#VID_1209&PID_0002"],"HID#VID_1209&PID_0002","kx","COM5",true,[]);
+var selection=LibraryState.Empty;
+selection.Bindings.Add(new(1,firstGun.MouseId!,"k1","COM3","rs3","r1",new(){["mouse:1"]="shoot",["key:53"]="start"},SoftwareConfigured:true));
+selection.Bindings.Add(new(2,secondGun.MouseId!,"k2","COM4","rs3","r2",GunSystems.DefaultMap(2),SoftwareConfigured:true));
+selection=GunAssignments.Assign(selection,wirelessGun,1);
+Check(selection.Bindings.Single(b=>b.Player==1).PhysicalId=="x2" && selection.Bindings.Single(b=>b.Player==2).PhysicalId=="r2" && selection.Settings.ManualGunAssignments,
+    "Choosing XGunner for P1 with three connected guns replaces only P1 and persists explicit selection");
+selection=GunAssignments.Assign(selection,secondGun,1);
+Check(selection.Bindings.Single(b=>b.Player==1).PhysicalId=="r2" && selection.Bindings.Single(b=>b.Player==2).PhysicalId=="x2" && selection.Bindings.Select(b=>b.MouseId).Distinct().Count()==2,
+    "Moving an active P2 gun to P1 swaps the two slots without duplicate devices");
+var reassigned=selection.Bindings.Single(b=>b.Player==1);
+Check(reassigned.DevicePlayer==2 && StartupControls.Hardware(reassigned).Single(h=>h.Id=="coin").Token=="key:54",
+    "A hardware P2 Reaper keeps its factory keys and serial identity when used as game P1");
+selection=GunAssignments.Assign(selection,firstGun,2);
+Check(selection.Bindings.Single(b=>b.Player==2).ButtonMap!.GetValueOrDefault("key:53")=="start",
+    "An inactive gun retains its custom controls when selected again");
+var assignmentStore=new LibraryStore(Path.Combine(Path.GetTempPath(),"deadeye-gun-selection-"+Guid.NewGuid()));assignmentStore.Save(selection);
+Check(assignmentStore.Load().Settings.ManualGunAssignments && assignmentStore.Load().GunProfiles.Count==3,
+    "Explicit player choices and inactive gun profiles survive a cold library reload");Directory.Delete(assignmentStore.DirectoryPath,true);
 var emergency = new EmergencyChord();
 Check(!emergency.Sample(true,true,0) && !emergency.Sample(true,true,1999) && emergency.Sample(true,true,2000), "Dedicated Start+Coin exit uses a monotonic two-second hold");
 Check(!emergency.Sample(true,true,5000) && !emergency.Sample(false,true,6000) && !emergency.Sample(true,true,9000), "Held exit chord cannot fire again or rearm after releasing only one button");
@@ -524,6 +550,20 @@ RButton::y
     Check(DolphinSetup.Value(File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!),"Profile","IR/Total Yaw")=="17.25" && DolphinSetup.Value(dsuP2Profile,"Profile","Nunchuk/Stick/Up")=="`Pad W`","Dolphin retains existing accuracy adjustments and Extraction's rotated weapon-selection controls");
     var dualLegend=OverlayControls.Read(deadspace,root,[p1,p2]);
     Check(StartupControls.ForPlayer(dualLegend,p2).Any(h=>h.Resolved&&h.ControlIds.Contains("trigger")) && StartupControls.ForPlayer(dualLegend,p2).Any(h=>h.Resolved&&h.ControlIds.Contains("side")&&h.ControlIds.Contains("reload")),"Dolphin P2 legend resolves shooting and the real two-button melee combination through the active profile");
+    var xgun=new GunBinding(1,"HID#VID_1209&PID_0002","xkeys",SystemId:"xgunner",PhysicalId:"x2",ButtonMap:GunSystems.DefaultMap(2,"xgunner"));
+    Check(DolphinSetup.Configure(deadspace,pack,[xgun,p2],26761),"Dolphin installs a mixed XGunner P1 and RS3 P2 pair on the actual setup path");
+    string mixedProfile=File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!);
+    Check(DolphinSetup.Value(mixedProfile,"Profile","Device")=="DSUClient/0/DeadeyeGuns" && DolphinSetup.Value(mixedProfile,"Profile","Nunchuk/Buttons/C")=="`Circle` & !`Cross`",
+        "Mixed Dolphin profile translates XGunner Space/reload controls into per-device bridge inputs");
+    Check(DolphinSetup.Configure(deadspace,pack,[xgun],26762) && DolphinSetup.Value(File.ReadAllText(DolphinSetup.ProfilePath(deadspace)!),"Profile","Device")=="DSUClient/0/DeadeyeGuns" && File.ReadAllText(Path.Combine(DolphinSetup.UserDirectory(deadspace),"Config","DSUClient.ini")).Contains(":26762;"),
+        "A single XGunner also configures its absolute-aim bridge and writes the active port");
+    await using(var mixedBridge=new DolphinGunBridge([xgun,p2]))
+    {
+        mixedBridge.Key("xkeys",53,true);mixedBridge.Key("xkeys",32,true);
+        var xframe=mixedBridge.Frame(1);var rframe=mixedBridge.Frame(2);
+        Check((xframe[36]&1)!=0 && xframe[50]==255 && rframe[36]==0 && rframe[50]==0,
+            "XGunner Coin and Space are routed to its selected player without triggering the Reaper");
+    }
     foreach(var reviewDisc in new[]{"RBUE08","SBDE08","RHOE8P","RGSE8P","RZPE01"})
     {
         string content=Path.Combine(root,reviewDisc+".iso");File.WriteAllBytes(content,System.Text.Encoding.ASCII.GetBytes(reviewDisc+"0000000"));

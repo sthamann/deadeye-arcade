@@ -48,6 +48,7 @@ export type Binding = {
     aspect: string;
   } | null;
   softwareConfigured?: boolean;
+  hardwarePlayer?: number | null;
 };
 export type Device = {
   id: string;

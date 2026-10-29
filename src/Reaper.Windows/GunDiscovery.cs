@@ -73,11 +73,11 @@ public static class GunDiscovery
         var result = new List<PhysicalGun>();
         foreach (var group in nodes.GroupBy(n => n.Container))
         {
-            var identified = group.FirstOrDefault(n => GunSystems.Identify(n.Name) is not null);
+            var identified = group.FirstOrDefault(n => GunSystems.Identify(n.Name, n.Instance) is not null);
             if (identified is null) continue;
             var matched = interfaces.Where(input => group.Any(n => Normalize(input.Id).Equals(n.Instance, StringComparison.OrdinalIgnoreCase))).GroupBy(input => Normalize(input.Id), StringComparer.OrdinalIgnoreCase).Select(g => g.OrderBy(d => d.Kind == "hid" ? 1 : 0).First()).ToArray();
-            string system = GunSystems.Identify(identified.Name)!;
-            result.Add(new(group.Key, identified.Name, system, I18n.T("Windows USB-Produktname + Container-ID"), matched.Select(d => d.Id).ToArray(),
+            string system = GunSystems.Identify(identified.Name, identified.Instance)!;
+            result.Add(new(group.Key, system == "xgunner" ? "X-Gunner Wireless · " + group.FirstOrDefault(n => n.Instance.Contains("XGUNNER-", StringComparison.OrdinalIgnoreCase))?.Instance.Split('\\').Last() : identified.Name, system, I18n.T("Windows USB-Produktname + Container-ID"), matched.Select(d => d.Id).ToArray(),
                 matched.FirstOrDefault(d => d.Kind == "mouse")?.Id, matched.FirstOrDefault(d => d.Kind == "keyboard")?.Id,
                 group.Select(n => n.Port).FirstOrDefault(p => p is not null), group.All(n => n.Healthy), group.Where(n => !n.Healthy).Select(n => n.Name + I18n.T(": Windows-Gerätefehler")).Distinct().ToArray(), inputs.Any(d => d.Kind == "mouse" && matched.Any(m => m.Kind == "mouse" && Normalize(m.Id).Equals(Normalize(d.Id), StringComparison.OrdinalIgnoreCase)))));
         }

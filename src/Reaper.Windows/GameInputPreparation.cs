@@ -29,10 +29,10 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             if (indexAvailable && FlycastSetup.IsFlycast(game))
                 FlycastSetup.Configure(game, setup.Players, raw.Devices,
                     raw.Devices.ToDictionary(d => d.Id, d => InputDeviceNames.Name(d.Id) ?? (d.Kind == "mouse" ? "Mouse" : "Keyboard"), StringComparer.OrdinalIgnoreCase));
-            if (DolphinSetup.IsDolphin(game) && setup.Players.Any(b => b.Player == 1 && b.SystemId == "rs3"))
+            if (DolphinSetup.IsDolphin(game) && setup.Players.Any(b => b.Player == 1 && DolphinSetup.Supports(b)))
             {
                 string pack = await DolphinAccuracyPackage.Prepare(data);
-                if(setup.Players.Any(b=>b.Player==2&&b.SystemId=="rs3")) setup.Bridge=new(setup.Players);
+                if(setup.Players.Count(DolphinSetup.Supports)>1 || setup.Players.Any(b=>b.SystemId=="xgunner")) setup.Bridge=new(setup.Players);
                 if (!DolphinSetup.Configure(game, pack, setup.Players,setup.Bridge?.Port))
                 {
                     setup.Log("No accuracy profile for this Dolphin disc region; existing controls retained.");
@@ -43,7 +43,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             {
                 try
                 {
-                    await setup.serial.Command(binding.SerialPort!, binding.Player,
+                    await setup.serial.Command(binding.SerialPort!, binding.DevicePlayer,
                         GunSystems.ReaperConfiguration((binding.Feedback ?? new()) with { Aspect = game.Aspect }));
                     setup.changed.Add(binding);
                 }
@@ -68,7 +68,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             await Bridge.DisposeAsync();Bridge=null;
         }
         foreach (var binding in changed)
-            try { await serial.Command(binding.SerialPort!, binding.Player, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); }
+            try { await serial.Command(binding.SerialPort!, binding.DevicePlayer, GunSystems.ReaperConfiguration(binding.Feedback ?? new())); }
             catch (Exception error) { Log($"Menu input restore failed for P{binding.Player}: {error.Message}"); }
         changed.Clear();
     }

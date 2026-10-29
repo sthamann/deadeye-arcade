@@ -9,15 +9,15 @@ namespace Reaper.Windows;
 public static class GunSoftware
 {
     private const string SindenHash = "60261a5a913c80d7a409336a5bc591272ac64ed7351fc6a726e8bd35fd7a8db5";
-    private const string XgunnerHash = "e337815747a289fd75c7f7a95343cc39681951f2a6f2513d9050a4a3891099ca";
+    private const string XgunnerHash = "4a5fe747e40ec9b21be371cc308eaee131c9445d79ef58469f3ca626fb520d94";
     public static bool IsPrepared(string id, string data) => id is "sinden" or "xgunner" && File.Exists(Executable(data, id));
     public static object[] Status(string data) => new[] { "sinden", "xgunner" }.Select(id => (object)new
     {
         id, downloaded = File.Exists(Executable(data, id)),
         status = File.Exists(Executable(data, id)) ? I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen") : I18n.T("Noch nicht heruntergeladen")
     }).ToArray();
-    private static string Executable(string data, string id) => Path.Combine(data, "gun-software", id, id == "sinden" ? "Lightgun.exe" : "XGunner-Config-V260808.exe");
-    public static async Task<string> Prepare(string id, string data, Action<string> progress)
+    private static string Executable(string data, string id) => Path.Combine(data, "gun-software", id, id == "sinden" ? "Lightgun.exe" : "XGunner-Config-V261009.exe");
+    public static async Task<string> Prepare(string id, string data, Action<string> progress, bool launch = true)
     {
         if (id == "blamcon")
         {
@@ -73,6 +73,7 @@ public static class GunSoftware
             }
         }
         if (!File.Exists(exe)) throw new IOException(I18n.T("Herstellerprogramm fehlt nach dem Entpacken."));
+        if (!launch) return I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen");
         progress(I18n.T("Herstellerprogramm wird geöffnet …"));
         bool running = false;
         foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(exe)))

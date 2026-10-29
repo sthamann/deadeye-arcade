@@ -62,6 +62,8 @@ checks into one place. The header shows P1/P2, the detected model and its softwa
 setup status. Supported hardware families are **RS3 Reaper Pro, Sinden,
 X-Gunner Wireless and Blamcon Vyper**.
 
+Choose any connected gun for P1 or P2, including mixed setups with more than two receivers. Moving an active gun to the other player swaps the slots. Explicit selections survive reconnects and restarts, and inactive guns retain their own button and feedback settings. Game slots stay separate from a receiver’s hardware player number.
+
 Each family has its own illustrated controls. Press a button to see its live
 highlight, capture the signal from your device and bind it to a menu or game action.
 Physical control capture and action bindings are stored separately, so the diagram
@@ -74,7 +76,9 @@ recoil and rumble test pulses. Prepare the checked manufacturer calibration modu
 then run a fullscreen four-target calibration for the selected player and a
 separate five-target aim test at the physical monitor.
 
-For the other families, Deadeye provides product or receiver detection, input
+For **XGunner Wireless**, Deadeye recognizes the receiver’s USB identity even when Windows supplies generic names. The controls diagram covers the trigger, right and middle mouse buttons, Start/Coin, Space, Q/E, Enter/stick and WASD directions. The setup includes the checked V261009 manufacturer application, a calibration guide, lightgun mode and aspect selection, and separate local recoil/motor test pulses. Reviewed TeknoParrot and Dolphin profiles support mixed RS3/XGunner assignments.
+
+For Sinden and Blamcon, Deadeye provides product or receiver detection, input
 assignment and access to the supported manufacturer setup software. A wireless
 receiver alone does not establish the number of active guns; live input and
 model-specific calibration remain part of setup.

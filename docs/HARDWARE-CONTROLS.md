@@ -30,7 +30,15 @@ The drawing includes the trigger, pump, four side buttons and four directions of
 
 Reference: [official product photos](https://hwhxg.com/product/xgunner-blue-p1/) and [download center](https://hwhxg.com/downloads/).
 
-The drawing follows the front stick and two side buttons visible in the manufacturer's photos. Exact firmware key assignments are captured on the device. The current vendor download page does not provide a finished manual. The USB receiver being present does not prove that a wireless gun is awake; a received input is required for that status.
+The USB receiver can expose generic Windows mouse, keyboard and serial names. Detection uses the XGUNNER receiver serial together with VID `1209` and PID `0001` through `0004`, grouped by physical Windows Container ID. Receiver presence and a received wireless input remain separate states.
+
+The [X-GUNNER manual](https://ae01.alicdn.com/kf/Sa61a9e8ad5144b66a36d572d7548dc22q.pdf) supplies the physical controls: trigger/left mouse, right and middle mouse buttons, Start, `5` (Coin), Space, Q, E, Enter/stick and WASD. The diagram also identifies physical power, vibration and rapid-fire switches and the magazine release. Capture modified firmware mappings on the actual device.
+
+Calibration is performed by the gun: disable Rapid Fire, press Space + Start, pull the trigger, then confirm center, up, down, left and right. Changing square/diamond IR layout requires recalibration. Deadeye opens the checked V261009 official configuration tool for calibration, button settings and firmware information; firmware is not flashed automatically.
+
+Serial configuration is restricted to a currently identified XGunner receiver: `G` lightgun mode, `V` 16:9, `Q` 4:3, `E` automatic feedback. Local bounded tests use `S6` then one `F0` solenoid or `F1` motor pulse and restore `E` even after failure. Sending a command is not an acknowledgment of calibration or physical feedback. Game event feedback requires an appropriate game output integration.
+
+Game P1/P2 selection does not change the receiver’s hardware number. Every gun retains its own mapping while unselected, and RS3 serial commands and calibration continue to address their actual hardware IDs.
 
 ## Blamcon Vyper
 

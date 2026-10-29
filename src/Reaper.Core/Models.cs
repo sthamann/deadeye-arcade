@@ -12,12 +12,16 @@ public record GameEntry(string Id, string Title, string Platform, string Executa
     string? Players = null, string? SetupNotes = null, HelperLaunch[]? Helpers = null,
     string? Description = null, int? ReleaseYear = null, string? Hardware = null, string[]? MetadataSources = null, string? ReleaseInfo = null);
 public record HelperLaunch(string Executable, string[] Arguments, string WorkingDirectory);
-public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null, string SystemId = "rs3", string? PhysicalId = null, Dictionary<string, string>? ButtonMap = null, GunFeedback? Feedback = null, bool SoftwareConfigured = false, Dictionary<string,string>? ControlMap = null);
+public record GunBinding(int Player, string MouseId, string? KeyboardId = null, string? SerialPort = null, string SystemId = "rs3", string? PhysicalId = null, Dictionary<string, string>? ButtonMap = null, GunFeedback? Feedback = null, bool SoftwareConfigured = false, Dictionary<string,string>? ControlMap = null, int? HardwarePlayer = null)
+{
+    [System.Text.Json.Serialization.JsonIgnore] public int DevicePlayer => HardwarePlayer ?? GunSystems.HardwarePlayer(SystemId, MouseId, Player);
+}
 public record InputDevice(string Id, string Name, string Kind, bool RetroShooter, string? PhysicalId = null);
-public record AppSettings(bool StartWithWindows = false, bool Fullscreen = true, string? CoverKey = null, string? CalibrationTool = null, string Language = "en", bool CheckForUpdates = true, bool DesktopCrosshairs = true);
+public record AppSettings(bool StartWithWindows = false, bool Fullscreen = true, string? CoverKey = null, string? CalibrationTool = null, string Language = "en", bool CheckForUpdates = true, bool DesktopCrosshairs = true, bool ManualGunAssignments = false);
 public record LibraryState(List<GameEntry> Games, List<GunBinding> Bindings, AppSettings Settings)
 {
     public static LibraryState Empty => new([], [], new());
+    public List<GunBinding> GunProfiles { get; init; } = [];
 }
 public record ImportResult(List<GameEntry> Games, List<string> Warnings);
 

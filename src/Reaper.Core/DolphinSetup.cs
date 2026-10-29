@@ -4,6 +4,7 @@ namespace Reaper.Core;
 
 public static class DolphinSetup
 {
+    public static bool Supports(GunBinding binding) => binding.SystemId is "rs3" or "xgunner";
     public static bool IsDolphin(GameEntry game) => Path.GetFileName(game.Executable).Equals("Dolphin.exe",StringComparison.OrdinalIgnoreCase);
     public static string UserDirectory(GameEntry game)
     {
@@ -78,7 +79,7 @@ public static class DolphinSetup
     }
     public static bool Configure(GameEntry game,string pack,IEnumerable<GunBinding> bindings,int? bridgePort=null)
     {
-        if(!IsDolphin(game) || !bindings.Any(b=>b.Player==1&&b.SystemId=="rs3"))return false;
+        if(!IsDolphin(game) || !bindings.Any(b=>b.Player==1&&Supports(b)))return false;
         string? id=DiscId(game);if(id is null)return false;
         string original=Path.Combine(pack,"GameSettings",id+".ini");if(!File.Exists(original))return false;
         string settings=File.ReadAllText(original);
@@ -90,11 +91,11 @@ public static class DolphinSetup
         Directory.CreateDirectory(Path.GetDirectoryName(profile)!);
         // Accuracy pack remains a separately installed GPL-3.0 asset, including its license.
         string license=Path.Combine(pack,"LICENSE");if(File.Exists(license))File.Copy(license,Path.Combine(Path.GetDirectoryName(profile)!,"Deadeye-accuracy-pack-LICENSE.txt"),true);
-        bool dual=bridgePort.HasValue && bindings.Any(b=>b.Player==2&&b.SystemId=="rs3");
+        bool dual=bridgePort.HasValue && bindings.Any(b=>b.Player==2&&Supports(b));
         string sourceText=File.ReadAllText(source);
-        var p1Buttons=ReaperButtons(id,bindings.First(b=>b.Player==1 && b.SystemId=="rs3"));
+        var p1Buttons=ReaperButtons(id,bindings.First(b=>b.Player==1 && Supports(b)));
         RetainAim(profile,p1Buttons);
-        if(dual) p1Buttons=BridgeButtons(p1Buttons,bindings.First(b=>b.Player==1));
+        if(bridgePort.HasValue) p1Buttons=BridgeButtons(p1Buttons,bindings.First(b=>b.Player==1));
         File.WriteAllText(profile,Merge(sourceText,"Profile",p1Buttons));
         string perGame=Path.Combine(user,"GameSettings",id+".ini");
         var gameControls=new Dictionary<string,string> { ["WiimoteSource0"]="1",["WiimoteSource1"]=dual?"1":"0",["WiimoteSource2"]="0",["WiimoteSource3"]="0",["WiimoteProfile1"]=managed,["PadType0"]="0",["PadType1"]="0",["PadType2"]="0",["PadType3"]="0" };
@@ -104,6 +105,9 @@ public static class DolphinSetup
             var p2Buttons=ReaperButtons(id,bindings.First(b=>b.Player==2));RetainAim(secondPath,p2Buttons);
             File.WriteAllText(secondPath,Merge(sourceText,"Profile",BridgeButtons(p2Buttons,bindings.First(b=>b.Player==2))));
             gameControls["WiimoteProfile2"]=second;
+        }
+        if (bridgePort.HasValue)
+        {
             string dsu=Path.Combine(user,"Config","DSUClient.ini");
             string entries=File.Exists(dsu)?Value(File.ReadAllText(dsu),"Server","Entries")??"":"";
             entries=string.Join(';',entries.Split(';').Where(e=>!string.IsNullOrWhiteSpace(e)&&!e.StartsWith(DolphinGunBridge.DeviceName+":")))+";";

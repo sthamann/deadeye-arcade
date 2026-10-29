@@ -1,9 +1,7 @@
-Deadeye Arcade 0.3.26 completes more reviewed TeknoParrot gun controls.
+# Deadeye Arcade 0.3.27
 
-Game profiles now use the RS3's physical or learned controls independently of custom frontend/menu actions. A missing menu Coin action cannot remove a game's coin input, and changing a menu Start shortcut cannot move the game's physical Start button.
+Choose any connected lightgun for P1 or P2, including mixed RS3 Reaper and XGunner setups. Player swaps preserve each gun’s controls and feedback settings; explicit selections survive reconnects and restarts.
 
-Reviewed mappings include Star Trek Voyager Start/Reload, Rambo Rage, Silent Hill Option L/R, Transformers Human Alliance's two triggers, separate attack/defense lever buttons in Shadows Rising, and named pedal controls. The active profile supplies each legend label; cabinet controls requiring a different input system remain visible for review.
+XGunner receivers are recognized from their USB identity when Windows uses generic names. The controls view includes the documented keyboard and mouse controls, calibration guidance, the checked V261009 manufacturer software, aspect/mode configuration and bounded local recoil/rumble tests. The header counts connected receivers separately from input verification.
 
-Includes the input recovery, serial timing, per-player Wii weapon/gesture profiles and local library-wide controls audit from the current application. Windows installer and portable package are available with checksums; physical gun and post-resume tests remain separate from profile checks.
-
-The desktop companion uses a hidden top-level receiver for power broadcasts and records its input receiver handle for targeted local diagnostics.
+Reviewed TeknoParrot and Dolphin input profiles now use the selected mixed gun pair. RS3 hardware IDs remain independent of game slots for serial setup and calibration.

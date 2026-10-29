@@ -61,8 +61,8 @@ public sealed class ReaperCalibrationWindow : Window
     public ReaperCalibrationWindow(Window owner,GunBinding binding,string dll,Func<bool> connected)
     {
         if(!ReaperCalibrationPackage.Valid(dll)) throw new IOException(I18n.T("Kalibrierungsmodul wurde nicht bestätigt."));
-        this.binding=binding; this.connected=connected; pid=0x574f+binding.Player;
-        if(binding.SystemId!="rs3" || binding.Player is <1 or >2 || !binding.MouseId.Contains($"vid_0483&pid_{pid:x4}",StringComparison.OrdinalIgnoreCase)) throw new IOException(I18n.T("Gun-ID und Spielerzuordnung stimmen nicht überein."));
+        this.binding=binding; this.connected=connected; pid=0x574f+binding.DevicePlayer;
+        if(binding.SystemId!="rs3" || binding.DevicePlayer is <1 or >2 || !binding.MouseId.Contains($"vid_0483&pid_{pid:x4}",StringComparison.OrdinalIgnoreCase)) throw new IOException(I18n.T("Gun-ID und Spielerzuordnung stimmen nicht überein."));
         module=NativeLibrary.Load(dll);
         try { clean=Marshal.GetDelegateForFunctionPointer<Clean>(NativeLibrary.GetExport(module,"hhh_hid_clean")); write=Marshal.GetDelegateForFunctionPointer<Write>(NativeLibrary.GetExport(module,"hhh_hid_write")); }
         catch { NativeLibrary.Free(module); module=0; throw; }

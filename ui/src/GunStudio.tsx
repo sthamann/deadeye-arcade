@@ -32,7 +32,7 @@ const models = () => [
     id: "xgunner",
     name: t("X-Gunner Wireless"),
     connection: t("2,4 GHz \u00B7 USB-Empf\u00E4nger"),
-    software: t("X-Gunner Config V260808"),
+    software: t("X-Gunner Config V261009"),
   },
   {
     id: "blamcon",
@@ -65,9 +65,7 @@ function tokenLabel(token: string) {
 }
 export function GunHeader({ state, open }: { state: State; open: () => void }) {
   const guns = state.guns ?? [];
-  const count = guns.filter(
-    (g) => g.systemId !== "xgunner" || state.gunSignals?.[g.id],
-  ).length;
+  const count = guns.length;
   const configured = state.bindings.filter(
     (b) =>
       b.softwareConfigured &&
@@ -195,8 +193,9 @@ export function GunStudio({
   );
   const online = !!gun;
   const selected = models().find((m) => m.id === model)!;
-  const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(player,model) : factoryMap(player,model);
-  const physicalControls = controls(model,player);
+  const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(binding?.hardwarePlayer ?? player,model) : factoryMap(binding?.hardwarePlayer ?? player,model);
+  const hardwarePlayer = binding?.hardwarePlayer ?? (binding?.systemId === "rs3" ? +(binding.mouseId.match(/PID_575([0-3])/i)?.[1] ?? (player - 1)) + 1 : player);
+  const physicalControls = controls(model,hardwarePlayer);
   const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? physicalControls.find(c=>c.id===id)?.token;
   const pressed = new Set(physicalControls.filter(c=>{const token=tokenFor(c.id);return token&&held[token] || model === "rs3" && c.id === "trigger" && held["hid:1"];}).map(c=>c.id));
   const feedback = binding?.feedback ?? {
@@ -231,6 +230,18 @@ export function GunStudio({
           {t("Neu erkennen")}
         </button>
       </div>
+      <section className="gun-assignments">
+        <div><h2>{t("Wer spielt mit welcher Gun?")}</h2><p>{t("Alle angeschlossenen Guns bleiben verfügbar. Wähle für P1 und P2 je eine Gun. Bereits belegte Plätze werden getauscht.")}</p></div>
+        <div className="assignment-list">{(state.guns ?? []).map(g => {
+          const slot=state.bindings.find(b=>b.physicalId===g.id || b.mouseId===g.mouseId)?.player;
+          return <article className={"assignment-gun " + (slot ? "assigned" : "")} key={g.id}>
+            <GunShape model={g.systemId} mini />
+            <div><strong>{g.name}</strong><small>{g.port ?? "USB"} · {slot ? t("Aktiv für P{0}",slot) : t("Bereit zur Auswahl")}</small>
+            {g.systemId === "xgunner" && <small>{state.gunSignals?.[g.id] ? t("Eingabe empfangen") : t("Empfänger erkannt · Eingabetest offen")}</small>}</div>
+            <div className="assignment-buttons">{[1,2].map(p=><button key={p} className={slot===p ? "primary" : "secondary"} aria-pressed={slot===p} disabled={busy || !g.driverHealthy || !g.mouseId || slot===p} onClick={()=>{setPlayer(p);setModel(g.systemId);send("assign-gun",{player:p,id:g.id});}}>{t("P{0} verwenden",p)}</button>)}</div>
+          </article>;
+        })}</div>
+      </section>
       <div className="system-cards">
         {models().map((m) => (
           <button
@@ -342,7 +353,7 @@ export function GunStudio({
                   <b>{i+1}</b><span><strong>{t(control.label)}</strong><small>{control.hardware?t("Hardware-Schalter · kein HID-Taster"):token?tokenLabel(token)+" · "+(actions()[map[token]]??t("Nicht belegt")):t("Eingang erfassen")}</small></span><span>{state.learning?.control===control.id?t("Taste drücken …"):control.hardware?"":t("Erfassen")}</span>
                 </button>;
               })}</div>
-              <p className="studio-caption">{model==="sinden"?t("Sinden: Bildschirmrand und Start/Stop bleiben Aufgaben der Herstellersoftware. Tasten können am Bildschirm und außerhalb verschiedene Eingänge senden."):model==="xgunner"?t("X-Gunner: Front-Stick und zwei Seitentasten nach Herstellerfotos. Firmware-Belegung wird an deinem Gerät erfasst."):model==="blamcon"?t("Vyper: Magazinzug, A/B, Stick und Start/Select. Feuerwahl steuert den Rückstoß am Gerät."):t("Reaper: P1 Pfeiltasten / Q, P2 U/V/W/X / S. Münztaste vier Sekunden halten sendet Esc; beide Grifftasten teilen den Reload-Eingang.")}</p>
+              <p className="studio-caption">{model==="sinden"?t("Sinden: Bildschirmrand und Start/Stop bleiben Aufgaben der Herstellersoftware. Tasten können am Bildschirm und außerhalb verschiedene Eingänge senden."):model==="xgunner"?t("X-Gunner: Werkstasten laut Anleitung. Geänderte Firmware-Belegungen kannst du für jeden Knopf neu erfassen. Schalter und Magazinentriegelung arbeiten direkt an der Gun."):model==="blamcon"?t("Vyper: Magazinzug, A/B, Stick und Start/Select. Feuerwahl steuert den Rückstoß am Gerät."):t("Reaper: P1 Pfeiltasten / Q, P2 U/V/W/X / S. Münztaste vier Sekunden halten sendet Esc; beide Grifftasten teilen den Reload-Eingang.")}</p>
               <div className="live-stats">
                 <span>
                   <b>
@@ -548,6 +559,15 @@ export function GunStudio({
                       "Gun dabei in der Hand halten. Unter Remote Desktop sind Impulstests gesperrt. Test-Auswahl und DIP-Schalter schalten kein spielabh\u00E4ngiges Feedback automatisch frei.",
                     )}
                   </p>
+                </>
+              ) : model === "xgunner" ? (
+                <>
+                  <p>{t("Die XGunner unterstützt automatischen Rückstoß beim Schuss und Motorvibration außerhalb des Bildschirms. Der Vibration-Schalter an der Gun bleibt maßgeblich.")}</p>
+                  <div className="feedback-tests">{["16:9","4:3"].map(aspect=><button className="secondary" key={aspect} disabled={busy || !sameModel || !gun?.port} onClick={()=>send("xgunner-mode",{player,aspect})}>{t("Lightgun-Modus {0}",aspect)}</button>)}</div>
+                  <div className="feedback-tests">{[["recoil",t("Rückstoß testen")],["rumble",t("Vibration testen")]].map(([effect,title])=><button className="secondary" key={effect} disabled={busy || !sameModel || !gun?.port || !!state.remoteSession} onClick={()=>send("test-xgunner-feedback",{player,effect})}>{title}</button>)}</div>
+                  <p>{t("Rapid Fire, Tasten, IR-Anordnung und Kalibrierung kannst du in der offiziellen XGunner-Software einstellen.")}</p>
+                  <button className="primary" disabled={busy} onClick={()=>send("setup-gun",{system:"xgunner"})}>{t("XGunner-Konfiguration öffnen")}</button>
+                  <p className="studio-caption">{t("Die Impulstests prüfen die Hardware. Feedback aus Spielereignissen benötigt zusätzlich das passende Spielprofil.")}</p>
                 </>
               ) : (
                 <>
@@ -758,6 +778,12 @@ export function GunStudio({
                 </p>
               </div>
             </section>
+            {model === "xgunner" && <section className="xgunner-guide">
+              <h2>{t("XGunner kalibrieren")}</h2>
+              <ol><li>{t("Rapid Fire an der Gun ausschalten. Vier IR-Punkte passend zum gewählten Layout anbringen.")}</li><li>{t("Space und Start an der Gun gleichzeitig drücken. Dann einmal den Abzug drücken.")}</li><li>{t("Ziele in dieser Reihenfolge bestätigen: Mitte, oben, unten, links, rechts. Die Gun speichert die Kalibrierung anschließend selbst.")}</li></ol>
+              <p>{t("Nach einem Wechsel zwischen Quadrat und Raute erneut kalibrieren. Q + E + A wählt die Raute, Q + E + D das Quadrat.")}</p>
+              <button className="primary" disabled={busy} onClick={()=>send("setup-gun",{system:"xgunner"})}>{t("XGunner-Konfiguration öffnen")}</button>
+            </section>}
             <section className="detected-panel">
               <h2>{t("Erkannte Ger\u00E4te")}</h2>
               {(state.guns ?? []).map((g) => (
@@ -780,7 +806,7 @@ export function GunStudio({
                         : message(g.identityEvidence)}
                     </small>
                   </div>
-                  {g.systemId !== "rs3" && g.mouseId && (
+                  {g.mouseId && (
                     <button
                       className="secondary compact"
                       onClick={() => send("assign-gun", { player, id: g.id })}
