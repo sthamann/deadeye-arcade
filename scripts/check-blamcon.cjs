@@ -17,7 +17,7 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('.physical-controls button:not([disabled])').count(),12);
  await page.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:2',down:true,action:'reload'}));await page.locator('.gun-hotspot[data-control="a"].pressed').waitFor();
  await click(page.getByRole('button',{name:'Recoil & vibration',exact:true}));
- await page.getByLabel('Recoil mode',{exact:true}).selectOption('auto');await page.getByLabel('Calibration profile',{exact:true}).selectOption('4');
+ await click(page.getByRole('group',{name:'Recoil mode',exact:true}).getByRole('button',{name:'Full auto',exact:true}));await click(page.getByRole('group',{name:'Calibration profile',exact:true}).getByRole('button',{name:'4',exact:true}));
  await click(page.getByRole('button',{name:'Send settings to Vyper',exact:true}));
  assert(await page.evaluate(()=>window.fixture.sent.some(m=>m.type==='set-blamcon'&&m.payload.player===1&&m.payload.options.recoilMode==='auto'&&m.payload.options.calibrationProfile===4)));
  await click(page.getByRole('button',{name:'Test recoil',exact:true}));assert(await page.evaluate(()=>window.fixture.sent.some(m=>m.type==='test-blamcon-feedback'&&m.payload.effect==='recoil')));

@@ -733,3 +733,5 @@
 .xgunner-guide li { margin: 10px 0; color: #c5d3e5; }
 
 .blamcon-options {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:16px;margin:24px 0}.blamcon-options label {display:flex;flex-direction:column;gap:8px}.blamcon-options select {width:100%;padding:12px;border:1px solid var(--line,#344253);border-radius:10px;background:#111c2a;color:#eaf2fc}.blamcon-panel p {margin:16px 0;line-height:1.6}
+
+.blamcon-options fieldset{min-width:0;border:0;padding:0;margin:0}.blamcon-options legend{margin-bottom:10px;color:var(--muted)}.blamcon-options fieldset>div{display:flex;flex-wrap:wrap;gap:8px}.blamcon-options button{min-width:44px;min-height:44px;white-space:normal}
