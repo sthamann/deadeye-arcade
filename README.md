@@ -14,11 +14,22 @@ setup problems, and return to the library with your gun.
 
 **[Download the latest Windows installer](https://github.com/sthamann/deadeye-arcade/releases/latest)** · [Portable downloads and checksums](https://github.com/sthamann/deadeye-arcade/releases)
 
-Deadeye recovers its input subscriptions after Windows unlock, resume and Remote Desktop transitions. The header distinguishes USB presence from a received gun button event. Physical button identity stays separate from assigned actions; the emergency exit retains its physical shortcut. Reviewed Wii profiles include per-player weapon selection, reload gestures and special actions; the startup legend reads the active mappings. Automatic repairs also inspect every library entry for missing player actions and keep a local controls report. A profile check does not replace a physical two-player test.
+## What Deadeye does
 
-Gun controls also drive the frontend: hold a D-pad or stick direction to move through games and scroll the focused item into view. Gun-specific menu hints use each device's saved controls. Active player badges, receiver ports and a standby state make multi-gun selection visible; either player can sit out. Capturing a changed directional control updates menu navigation as well as its physical visualization.
+- **Browse and launch with your gun:** a fullscreen library with covers, video
+  previews, screenshots, search, favorites and gun navigation.
+- **Choose the guns you want to play with:** assign connected devices to P1/P2,
+  mix supported families and leave additional guns in standby.
+- **Set up the actual controls:** model illustrations, live button highlights,
+  guided capture and saved action bindings for each physical gun.
+- **Try them immediately:** an integrated firing range for one or two players,
+  with destructible barrels, ammunition, reload and visible input feedback.
+- **Prepare supported games automatically:** player assignments, emulator profiles,
+  recognized multiplayer integrations, runtime checks and reviewed repair rules.
+- **Keep the way out clear:** a controls introduction, in-game menu, independent
+  emergency exit and a persistent button back to Windows.
 
-Connected guns trigger software preparation automatically: RS3 calibration support, the verified XGunner configuration package, Sinden software with its runtime, and the official Blamcon ARC installation through Steam. Progress and failures appear beside the guns; temporary failures retry without restarting the app. Sinden and XGunner program files are scanned for required Microsoft runtimes, missing supported components open their official installer, and setup checks again before starting the vendor app. Steam login, vendor confirmations and physical calibration remain explicit setup steps.
+[Supported lightguns](#supported-lightguns) · [Firing range](#try-your-guns-before-launching-a-game) · [Game profiles](#how-gun-profiles-reach-your-games) · [Windows setup](#get-started-on-windows)
 
 ## See it in action
 
@@ -59,57 +70,189 @@ Original game-media files are not bundled as library assets.*
 - **An arcade look throughout:** an original app icon for Windows, Setup and
   shortcuts, with a matching dark desktop wallpaper. [Artwork and wallpaper](docs/branding.md).
 
-## Set up your lightguns
+## Supported lightguns
 
-**My Guns** brings device detection, player assignment, physical controls and setup
-checks into one place. The header shows P1/P2, the detected model and its software
-setup status. Supported hardware families are **RS3 Reaper Pro, Sinden,
-X-Gunner Wireless and Blamcon Vyper**.
+Deadeye supports four hardware families. **My Guns** combines detection, P1/P2
+selection, physical controls, calibration guidance and software preparation.
 
-Choose any connected gun for P1 or P2, including mixed setups with more than two receivers. Moving an active gun to the other player swaps the slots. Explicit selections survive reconnects and restarts, and inactive guns retain their own button and feedback settings. Game slots stay separate from a receiver’s hardware player number.
+| Model | Controls represented in Deadeye | Setup integration |
+| --- | --- | --- |
+| **RS3 Reaper Pro** | Trigger, grip reload buttons, magazine base, Start/Coin, side button and stick with press | Windows HID/COM detection, manufacturer calibration module, aspect/offscreen settings and separate recoil/rumble tests |
+| **Sinden Lightgun** | Trigger, pump, four side buttons and four D-pad directions | Manufacturer software preparation, runtime checks, guided control capture and supported game profiles |
+| **X-Gunner Wireless** | Trigger, right/middle mouse inputs, Start/Coin, Space, Q/E, opposite-side Enter and directional stick | Receiver identification, manufacturer configuration tool, onboard calibration guide and local feedback tests |
+| **Blamcon Vyper** | Trigger, A/B, magazine pull, Start/Select, stick directions, optional pedal and auxiliary selector input | ARC through Steam, native configuration, saved calibration profile selection and local recoil/rumble tests |
 
-Each family has its own illustrated controls. Press a button to see its live
-highlight, capture the signal from your device and bind it to a menu or game action.
-Physical control capture and action bindings are stored separately, so the diagram
-can show what you pressed even when you change what the button does. The Studio
-and startup overlay share the same drawing, and actions show physical button names.
-Unknown inputs stay visible until captured; guided capture rejects duplicate menu
-buttons, and restoring defaults preserves your captured signals.
+### Choose P1 and P2
 
-Common action changes are applied at launch to supported MAME, TeknoParrot
-RawInput, Dolphin, RPCS3, RetroArch and Supermodel profiles. Extra title functions
-retain their individual controls. Fixed mouse layouts and game-specific patches
-keep their own required bindings, which are shown in the game controls. The
-emergency exit uses physical Start and Coin/Select independently of action remaps.
-[Physical controls and hardware references](docs/HARDWARE-CONTROLS.md).
+Every detected device gets its own card. Select **Use for P1** or **Use for P2**;
+selecting a gun already used by the other player swaps their slots. **Sit out**
+removes it from active play while keeping its settings. More than two devices can
+remain connected, and the two selected guns can be different models.
 
-For **RS3 Reaper Pro**, Deadeye provides USB/COM detection, automatic player
-assignment, mouse mode, aspect-ratio and offscreen-reload settings, plus bounded
-recoil and rumble test pulses. Prepare the checked manufacturer calibration module,
-then run a fullscreen four-target calibration for the selected player and a
-separate five-target aim test at the physical monitor.
+A game slot is separate from a receiver's hardware player number. Reassigning a
+gun to game P1 does not rewrite its hardware ID. Explicit selections and per-gun
+button/feedback settings survive reconnects, restarts and updates.
 
-For **XGunner Wireless**, Deadeye recognizes the receiver’s USB identity even when Windows supplies generic names. The controls diagram covers the trigger, right and middle mouse buttons, Start/Coin, Space, Q/E, the Enter button on the opposite side and WASD directions. The setup includes the checked V261009 manufacturer application, a calibration guide, lightgun mode and aspect selection, and separate local recoil/motor test pulses. Reviewed TeknoParrot and Dolphin profiles support mixed RS3/XGunner assignments.
+The header shows the detected count, active P1/P2 models and setup status. USB
+presence, software preparation and a received button event have separate states.
+For wireless hardware, detecting the receiver alone does not confirm a gun is
+awake and sending inputs. Deadeye renews its input registrations after Windows
+unlock, resume and Remote Desktop transitions.
 
-For **Blamcon Vyper**, Deadeye includes A/B defaults, magazine/pedal and auxiliary control capture, saved player assignments, native mouse-mode/aspect/reload/recoil settings, existing calibration profile selection and bounded local recoil/rumble tests. The setup guide covers separate hardware IDs for two Vypers, onboard calibration and ARC camera/smoothing checks. Captured Start/Select and D-pad inputs feed the menu, emergency exit, TeknoParrot profiles and Dolphin's independent per-gun bridge. ARC is installed or opened through Steam. Physical input, tracking and feedback still require testing with the connected guns.
+### Physical buttons and action bindings
 
-For Sinden, Deadeye provides product detection, input assignment and access to the supported manufacturer setup software. A wireless receiver alone does not establish the number of active guns; live input and model-specific calibration remain part of setup.
+Each family has its own illustrated controls, shared by Gun Studio and the native
+startup overlay. Press a button to highlight its physical position. Opposite-side
+controls and mechanical switches are labelled separately.
 
-RS3 recoil and grip rumble are separate mechanisms. Hardware switches and the
-specified power supply determine the mechanical recoil; there is no documented
-continuous force slider. Installed helpers such as DemulShooter and Hook of the
-Reaper can run with a game session, with matching per-game setup for game-driven
-feedback. [Calibration and compatibility](docs/compatibility.md).
+**Capture** learns which signal a physical control sends. **Bind** chooses what that
+signal does. This separation keeps the picture accurate when you change actions.
+The guided menu setup requests each control in sequence, requires release before
+the next step and rejects duplicate signals. Unknown controls remain visible until
+captured; restoring default actions preserves the captured physical signals.
+
+Use **Start button test** to inspect a gun without its normal frontend menu actions
+firing. Other guns can still operate the menu, and the fixed Windows exit stays
+available. Shortcuts implemented inside the gun's own firmware still apply.
+
+The D-pad or stick moves focus through games and menus; holding a direction keeps
+moving and scrolls the focused item into view. Aim and trigger also work with the
+fixed scrolling buttons. Selecting a cover returns to the featured game and its
+launch button. Menu hints use the selected gun's saved physical controls.
+
+### RS3 Reaper Pro
+
+- **Default actions:** trigger shoots, the grip buttons reload and the magazine
+  base supplies the second action. Start/Coin, side button and stick inputs follow
+  the gun's actual hardware player number, including the different P2 key codes.
+  Both grip reload buttons share one signal.
+- **Software:** normal mouse/keyboard input uses Windows HID. Deadeye groups the
+  gun's interfaces, finds its COM port and prepares the checked manufacturer
+  calibration module when required.
+- **Calibration:** run the integrated fullscreen four-target calibration for the
+  selected gun, then the separate five-target aim test at the physical monitor.
+- **Configuration and feedback:** mouse mode, 16:9/4:3, offscreen reload and bounded
+  recoil/rumble test pulses. Recoil and grip rumble are separate mechanisms. The
+  hardware switches and specified power supply govern mechanical recoil; Deadeye
+  does not provide an undocumented continuous force slider.
+
+### Sinden Lightgun
+
+- **Controls:** trigger, pump, four side buttons and four D-pad directions. The
+  pump is the reload control; captured side buttons supply Start, Coin and the
+  additional actions used by supported profiles.
+- **Guided setup:** capture all nine non-trigger controls from your own vendor
+  configuration. Sinden can send different inputs on-screen and off-screen, so
+  capture the intended on-screen signals. Deadeye does not guess RS3 key codes.
+- **Software:** prepares the reviewed Sinden package, scans its programs for
+  supported Microsoft runtimes and checks again after dependency installation.
+  A fresh vendor configuration enables automatic detection/start and the border;
+  vendor confirmations remain visible.
+- **Tracking and feedback:** the manufacturer software handles camera tracking,
+  the screen border, start/stop, calibration and supported recoil settings. Fully
+  captured Sinden controls can use Deadeye's separate per-player Dolphin bridge
+  for supported Wii profiles.
+
+### X-Gunner Wireless
+
+- **Detection:** identifies the XGUNNER receiver even when Windows supplies generic
+  mouse or keyboard names. The receiver's hardware number remains separate from
+  its selected game slot.
+- **Default actions:** trigger shoots; right mouse or Space reloads; middle mouse
+  and Q/E provide second-action inputs. Start/Enter confirm, Coin provides credit
+  and the WASD directional stick drives frontend navigation. Individual signals
+  remain visible and can be recaptured if the vendor mapping changes.
+- **Physical layout:** Enter is a separate button on the opposite side. Power,
+  vibration, rapid-fire and firmware controls are identified as hardware controls.
+  The documented magazine release is mechanical; the manual does not specify an
+  independent HID signal for it. Reload uses the documented button inputs.
+- **Software and calibration:** prepares the reviewed manufacturer configuration
+  tool and its supported runtimes. The onboard calibration guide covers IR layout
+  and target order; lightgun mode and aspect selection are available in setup.
+- **Feedback:** separate bounded solenoid and motor test pulses, followed by
+  automatic-mode restoration. The gun's physical vibration and rapid-fire
+  switches remain relevant. Reviewed TeknoParrot and Dolphin routes support mixed
+  assignments with other supported families.
+
+### Blamcon Vyper
+
+- **Default actions:** trigger shoots, **magazine pull reloads**, A is the second
+  action and B is the third action. The magazine microswitch uses the FOOT channel,
+  defaulting to keyboard R in assignable mode. An optional pedal shares this
+  channel; identical signals cannot be distinguished as separate controls.
+- **Capture:** learn Start, Select and the stick directions once, plus changed
+  magazine or auxiliary selector signals. Captured controls feed menu navigation,
+  the emergency chord and supported game profiles. The two-stage mechanical
+  trigger has one electrical shoot input.
+- **Native settings:** mouse/keyboard mode, 16:9/4:3, offscreen-reload behavior,
+  off/semi/automatic recoil, magazine/pedal mode and one of four existing
+  calibration profiles. Per-game settings restore the saved menu settings on exit.
+- **Software and calibration:** installs or opens official Blamcon ARC through
+  Steam. Login or installation confirmation remains visible when needed. ARC
+  covers calibration, camera view, IR sensitivity, smoothing, rumble strength and
+  further vendor settings; tracking and calibration are stored onboard.
+- **Two guns and feedback:** use separate hardware player IDs for two Vypers,
+  then assign their game slots in Deadeye. Bounded local recoil/rumble tests are
+  available. No firmware flash, factory reset or calibration overwrite happens
+  automatically.
+
+[Detailed physical controls, shared signals and manufacturer references](docs/HARDWARE-CONTROLS.md) · [Gun Studio walkthrough](docs/gun-studio.md) · [Calibration guide](docs/compatibility.md)
+
+### How gun profiles reach your games
+
+The supported launch path reads the currently assigned physical guns and prepares
+the game's input files before starting it. Common actions follow the saved Studio
+bindings; additional title functions use their reviewed control routes. The active
+profile supplies the startup controls reference.
+
+| Integration | How player controls are applied |
+| --- | --- |
+| **MAME** | Separate gun mice and raw keyboards for P1/P2. Identical Start/Coin key codes from mixed families keep their own player channels. Supported action routes include the Vyper's separate A/B actions. |
+| **TeknoParrot RawInput** | Writes assigned device paths and supported mouse/key actions into the selected profile. Named title actions such as weapon change and pedals follow their reviewed routes. |
+| **Dolphin / Wii** | Uses a matching disc-region accuracy profile and the gun's captured controls. Independent bridge channels carry each player's aim and buttons, including supported mixed pairs and fully captured Sinden controls. |
+| **Standalone RPCS3** | Prepares supported Raw Mouse / PS Move profiles with separate physical inputs and additional button channels. |
+| **RetroArch and Supermodel** | Generates supported device/action routes from the current assignment. A captured magazine reload takes priority over a retained pedal alias. |
+| **Recognized multiplayer plugins** | Prepares each installed integration's required device format. Blue Estate and HOTD 2: Remake fixed mouse layouts temporarily switch the Vyper magazine channel to right mouse, then restore its saved mode. |
+
+Fixed mouse layouts are not arbitrary remapping systems. The controls reference
+shows their required bindings, and patches must match the installed game build.
+DemulShooter and Hook of the Reaper can run as configured session helpers for
+compatible games; game-driven recoil needs a matching output integration.
+
+Independent P2 input depends on the game, emulator and installed integration. The
+status distinguishes configuration, launch checks and confirmed gameplay. See the
+[emulator table](#emulator-support) and [game-specific guide](docs/compatibility.md)
+for supported paths and remaining requirements.
 
 ## Try your guns before launching a game
 
-Open **My Guns → Firing range** to shoot destructible barrels with one or two players. Each player gets a separate crosshair, twelve-round magazine, hit counter, reload count and weapon selection. Live illustrations show the physical button you pressed, with its assigned action. Magazine pulls, reload, Start, Coin and extra actions can be checked without a game installation. Aim at **Back to My Guns** to return.
+Open **My Guns → Firing range** without installing a game. It uses the currently
+assigned connected guns, including mixed P1/P2 setups.
 
-Vyper's magazine pull uses its wired FOOT channel for reload, with A and B kept as separate actions. Sinden's pump and four side buttons can be captured and routed to supported game profiles. MAME receives separate raw keyboards for P1 and P2, including mixed gun families with matching key codes. [Hardware references and routing](docs/HARDWARE-CONTROLS.md).
+- **A small shooting game:** nine barrels, two hits to destroy each barrel, impact
+  effects and targets that return for another round.
+- **Separate players:** blue P1 and amber P2 crosshairs, twelve rounds per magazine,
+  shots, hits and reload counts. One player's input does not consume the other's
+  ammunition or reload their gun.
+- **Reload and extra actions:** try the magazine pull, pump or assigned reload
+  button. Second/third/mode actions cycle the displayed weapon selection. The
+  range shows Coin counts and received Start inputs too.
+- **Live control feedback:** a model illustration highlights held buttons, shows
+  the latest physical control and assigned action, and lists controls seen during
+  the test. Received inputs are visible even when they have no assigned action.
+- **A clear return:** Start and Coin do not leave the range. Aim and trigger at
+  **Back to My Guns**, or use the persistent **Close app · Windows** button.
+
+The range checks aim and input delivery; it does not perform hardware calibration
+or prove a title's multiplayer/feedback integration. Its ammunition and hit effects
+do not drive game-event recoil. Physical gun testing uses the connected monitor;
+Remote Desktop shows an explicit local-test notice. The browser preview provides
+a separate mouse-operated demonstration.
 
 ![Two-player firing range with live gun controls](docs/images/deadeye-firing-range.png)
 
-*Two-player input fixture shown for the UI check. Hardware tracking is tested at the physical display.*
+*UI test fixture with XGunner P1 and Vyper P2. Hardware gameplay is checked at the
+physical display.*
 
 ## Automatic setup and repairs
 
@@ -124,7 +267,7 @@ launch path.
 | Broken portable emulator paths | Repairs supported Model 2 search paths, inaccessible PCSX2 memory-card storage and matching TeknoParrot metadata. |
 | Missing OpenAL or Hypseus support files | Downloads exact reviewed official packages, checks hashes and compatibility, and restores eligible absent files with their licenses. |
 | P1/P2 input assignments | Prepares supported MAME, TeknoParrot, DemulShooter, RetroArch, Flycast, Supermodel, RPCS3 and Dolphin input paths. |
-| Supported Dolphin games | Matches the actual disc region to a reviewed accuracy profile, preserves learned offsets and prepares separate RS3 DSU channels for supported two-gun setups. Dead Space Extraction uses Hybrid Ubershaders. |
+| Supported Dolphin games | Matches the actual disc region to a reviewed accuracy profile, preserves learned offsets and prepares separate per-gun DSU channels for supported two-gun setups. Dead Space Extraction uses Hybrid Ubershaders. |
 | Recognized installed multiplayer extensions | Configures matching Blue Estate and HOTD 2: Remake inputs using each extension's actual device format. |
 | Supported game-specific profiles | Applies known Aliens and Model 2 presentation settings, reads the reviewed Time Crisis 5 controls helper and prepares specific installed arcade-loader libraries. |
 | Required Windows runtimes | Inspects launch programs and local libraries; offers matching Visual C++, DirectX and .NET components from Microsoft with architecture and signature checks. |
@@ -176,7 +319,7 @@ one shared system click pointer.
 | --- | --- | --- |
 | TeknoParrot | Profile import, path repair, supported RawInput gun bindings, controls reference and supervised launch | Vendor access, required elevation, special pedals/actions and matching helper/output configuration |
 | MAME | Import from the emulator's lightgun catalog and present ROM archives, generated controller mapping and controls reference | Game overrides, service calibration and ROM compatibility |
-| Dolphin / Wii | Region-matched accuracy profiles, RS3 controls and separate native DSU inputs for supported two-gun profiles | Supported disc ID, physical aiming and each game's actions; other regions retain existing settings |
+| Dolphin / Wii | Region-matched accuracy profiles, model-specific controls and independent native DSU inputs for supported gun assignments | Supported disc ID, physical aiming and each game's actions; other regions retain existing settings |
 | RetroArch | Explicit player-device assignments and supported core profiles | Core-specific controls and overrides |
 | Flycast | Per-device RawInput mapping for supported launch paths | Correct content, emulator build and game calibration |
 | Supermodel | Live RawInput mouse/keyboard assignment, including supported title overrides | Service calibration and actual simultaneous gameplay |
@@ -196,14 +339,17 @@ is not a full playthrough. [Game-specific compatibility guide](docs/compatibilit
    and adds desktop and Start menu shortcuts. The .NET runtime is included; Setup
    installs Microsoft Edge WebView2 Runtime if needed, using an Internet connection.
 2. Connect your guns and open **My Guns**. Inspect player assignment, prepare the
-   supported software and check the live physical buttons.
+   supported software and check the live physical buttons. Run guided capture for
+   unknown controls before relying on menu shortcuts or generated game profiles.
 3. Calibrate at the physical monitor. For RS3, run the integrated four-target
    calibration followed by the separate aim test.
-4. Use **Find Games** to import supported profiles, scan MAME games or add an
+4. Open **Firing range**. Test shooting, reload, extra buttons and each selected
+   player separately, then together.
+5. Use **Find Games** to import supported profiles, scan MAME games or add an
    existing Windows application or collection JSON.
-5. Review **Settings → Automatic repairs**, then launch a game. Check aiming,
+6. Review **Settings → Automatic repairs**, then launch a game. Check aiming,
    actions and both players before confirming gameplay in Game Details.
-6. Hold **Start + Coin** to return to the library, or use the in-game menu.
+7. Hold **Start + Coin** to return to the library, or use the in-game menu.
 
 Fullscreen is on by default. **Start with Windows is off by default** and can be
 changed in Settings. Desktop crosshairs have a separate background startup entry,
@@ -285,7 +431,14 @@ npx playwright install chromium
 npm run dev -- --port 5199
 # In a second terminal, from the repository root:
 node scripts/check-ui.cjs
+node scripts/check-gun-navigation.cjs
+node scripts/check-blamcon.cjs
+node scripts/check-range.cjs
 ```
+
+The range check uses Node.js 24 or newer to load its TypeScript game logic. UI
+checks exercise mixed player inputs, reload isolation, model highlights, return
+controls and responsive layouts. They do not certify physical gun accuracy.
 
 The preview demonstrates the interface without performing hardware or file operations.
 UI and native code share [`localization/en.json`](localization/en.json). German source

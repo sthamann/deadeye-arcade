@@ -31,12 +31,15 @@ The profiles are separately downloaded GPL-3.0 assets with their license preserv
 Existing unrelated Dolphin settings are retained and changed INIs are backed up.
 Unsupported disc IDs retain their existing configuration.
 
-With two connected RS3 guns and a supported disc profile, Deadeye creates two
-independent inputs through Dolphin's native DSU backend. A loopback-only bridge
+With two supported connected guns and a matching disc profile, Deadeye creates
+two independent inputs through Dolphin's native DSU backend. A loopback-only bridge
 carries each gun's absolute aim and buttons into its own emulated Wii Remote.
 It requires no virtual-controller driver and retains the guns' mouse/keyboard mode.
 The per-player profiles and startup legend use the actual connected devices.
-With one RS3 gun, P1 uses the existing mouse/keyboard profile. Unknown disc IDs
+A single RS3 gun uses the existing mouse/keyboard profile. XGunner, Vyper and fully
+captured Sinden assignments use the independent bridge, including supported mixed
+pairs. Vyper menu controls must be captured; Sinden requires its non-trigger
+controls to be captured before it qualifies for this path. Unknown disc IDs
 retain their existing settings rather than receiving a guessed two-player profile.
 The bridge's transport and separate player subscriptions have automated checks;
 physical aiming and simultaneous gameplay still require a test at the monitor.
@@ -47,7 +50,7 @@ work with a current Dolphin build.
 
 ### Dead Space Extraction
 
-Use the standard Wii Remote with a Nunchuk. The generated RS3 mapping is:
+Use the standard Wii Remote with a Nunchuk. The generated default RS3 mapping is:
 
 | RS3 control | Emulated action |
 | --- | --- |
@@ -65,6 +68,29 @@ Learned physical button assignments are used when available. Avoid long Coin or
 stick holds: the RS3 firmware reserves these for Escape and LED functions. This
 mapping needs a physical tutorial/gameplay test, including aiming, held buttons
 and simultaneous actions, before the game is marked tested.
+
+### The same Wii actions on other gun families
+
+The supported Dolphin profile resolves the selected gun's physical controls before
+building its player channel. For Dead Space Extraction with default actions:
+
+| Action | XGunner | Blamcon Vyper | Captured Sinden |
+| --- | --- | --- | --- |
+| Shoot | Trigger | Trigger | Trigger |
+| Reload | Right mouse button | Magazine pull | Pump |
+| Interact / kinesis | Middle mouse button | A | Rear-right side button |
+| Stasis | Space | B | Front-right side button |
+| Pause | Start | Captured Start | Front-left side button |
+| Alternate fire | Coin | Captured Select | Rear-left side button |
+| Shake / glow worm | Opposite-side Enter | A+B unless a selector input is captured | Rear-right + front-right side buttons |
+| Melee | Right mouse + Space | Magazine pull + B | Pump + front-right side button |
+| Weapon selection | WASD stick | Captured stick directions | Captured D-pad |
+
+The title's accuracy profile determines the weapon-axis orientation. Custom action
+bindings can change these routes; the startup legend reads the resulting profile.
+For Vyper, a captured selector can provide the separate shake/mode input instead
+of the A+B combination. Each player needs their own completed capture and an
+actual gameplay check at the physical screen.
 
 ## RPCS3 / PlayStation Move
 
