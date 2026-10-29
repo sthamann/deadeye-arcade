@@ -30,6 +30,10 @@ Check(selection.Bindings.Single(b=>b.Player==2).ButtonMap!.GetValueOrDefault("ke
 var assignmentStore=new LibraryStore(Path.Combine(Path.GetTempPath(),"deadeye-gun-selection-"+Guid.NewGuid()));assignmentStore.Save(selection);
 Check(assignmentStore.Load().Settings.ManualGunAssignments && assignmentStore.Load().GunProfiles.Count==3,
     "Explicit player choices and inactive gun profiles survive a cold library reload");Directory.Delete(assignmentStore.DirectoryPath,true);
+selection=GunAssignments.Assign(selection,wirelessGun,1);
+var reconnected=GunAssignments.Profile(selection,wirelessGun with {MouseId="new-wireless-mouse",KeyboardId="new-wireless-keyboard",Port="COM9"},1);
+Check(reconnected.Player==1 && reconnected.DevicePlayer==2 && reconnected.MouseId=="new-wireless-mouse" && reconnected.KeyboardId=="new-wireless-keyboard" && reconnected.SerialPort=="COM9",
+    "Reconnecting a selected receiver refreshes its interfaces without changing its game slot or hardware player");
 var emergency = new EmergencyChord();
 Check(!emergency.Sample(true,true,0) && !emergency.Sample(true,true,1999) && emergency.Sample(true,true,2000), "Dedicated Start+Coin exit uses a monotonic two-second hold");
 Check(!emergency.Sample(true,true,5000) && !emergency.Sample(false,true,6000) && !emergency.Sample(true,true,9000), "Held exit chord cannot fire again or rearm after releasing only one button");

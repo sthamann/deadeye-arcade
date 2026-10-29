@@ -561,7 +561,13 @@ public sealed class ArcadeWindow : Window
                     catch (Exception error) { gunIssues[gun.Id] = error.Message; }
             foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy && g.MouseId is not null))
             {
-                if (state.Settings.ManualGunAssignments || state.Bindings.Any(b => GunAssignments.Matches(b, gun))) continue;
+                var existing = state.Bindings.FirstOrDefault(b => GunAssignments.Matches(b, gun));
+                if (existing is not null)
+                {
+                    state.Bindings[state.Bindings.IndexOf(existing)] = GunAssignments.Profile(state, gun, existing.Player);
+                    continue;
+                }
+                if (state.Settings.ManualGunAssignments) continue;
                 int player = Enumerable.Range(1, 2).FirstOrDefault(p => !state.Bindings.Any(b => b.Player == p));
                 if (player != 0) state.Bindings.Add(GunAssignments.Profile(state, gun, player));
             }
