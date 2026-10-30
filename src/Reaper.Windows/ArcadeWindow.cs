@@ -38,7 +38,6 @@ public sealed class ArcadeWindow : Window
     private readonly Dictionary<string, DateTimeOffset> gunSignals = [];
     private bool scanningGuns;
     private readonly Dictionary<string,DateTimeOffset> preparedVendors = [];
-    private readonly HashSet<string> requestedVendorInstalls = [];
     private int? learningPlayer;
     private string? learningAction;
     private string? learningControl;
@@ -618,8 +617,6 @@ public sealed class ArcadeWindow : Window
         {
             foreach(var system in guns.Where(g=>g.DriverHealthy).Select(g=>g.SystemId).Distinct())
             {
-                if(system=="blamcon" && requestedVendorInstalls.Contains(system) && GunSoftware.IsPrepared(system,store.DirectoryPath))
-                    GunSoftware.SetStatus(system,I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
                 if(preparedVendors.GetValueOrDefault(system)>DateTimeOffset.UtcNow)continue;
                 GunSoftware.SetStatus(system,I18n.T("Software wird automatisch eingerichtet …"));SendState();
                 try
@@ -627,16 +624,11 @@ public sealed class ArcadeWindow : Window
                     if(system=="rs3")await ReaperCalibrationPackage.Prepare(store.DirectoryPath);
                     else
                     {
-                        await GunSoftware.Prepare(system,store.DirectoryPath,text=>{GunSoftware.SetStatus(system,text);SendState();},launch:false);
+                        string setupStatus = await GunSoftware.Prepare(system,store.DirectoryPath,text=>{GunSoftware.SetStatus(system,text);SendState();},launch:false);
                         if(session.Active || closing){preparedVendors[system]=DateTimeOffset.UtcNow;continue;}
                         if(system=="sinden")await GunSoftware.Prepare(system,store.DirectoryPath,_=>{},launch:true);
-                        if(system=="blamcon" && !GunSoftware.IsPrepared(system,store.DirectoryPath) && requestedVendorInstalls.Add(system))
-                        {
-                            await GunSoftware.Prepare(system,store.DirectoryPath,_=>{},launch:true);
-                            GunSoftware.SetStatus(system,I18n.T("ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen."));
-                        }
-                        else GunSoftware.SetStatus(system,system=="blamcon" && !GunSoftware.IsPrepared(system,store.DirectoryPath)
-                            ? I18n.T("ARC-Installation in Steam geöffnet. Anmeldung oder Bestätigung in Steam abschließen.")
+                        // Steam account setup must be opened explicitly through My Guns, never at app startup.
+                        GunSoftware.SetStatus(system, system=="blamcon" ? setupStatus
                             : I18n.T("Herstellerprogramm vorhanden · Hardwareprüfung offen"));
                     }
                     if(system=="rs3")GunSoftware.SetStatus(system,I18n.T("RS3-Kalibrierung vorbereitet · Windows HID bereit"));
@@ -651,7 +643,6 @@ public sealed class ArcadeWindow : Window
                 catch(Exception error)
                 {
                     preparedVendors[system]=DateTimeOffset.UtcNow.AddMinutes(1);
-                    requestedVendorInstalls.Remove(system);
                     GunSoftware.SetStatus(system,I18n.T("Einrichtung fehlgeschlagen; erneuter Versuch in einer Minute: ")+error.Message);
                     Log("automatic gun software: "+system+" "+error.Message);
                 }
