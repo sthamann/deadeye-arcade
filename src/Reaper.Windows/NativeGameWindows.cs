@@ -11,6 +11,7 @@ internal static class NativeGameWindows
     [DllImport("user32.dll")] private static extern bool EnumChildWindows(nint parent,EnumWindow callback,nint parameter);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint window);
     [DllImport("user32.dll")] private static extern bool IsIconic(nint window);
+    [DllImport("user32.dll")] private static extern nint GetAncestor(nint window,uint flags);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint window,out uint processId);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int GetWindowTextW(nint window,StringBuilder text,int capacity);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int GetClassNameW(nint window,StringBuilder text,int capacity);
@@ -60,5 +61,21 @@ internal static class NativeGameWindows
         // Follow only a visible renderer of this exact owned process, keeping
         // it when a modal dialog, overlay or another application is raised.
         return Renderer(foreground)?foreground:Renderer(current)?current:Renderer(fallback)?fallback:0;
+    }
+    public static bool UnrealInputForeground(int processId,nint renderer,nint foreground)
+    {
+        if(renderer==0||foreground==0||renderer==foreground||!IsWindowVisible(renderer)||IsIconic(renderer)
+            ||IsWindowVisible(foreground)||IsIconic(foreground)||GetAncestor(foreground,2)!=foreground)return false;
+        bool OwnedUnreal(nint window)
+        {
+            GetWindowThreadProcessId(window,out uint owner);
+            if(owner!=(uint)processId)return false;
+            var name=new StringBuilder(128);GetClassNameW(window,name,name.Capacity);
+            return name.ToString().Equals("UnrealWindow",StringComparison.Ordinal);
+        }
+        // Some packaged games activate a hidden top-level Unreal input window
+        // while continuing to render into their visible window. Never use the
+        // hidden handle for overlays, presentation or renderer availability.
+        return OwnedUnreal(renderer)&&OwnedUnreal(foreground);
     }
 }

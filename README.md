@@ -130,6 +130,10 @@ owned Game Running status window is minimized once the game renderer is ready.
 Packaged Unreal games also keep their active renderer when the game replaces its
 first window. Foreground dialogs and windows from other processes cannot take its
 place in Deadeye's session tracking.
+Some packaged Unreal games receive input through a hidden top-level
+`UnrealWindow` while continuing to draw into a visible renderer. Deadeye recognizes
+this exact same-process input window as game focus, keeps the visible window for
+overlays, and still rejects standard dialog windows, child controls and foreign processes.
 
 When an installed TeknoParrot vendor profile requires a second executable, Deadeye
 refreshes the corresponding loader metadata and repairs an unavailable companion

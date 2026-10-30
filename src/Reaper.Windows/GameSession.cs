@@ -122,8 +122,15 @@ public sealed class GameSession
         } finally {Marshal.FreeHGlobal(buffer);}
         return result;
     }
-    public bool HasGameForeground() => Active && !overlayVisible && ending is null
-        && GameWindowAvailable && GetForegroundWindow()==gameWindow;
+    public bool HasGameForeground()
+    {
+        if(!Active||overlayVisible||ending is not null||!GameWindowAvailable)return false;
+        nint foreground=GetForegroundWindow();
+        if(foreground==gameWindow)return true;
+        if(!GameRuntimeWindows.UnrealShipping(targetExecutable))return false;
+        GetWindowThreadProcessId(gameWindow,out uint owner);
+        return NativeGameWindows.UnrealInputForeground((int)owner,gameWindow,foreground);
+    }
     public void HideForOverlay()
     {
         bridge?.Pause(true);

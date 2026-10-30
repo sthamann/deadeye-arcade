@@ -50,6 +50,19 @@ if (OperatingSystem.IsWindows())
         Check(Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId,0,unrealOld,0)==unrealOld,"A surviving visible Unreal renderer remains available after a replacement closes");
     }
     finally {if(unrealNew!=0)WindowFixture.DestroyWindow(unrealNew);if(unrealOld!=0)WindowFixture.DestroyWindow(unrealOld);if(unrelated!=0)WindowFixture.DestroyWindow(unrelated);}
+    nint visibleUnreal=WindowFixture.CreateUnreal("Game renderer"),hiddenUnreal=WindowFixture.CreateUnreal("Game input",false);
+    nint childUnreal=WindowFixture.CreateUnreal("Child input",false,visibleUnreal);
+    nint hiddenDialog=WindowFixture.CreateWindowExW(0,"STATIC","Game input",0,0,0,100,100,0,0,0,0);
+    try
+    {
+        Check(visibleUnreal!=0&&hiddenUnreal!=0&&Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId,visibleUnreal,hiddenUnreal),"A hidden top-level Unreal input window of the exact game process retains focus without replacing its visible renderer");
+        Check(!Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId+1,visibleUnreal,hiddenUnreal),"A hidden Unreal input window cannot confer focus on another process");
+        Check(!Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId,visibleUnreal,hiddenDialog),"A hidden non-Unreal dialog cannot count as game input focus");
+        Check(!Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId,hiddenUnreal,visibleUnreal),"An unavailable hidden renderer is never rescued by the Unreal input exception");
+        Check(!Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId,visibleUnreal,visibleUnreal),"The hidden input exception does not replace ordinary renderer equality");
+        Check(childUnreal!=0&&!Reaper.Windows.NativeGameWindows.UnrealInputForeground(Environment.ProcessId,visibleUnreal,childUnreal),"A hidden Unreal child control cannot stand in for the game's top-level input window");
+    }
+    finally {if(childUnreal!=0)WindowFixture.DestroyWindow(childUnreal);if(visibleUnreal!=0)WindowFixture.DestroyWindow(visibleUnreal);if(hiddenUnreal!=0)WindowFixture.DestroyWindow(hiddenUnreal);if(hiddenDialog!=0)WindowFixture.DestroyWindow(hiddenDialog);}
     string probe = Path.Combine(Path.GetTempPath(), "deadeye-job-" + Guid.NewGuid().ToString("N") + ".txt");
     nint job = 0; int descendant = 0;
     try
@@ -1367,11 +1380,12 @@ static class WindowFixture
     [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]private static extern ushort RegisterClassW(ref WindowClass windowClass);
     [System.Runtime.InteropServices.DllImport("user32.dll")]private static extern nint DefWindowProcW(nint window,uint message,nint wParam,nint lParam);
     [System.Runtime.InteropServices.DllImport("kernel32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]private static extern nint GetModuleHandleW(string? name);
-    public static nint CreateUnreal(string title)
+    public static nint CreateUnreal(string title,bool visible=true,nint parent=default)
     {
         nint module=GetModuleHandleW(null);
         if(unrealClass==0){var definition=new WindowClass{Name="UnrealWindow",Instance=module,Procedure=System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(Procedure)};unrealClass=RegisterClassW(ref definition);}
-        return unrealClass==0?0:CreateWindowExW(0,"UnrealWindow",title,0x10000000,0,0,100,100,0,0,module,0);
+        uint style=(visible?0x10000000u:0u)|(parent!=0?0x40000000u:0u);
+        return unrealClass==0?0:CreateWindowExW(0,"UnrealWindow",title,style,0,0,100,100,parent,0,module,0);
     }
     [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
     public static extern nint CreateWindowExW(uint extendedStyle,string className,string title,uint style,int x,int y,int width,int height,nint parent,nint menu,nint instance,nint parameter);
