@@ -23,6 +23,21 @@ Check(WindowsArguments.Quote("")=="\"\"" && WindowsArguments.Quote("two words")=
 Check(WindowsArguments.Quote("C:\\game folder\\")=="\"C:\\game folder\\\\\"" && WindowsArguments.Quote("say \"go\"")=="\"say \\\"go\\\"\"", "Owned Windows launch escapes quotes and trailing backslashes without changing arguments");
 if (OperatingSystem.IsWindows())
 {
+    nint libraryWindow=WindowFixture.CreateWindowExW(0,"STATIC","Dolphin 5.0-21168",0x10000000,0,0,100,100,0,0,0,0);
+    nint rendererWindow=WindowFixture.CreateWindowExW(0,"STATIC","Dolphin 5.0-21168 | JIT64 DC | Vulkan | HLE",0x10000000,0,0,100,100,0,0,0,0);
+    try
+    {
+        Check(libraryWindow!=0 && rendererWindow!=0 && Reaper.Windows.NativeGameWindows.DolphinRenderer(Environment.ProcessId,libraryWindow)==rendererWindow,"Native window enumeration selects the Dolphin renderer while the old library window remains alive");
+        WindowFixture.SetWindowPos(libraryWindow,0,0,0,0,0,0x0003);
+        Check(Reaper.Windows.NativeGameWindows.DolphinRenderer(Environment.ProcessId,rendererWindow)==rendererWindow,"Raising the old Dolphin GUI cannot replace the active native renderer");
+        Check(Reaper.Windows.NativeGameWindows.DolphinRenderer(Environment.ProcessId+1,rendererWindow)==0,"A matching renderer title from another process cannot enter a game session");
+        nint message=WindowFixture.CreateWindowExW(0,"STATIC","Required runtime is missing.",0x50000000,0,0,100,30,libraryWindow,0,0,0);
+        nint edit=WindowFixture.CreateWindowExW(0,"EDIT","Private editable content",0x50000000,0,30,100,30,libraryWindow,0,0,0);
+        Check(message!=0 && edit!=0 && Reaper.Windows.NativeGameWindows.DialogText(libraryWindow)=="Required runtime is missing.","Native dialog diagnostics retain the actual error message while excluding editable fields");
+        WindowFixture.DestroyWindow(rendererWindow);rendererWindow=0;
+        Check(Reaper.Windows.NativeGameWindows.DolphinRenderer(Environment.ProcessId,0)==0,"A surviving Dolphin library window cannot masquerade as a rendered game after its renderer closes");
+    }
+    finally {if(rendererWindow!=0)WindowFixture.DestroyWindow(rendererWindow);if(libraryWindow!=0)WindowFixture.DestroyWindow(libraryWindow);}
     string probe = Path.Combine(Path.GetTempPath(), "deadeye-job-" + Guid.NewGuid().ToString("N") + ".txt");
     nint job = 0; int descendant = 0;
     try
@@ -45,11 +60,18 @@ if (OperatingSystem.IsWindows())
     finally { if(job!=0) Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); if(File.Exists(probe)) File.Delete(probe); if(File.Exists(probe+".mode"))File.Delete(probe+".mode"); }
 }
 string runtimeRoot=Path.Combine(Path.GetTempPath(),"deadeye-runtime-fixture");
+Check(GameRuntimeWindows.DolphinRenderer("Dolphin 5.0-21168 | JIT64 DC | Vulkan | HLE") && GameRuntimeWindows.DolphinRenderer("Dolphin 2512 | Cached Interpreter SC | Direct3D 12 | LLE | Test title") && !GameRuntimeWindows.DolphinRenderer("Dolphin 5.0-21168") && !GameRuntimeWindows.DolphinRenderer("Graphics Configuration"),"Dolphin's documented runtime status identifies the renderer in both separate-window and render-to-main modes");
 Check(GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Project","Binaries","Win64","Project-Win64-Shipping.exe")) && !GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Launcher","update.exe")),"Packaged game children are recognized without accepting arbitrary updater windows");
 Check(!GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot+"-other","Project","Binaries","Win64","Project-Win64-Shipping.exe")) && GameRuntimeWindows.KnownLauncher("steam.exe"),"Known launcher windows and game binaries outside the configured game directory cannot certify a game launch");
 var slowBoot = new GameTestObservation(15);
 Check(slowBoot.Update(70000,false,false)=="waiting-for-window" && slowBoot.Update(71000,true,false)=="observing" && slowBoot.Update(85000,true,false)=="observing" && slowBoot.Update(86000,true,false)=="passed","A slow-loading game receives the full observation period after its real renderer appears");
 var replacedWindow = new GameTestObservation(15);
+var trackedWindow=new GameWindowTracker();
+Check(!trackedWindow.Observe(11,0) && trackedWindow.Observe(11,750) && trackedWindow.Current==11 && !trackedWindow.Observe(11,900),"A stable game window is presented once rather than repeatedly stealing focus");
+Check(!trackedWindow.Observe(22,1000) && !trackedWindow.Observe(22,1749) && trackedWindow.Observe(22,1750) && trackedWindow.Current==22,"A replacement renderer supersedes the original even when the original window still exists");
+var rendererIdentity=new GameTestObservation(15);
+rendererIdentity.Update(1000,11L,false);rendererIdentity.Update(15000,22L,false);
+Check(rendererIdentity.Update(29999,22L,false)=="observing" && rendererIdentity.Update(30000,22L,false)=="passed","Replacing a visible window resets the observation interval even without a gap in window visibility");
 replacedWindow.Update(1000,true,false);replacedWindow.Update(10000,false,false);replacedWindow.Update(12000,true,false);
 Check(replacedWindow.Update(20000,true,false)=="observing" && replacedWindow.Update(27000,true,false)=="passed","A disappearing splash or replaced renderer cannot contribute stale observation time");
 Check(new GameTestObservation(15).Update(90000,false,false)=="startup-timeout" && new GameTestObservation(15).Update(1000,true,true)=="exited-early","A game that never renders or exits early cannot pass a library launch test");
@@ -753,6 +775,16 @@ RButton::y
     TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},[unsupportedKey,replayPair[1]]);
     Check(!XDocument.Load(matrixPath).Descendants("RawInputButton").Any(r=>!r.HasElements),"An unsupported captured key cannot leave a stray empty RawInput element while other controls are configured");
     Check(GameControlAudit.ExtraInputConflicts([new(1,"Player 1 Sub Trigger","","","P1|mouse:3",SourceKey:"P1Button3"),new(1,"Player 1 Option","","","P1|mouse:3",SourceKey:"P1Button4")]).Length==1 && GameControlAudit.ExtraInputConflicts([new(1,"Player 1 Sub Trigger","","","P1|mouse:3",SourceKey:"P1Button3"),new(1,"Player 1 Option","","","P1|mouse:3",SourceKey:"P1Button3")]).Length==0,"Distinct extra game actions sharing one input are surfaced while duplicate labels for the same native action remain aliases");
+    Check(!GameControlAudit.GameplayAction("Menu Left") && !GameControlAudit.GameplayAction("Menu Right") && !GameControlAudit.GameplayAction("Cutscenes Skip (also skips game)") && GameControlAudit.GameplayAction("Select") && GameControlAudit.GameplayAction("Direction Left"),"Test-menu directions and the explicit skip-game debug control are not required gameplay actions; real selection and direction controls remain required");
+    var mars=new XDocument(matrixTemplate);mars.Root!.Element("EmulationProfile")!.Value="WartranTroopers";
+    mars.Descendants("JoystickButtons").Where(r=>r.Element("ButtonName")?.Value.EndsWith(" Reload")==true).Remove();
+    foreach(int p in new[]{1,2})mars.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Player "+p+" Weapon Change"),new XElement("InputMapping","P"+p+"Button2")));
+    mars.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));mars.Save(matrixPath);
+    TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},replayPair);
+    var marsActions=OverlayControls.Read(repair with{SourcePath=matrixPath},root,replayPair).Rows.Where(r=>r.Function.EndsWith("Weapon Change")).ToArray();
+    Check(marsActions.Length==2 && marsActions.All(r=>r.Expression==(r.Player==1?"P1|mouse:2":"P2|mouse:3")) && (await ControlSimulation.Replay(marsActions,replayPair)).All(r=>r.Status=="profile-routed"),"Mars Sortie weapon change reaches Vyper A and XGunner's middle button through the actual profile writer and reader");
+    Check(TeknoActionRoutes.Find("WartranTroopers","Shoulder P1","P1Button2") is null && TeknoActionRoutes.Find("WartranTroopers","Weapon Change P1","P1Button3") is null,"A shared emulation profile cannot apply Mars Sortie routes to different Wartran actions or routing identifiers");
+    matrixTemplate.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
@@ -1190,4 +1222,12 @@ sealed class UpdateFixture(byte[] bytes) : HttpMessageHandler
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) });
     }
+}
+
+static class WindowFixture
+{
+    [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern nint CreateWindowExW(uint extendedStyle,string className,string title,uint style,int x,int y,int width,int height,nint parent,nint menu,nint instance,nint parameter);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool DestroyWindow(nint window);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(nint window,nint insertAfter,int x,int y,int width,int height,uint flags);
 }

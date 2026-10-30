@@ -6,7 +6,7 @@ using Reaper.Core;
 
 namespace Reaper.Windows;
 
-public record GameBlockingDialog(int ProcessId,string ProcessName,string ClassName,string Title,bool Owned=false);
+public record GameBlockingDialog(int ProcessId,string ProcessName,string ClassName,string Title,bool Owned=false,string Text="");
 
 public sealed class GameSession
 {
@@ -74,13 +74,19 @@ public sealed class GameSession
         }).Select(pair=>pair.Key).ToArray();
     }
     public object InspectProcesses() => new {
-        targetExecutable, gameWindow = gameWindow.ToInt64(), foregroundWindow = GetForegroundWindow().ToInt64(),
+        targetExecutable, gameWindow = gameWindow.ToInt64(), gameWindowDetails=InspectWindow(gameWindow), foregroundWindow = GetForegroundWindow().ToInt64(),
         foregroundProcess = ForegroundProcess(),
         processes=LiveProcesses().Select(id=> {
             try {using var p=Process.GetProcessById(id);return new {id,p.ProcessName,path=p.MainModule?.FileName,window=p.MainWindowHandle.ToInt64(),p.MainWindowTitle};}
             catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",path=(string?)null,window=0L,MainWindowTitle=e.Message};}
         }).ToArray()
     };
+    private static object InspectWindow(nint window)
+    {
+        var title=new StringBuilder(512);GetWindowTextW(window,title,title.Capacity);
+        var name=new StringBuilder(256);GetClassName(window,name,name.Capacity);
+        return new{handle=window.ToInt64(),title=title.ToString(),className=name.ToString()};
+    }
     public static GameBlockingDialog? CurrentBlockingDialog()
     {
         nint window=GetForegroundWindow();if(window==0)return null;
@@ -91,7 +97,7 @@ public sealed class GameSession
             using var process=Process.GetProcessById((int)id);
             if(name.ToString()!="#32770" && process.ProcessName is not ("SecHealthUI" or "SecurityHealthHost"))return null;
             var title=new StringBuilder(512);GetWindowTextW(window,title,title.Capacity);
-            return new((int)id,process.ProcessName,name.ToString(),title.ToString());
+            return new((int)id,process.ProcessName,name.ToString(),title.ToString(),Text:NativeGameWindows.DialogText(window));
         }
         catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return null;}
     }
@@ -264,7 +270,9 @@ public sealed class GameSession
         var lastChild = DateTime.Now;
         var presented = new HashSet<nint>();
         bool legendShown=false;
-        nint legendWindow=0; long legendSince=0;
+        var windows=new GameWindowTracker();
+        bool dolphin=DolphinSetup.IsDolphin(game);
+        nint RuntimeWindow(Process candidate)=>dolphin?NativeGameWindows.DolphinRenderer(candidate.Id,gameWindow):candidate.MainWindowHandle;
         try
         {
             while (!stop && !cancellationToken.IsCancellationRequested)
@@ -305,7 +313,7 @@ public sealed class GameSession
                                 using var gameProcess = Process.GetProcessById(pair.Key);
                                 if (gameProcess.HasExited || gameProcess.StartTime != pair.Value) continue;
                                 if(!IsGameRuntime(gameProcess,game,target,process.Id))continue;
-                                var handle = gameProcess.MainWindowHandle;
+                                var handle = RuntimeWindow(gameProcess);
                                 if (handle != 0 && IsWindowVisible(handle) && presented.Add(handle)) { if(IsIconic(handle)) ShowWindowAsync(handle, 9); SetForegroundWindow(handle); }
                             }
                             catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
@@ -314,20 +322,18 @@ public sealed class GameSession
                     // Games such as Blue Estate replace their splash window after startup.
                     // Keep the renderer handle current for exit checks and overlay restoration,
                     // while displaying the startup legend only once per session.
-                    if((!legendShown || !GameWindowAvailable) && !overlayVisible && ending is null)
+                    if(!overlayVisible && ending is null)
                     {
                         nint readyWindow=0;
                         foreach(var pair in owned.ToArray())
                             try {
                                 using var candidate=Process.GetProcessById(pair.Key);
                                 if(candidate.HasExited || candidate.StartTime!=pair.Value) continue;
-                                var handle=candidate.MainWindowHandle;
+                                var handle=RuntimeWindow(candidate);
                                 if(handle==0 || !IsWindowVisible(handle) || IsIconic(handle) || !IsRenderWindow(handle)) continue;
                                 if(IsGameRuntime(candidate,game,target,process.Id)) {readyWindow=handle;break;}
                             } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
-                        if(readyWindow==0) legendWindow=0;
-                        else if(legendWindow!=readyWindow) {legendWindow=readyWindow;legendSince=Environment.TickCount64;}
-                        else if(Environment.TickCount64-legendSince>=750) {
+                        if(windows.Observe(readyWindow.ToInt64(),Environment.TickCount64)) {
                             gameWindow=readyWindow;GamePresentation.Apply(game,readyWindow);
                             SetForegroundWindow(readyWindow);
                             if(!legendShown) {legendShown=true;GameWindowReady?.Invoke(readyWindow);}

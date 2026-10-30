@@ -9,7 +9,8 @@ public record ControlAuditReport(DateTimeOffset Time, GameControlReview[] Games)
 public static class GameControlAudit
 {
     public static bool GameplayAction(string name) => !name.Contains("NOT USED",StringComparison.OrdinalIgnoreCase)
-        && !System.Text.RegularExpressions.Regex.IsMatch(name,@"^(Service|Test(?:Menu)?|Volume|Xtreme Audio|Rear Cover Eye|Enter Switch|Up Select|Down Select|Select Up|Select Down|Menu Up|Menu Down)\b",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        && !name.Equals("Cutscenes Skip (also skips game)",StringComparison.OrdinalIgnoreCase)
+        && !System.Text.RegularExpressions.Regex.IsMatch(name,@"^(Service|Test(?:Menu)?|Volume|Xtreme Audio|Rear Cover Eye|Enter Switch|Up Select|Down Select|Select Up|Select Down|Menu Up|Menu Down|Menu Left|Menu Right)\b",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static string[] RequiredDolphin(string id)
     {
         string[] common = ["Buttons/A", "Buttons/B", "Buttons/+"];

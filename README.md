@@ -80,6 +80,11 @@ a game gets a full 15 seconds after its visible game window appears. Each test
 checks process ownership, foreground focus and cleanup, then reads the active
 control profiles for the selected P1/P2 guns.
 
+Window tracking follows a replacement renderer even when the original window
+remains alive. Dolphin's running renderer is distinguished from its library and
+configuration windows in both display modes, so raising its library does not
+redirect the game overlay. Replacing the renderer starts a fresh observation interval.
+
 Launch results and control completeness are recorded separately. Required
 controls come from the installed MAME driver's input metadata, the selected
 TeknoParrot vendor template, reviewed Wii title requirements and the supported Time
@@ -122,9 +127,14 @@ loader errors are returned to the process, preventing orphaned error boxes from
 interfering with later games. Code Integrity checks report the blocked file and
 policy when Windows rejects a game or emulator component. Deadeye does not
 change that security policy automatically.
+Standard dialog messages are retained in the local report, including the error
+body, to make missing-runtime and startup problems easier to diagnose.
 
 Exact game action routes cover supported special inputs such as Castlevania’s
 red/yellow whip buttons and Let’s Go Island 3D’s left/right trigger variants.
+Mars Sortie's weapon change is routed separately for each selected gun.
+Cabinet test-menu directions and explicitly labeled skip-game debug controls
+are excluded from required gameplay actions; real selection controls remain included.
 The reviewed Wii profiles are checked across all sixteen model pairings in
 software. Physical button presses and in-game reactions still require hardware
 verification.

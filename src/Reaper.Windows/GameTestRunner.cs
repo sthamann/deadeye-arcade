@@ -51,7 +51,7 @@ internal static class GameTestRunner
                 if(elapsed.ElapsedMilliseconds-blockedSince>=2000)break;
             }
             else {blockingDialog=dialog;blockedSince=null;}
-            observation.Update(elapsed.ElapsedMilliseconds, session.GameWindowAvailable, run.IsCompleted);
+            observation.Update(elapsed.ElapsedMilliseconds, session.GameWindowAvailable?session.GameWindow.ToInt64():0L, run.IsCompleted);
             if(session.GameWindowAvailable && session.HasGameForeground())focusedSince??=elapsed.ElapsedMilliseconds;
             else focusedSince=null;
             if (!observation.Finished) await Task.Delay(100);
@@ -66,7 +66,7 @@ internal static class GameTestRunner
         try { await run; }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception e) { error = e.Message; failure = GameTestFailure.From(e); }
-        if(blockingDialog is not null) {error="A modal system or game dialog blocked the test: "+blockingDialog.Title;failure=new("blocked-dialog",error,"",0,null);}
+        if(blockingDialog is not null) {error="A modal system or game dialog blocked the test: "+blockingDialog.Title+(blockingDialog.Text.Length>0?"\n"+blockingDialog.Text:"");failure=new("blocked-dialog",error,"",0,null);}
         if (error is null && observation.State != "passed") error = cancelled ? "Test cancelled." : observation.State;
         var after = session.LiveProcesses();
         var cleanupWait = Stopwatch.StartNew();

@@ -5,14 +5,19 @@ namespace Reaper.Core;
 public sealed class GameTestObservation(int seconds, int startupSeconds = 90)
 {
     private long? readySince;
+    private long window;
     public long? FirstReadyAt { get; private set; }
     public long ObservedMilliseconds { get; private set; }
     public string State { get; private set; } = "waiting-for-window";
     public bool Finished => State is "passed" or "startup-timeout" or "exited-early";
     public string Update(long elapsed, bool windowAvailable, bool exited)
+        => Update(elapsed,windowAvailable?1L:0L,exited);
+    public string Update(long elapsed, long windowIdentity, bool exited)
     {
         if (Finished) return State;
         if (exited) return State = "exited-early";
+        bool windowAvailable=windowIdentity!=0;
+        if(windowIdentity!=window){window=windowIdentity;readySince=null;ObservedMilliseconds=0;}
         if (windowAvailable)
         {
             FirstReadyAt ??= elapsed;
