@@ -141,7 +141,11 @@ checks.
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
 left untested by an interrupted run, then retries failures. Its cumulative attempt
-list survives further interruptions, so each resume can continue reaching new titles. Executables and
+list survives further interruptions, so each resume can continue reaching new titles. Missing game files
+are reported with their concrete paths. An absent target rejected before a game
+window exists remains a failed entry while the batch can continue with other
+games. Unavailable security diagnostics for an attempted launch, recorded blocks
+and malformed diagnostic results still require attention. Executables and
 libraries are fingerprinted by content, including patches that preserve file
 size and timestamps.
 **Start + Coin** or **F12** stops the run, including between games;

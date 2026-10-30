@@ -15,9 +15,9 @@ public static class LaunchRules
         // Recheck the actual files for every system before refusing a launch.
         game=Validate(game);
         if (game.Source == "demo") throw new InvalidOperationException(I18n.T("Vorschauspiele können nicht gestartet werden."));
-        if (game.Status == "needs-setup") throw new InvalidOperationException(I18n.T("Die Spieleinrichtung ist noch unvollständig."));
         var issues = Issues(game);
         if (issues.Length > 0) throw new IOException(string.Join("\n", issues));
+        if (game.Status == "needs-setup") throw new InvalidOperationException(I18n.T("Die Spieleinrichtung ist noch unvollständig."));
         var info = new ProcessStartInfo(game.Executable) { WorkingDirectory = game.WorkingDirectory, UseShellExecute = false };
         foreach (var arg in game.Arguments) info.ArgumentList.Add(Path.GetFileName(game.Executable).Equals("Supermodel.exe",StringComparison.OrdinalIgnoreCase) && File.Exists(arg) ? LegacyPaths.ForAnsiEmulator(arg) : arg);
         return info;

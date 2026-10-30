@@ -121,7 +121,7 @@ internal static class LibraryTests
                 if (Passed(resultPath) && !timedOut && !cancelled && finalFingerprint is not null) Atomic(receipt, finalFingerprint);
                 else if (File.Exists(receipt)) File.Delete(receipt);
                 if(GameSession.CurrentBlockingDialog() is {} remainingDialog) {blockingDialog=remainingDialog;needsAttention=true;}
-                if(DiagnosticsUnavailable(resultPath))needsAttention=true;
+                if(DiagnosticsUnavailable(resultPath,game))needsAttention=true;
                 Save(cancelled ? "cancelled" : "running");
                 if (cancelled || needsAttention) break;
                 await Task.Delay(750);
@@ -158,10 +158,10 @@ internal static class LibraryTests
         }
         catch(Exception e) when(e is IOException or JsonException) {return null;}
     }
-    private static bool DiagnosticsUnavailable(string path)
+    private static bool DiagnosticsUnavailable(string path,GameEntry game)
     {
-        try {using var json=JsonDocument.Parse(File.ReadAllText(path));return json.RootElement.TryGetProperty("codeIntegrity",out var report) && report.TryGetProperty("checked",out var value) && value.ValueKind==JsonValueKind.False;}
-        catch(Exception e) when(e is IOException or JsonException) {return false;}
+        try {return LibraryTestProgress.DiagnosticsUnavailable(File.ReadAllText(path),File.Exists(KnownFixes.Target(game)??game.Executable));}
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or JsonException or System.Xml.XmlException) {return true;}
     }
     private static string? SafeFingerprint(GameEntry game, IEnumerable<GunBinding> bindings, string data)
     {

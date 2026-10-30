@@ -4,6 +4,26 @@ namespace Reaper.Core;
 
 public static class LibraryTestProgress
 {
+    public static bool DiagnosticsUnavailable(string json,bool targetExists)
+    {
+        using var document=JsonDocument.Parse(json);var report=document.RootElement;
+        if(report.ValueKind!=JsonValueKind.Object)return true;
+        if(!report.TryGetProperty("codeIntegrity",out var integrity))return false;
+        if(integrity.ValueKind!=JsonValueKind.Object||!integrity.TryGetProperty("checked",out var check))return true;
+        if(check.ValueKind==JsonValueKind.True)return false;
+        if(check.ValueKind!=JsonValueKind.False)return true;
+        // An absent target rejected before a game window exists is already a
+        // failed setup, never a successful launch. Its unmapped drive must not
+        // stop tests of unrelated games. A genuine scanner failure still stops
+        // any attempted/otherwise healthy launch and is never a passing result.
+        bool preflightMissing=!targetExists
+            && report.TryGetProperty("windowObserved",out var observed)&&observed.ValueKind==JsonValueKind.False
+            && report.TryGetProperty("phase",out var phase)&&phase.ValueKind==JsonValueKind.String&&phase.GetString()=="exited-early"
+            && report.TryGetProperty("failure",out var failure)&&failure.ValueKind==JsonValueKind.Object
+            && failure.TryGetProperty("category",out var category)&&category.ValueKind==JsonValueKind.String&&category.GetString()=="launch-error"
+            && integrity.TryGetProperty("blocks",out var blocks)&&blocks.ValueKind==JsonValueKind.Array&&blocks.GetArrayLength()==0;
+        return !preflightMissing;
+    }
     public static HashSet<string> Attempted(string json)
     {
         var ids=new HashSet<string>(StringComparer.Ordinal);

@@ -1,9 +1,7 @@
-Repair the original Windows House of the Dead 2 graphics startup automatically.
+Continue library tests past an explicitly missing game target.
 
-- Recognize the original 32 bit HOD2.EXE with a DirectDraw import, excluding remakes.
-- Download the pinned official DDrawCompat 0.7.2 package only when its DLL is missing. Verify both archive and DLL hashes and retain the upstream 0BSD license.
-- Disable the T&L device with SupportedDevices = hal. Preserve other display settings and back up the previous configuration.
-- Keep an unknown existing wrapper and its settings intact, with an actionable repair report.
-- Include the graphics wrapper and settings in resume fingerprints and record successful repairs in the existing repair history.
+- Report the actual missing file before a generic setup status can obscure it.
+- Keep an absent target rejected before a game window exists as a failed entry, while allowing unrelated games to be tested. This also handles stale paths on an unmapped drive.
+- Still stop for unavailable security diagnostics on attempted launches, recorded blocks and malformed diagnostic metadata. No game is marked passing by this exception.
 
-Retains the Aliens launcher handoff, Flycast matching arcade archive selection, additional game control routes and cumulative progress across interrupted library tests. Graphics startup, profile routing and physical gameplay remain separate verification steps.
+Retains automatic legacy House of the Dead 2 graphics repair, the Aliens launcher handoff, matching Flycast arcade archives, additional per-game control routes and cumulative resume progress. Native launch, profile routing and physical gameplay remain separate verification steps.

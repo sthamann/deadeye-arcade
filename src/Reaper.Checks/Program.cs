@@ -308,6 +308,8 @@ Directory.CreateDirectory(root);
 try
 {
     var healthGame=new GameEntry("check-fixture","Fixture","PC","fixture.exe",[],root,"custom","fixture");
+    bool detailedMissing=false;try{LaunchRules.Prepare(healthGame);}catch(IOException error){detailedMissing=error.Message.Contains("fixture.exe");}
+    Check(detailedMissing,"A missing game reports the actual missing file before a generic setup status can hide the cause");
     string healthFile=Path.Combine(root,"game-test-check-fixture.json");
     File.WriteAllText(healthFile,"{\"id\":\"check-fixture\",\"windowObserved\":true,\"gameWindowAvailable\":true,\"ended\":true,\"processesAfterExit\":[],\"error\":null}");
     Check(GameLaunchCheck.Read(healthGame,root)?.Title=="Start und Beenden geprüft" && GameLaunchCheck.Read(healthGame,root)!.Notes.Any(n=>n.Contains("kein vollständiger Spieltest")),"A clean observed launch is shown as launch/exit evidence, never complete physical gameplay");
@@ -577,6 +579,10 @@ RButton::y
     var attemptedAcrossResumes=LibraryTestProgress.Attempted("{\"attemptedIds\":[\"first\",\"second\"],\"results\":[{\"id\":\"third\",\"status\":\"needs-action\"},{\"id\":\"first\"}],\"current\":{\"id\":\"not-finished\"}}");
     Check(attemptedAcrossResumes.SetEquals(["first","second","third"]) && LibraryTestProgress.Attempted("{\"results\":[{\"id\":\"legacy\"}]}").SetEquals(["legacy"]),"Interrupted library resumes retain the union of earlier attempts and current results without inventing a completed current game");
     Check(LibraryTestProgress.Attempted("{\"attemptedIds\":[null,7,\"\",\"valid\"],\"results\":[null,3,{\"id\":false}]}").SetEquals(["valid"]) && LibraryTestProgress.Attempted("broken JSON").Count==0,"Malformed resume progress cannot create phantom attempts or abort the next library test");
+    const string missingBeforeLaunch="{\"windowObserved\":false,\"phase\":\"exited-early\",\"failure\":{\"category\":\"launch-error\"},\"codeIntegrity\":{\"checked\":false,\"blocks\":[]}}";
+    Check(!LibraryTestProgress.DiagnosticsUnavailable(missingBeforeLaunch,false)&&LibraryTestProgress.DiagnosticsUnavailable(missingBeforeLaunch,true),"An absent game rejected before launch cannot stop unrelated library tests because its old drive has no event path; an existing target still requires diagnostics");
+    Check(LibraryTestProgress.DiagnosticsUnavailable(missingBeforeLaunch.Replace("\"windowObserved\":false","\"windowObserved\":true"),false)&&LibraryTestProgress.DiagnosticsUnavailable(missingBeforeLaunch.Replace("launch-error","windows-app-control"),false),"A real observed window or a Windows policy failure cannot use the missing-game exception to bypass diagnostic attention");
+    Check(LibraryTestProgress.DiagnosticsUnavailable(missingBeforeLaunch.Replace("\"blocks\":[]","\"blocks\":[{}]"),false)&&LibraryTestProgress.DiagnosticsUnavailable("{\"codeIntegrity\":{\"checked\":\"false\"}}",false),"Recorded blocks and malformed diagnostic metadata remain visible stop conditions");
     string discFolder=Path.Combine(root,"naomi-content","mok");Directory.CreateDirectory(discFolder);
     string arcadeArchive=discFolder+".zip";
     using(var contentZip=System.IO.Compression.ZipFile.Open(arcadeArchive,System.IO.Compression.ZipArchiveMode.Create)){using var key=contentZip.CreateEntry("317-fixture.key").Open();key.WriteByte(1);}
