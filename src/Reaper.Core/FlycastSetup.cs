@@ -3,6 +3,38 @@ namespace Reaper.Core;
 public static class FlycastSetup
 {
     public static bool IsFlycast(GameEntry game) => Path.GetFileName(game.Executable).Equals("flycast.exe", StringComparison.OrdinalIgnoreCase);
+    public static GameEntry ResolveContent(GameEntry game,bool validateArchive=false)
+    {
+        if(!IsFlycast(game) || string.IsNullOrWhiteSpace(game.SourcePath) || !game.Platform.Contains("Naomi",StringComparison.OrdinalIgnoreCase) && !game.Platform.Contains("Atomiswave",StringComparison.OrdinalIgnoreCase))return game;
+        string folder;
+        try{folder=Path.TrimEndingDirectorySeparator(Path.GetFullPath(game.SourcePath,game.WorkingDirectory));}
+        catch(Exception e) when(e is ArgumentException or NotSupportedException){return game;}
+        string archive=folder+".zip";
+        if(!Directory.Exists(folder)||!File.Exists(archive))return game;
+        bool Matches(string argument)
+        {
+            if(argument.StartsWith('-'))return false;
+            try{return Path.TrimEndingDirectorySeparator(Path.GetFullPath(argument,game.WorkingDirectory)).Equals(folder,StringComparison.OrdinalIgnoreCase);}
+            catch(Exception e) when(e is ArgumentException or NotSupportedException){return false;}
+        }
+        if(!game.Arguments.Any(Matches))return game;
+        // A Naomi CHD directory is a companion to the same-named MAME ZIP,
+        // not the content file passed to Flycast. Never choose another set.
+        // Fingerprints select the same path without parsing untrusted archives.
+        // Validation belongs to the supervised per-game launch, where a bad
+        // file becomes one failed game instead of aborting a resumed batch.
+        if(validateArchive)
+        {
+            try
+            {
+                using var zip=System.IO.Compression.ZipFile.OpenRead(archive);
+                if(!zip.Entries.Any(e=>e.Name.Length>0))throw new InvalidDataException("Empty archive.");
+            }
+            catch(InvalidDataException error){throw new IOException(I18n.T("Das passende Arcade Archiv kann nicht gelesen werden: ")+archive,error);}
+        }
+        return game with{Arguments=game.Arguments.Select(a=>Matches(a)?archive:a).ToArray(),SourcePath=archive,
+            RequiredFiles=(game.RequiredFiles??[]).Append(folder).Append(archive).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()};
+    }
     public static string DeviceId(string path, string kind)
     {
         string id = path.StartsWith(@"\\?\HID#", StringComparison.OrdinalIgnoreCase) ? path[8..] : path;

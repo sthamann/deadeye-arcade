@@ -29,6 +29,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             }
             bool indexAvailable = GunConnections.CanIndexMice(setup.Players, raw.Devices);
             setup.Game = indexAvailable ? RetroArchSetup.Configure(game, data, setup.Players, raw.MouseOrder) : game;
+            setup.Game = FlycastSetup.ResolveContent(setup.Game,validateArchive:true);
             setup.Game = Rpcs3Setup.Configure(setup.Game, setup.Players);
             setup.Game = TimeCrisis5Controls.Configure(setup.Game, setup.Players);
             if (indexAvailable) SupermodelSetup.Configure(game, setup.Players, raw.Devices);

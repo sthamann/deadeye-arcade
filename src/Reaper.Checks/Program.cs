@@ -544,6 +544,26 @@ RButton::y
     try {FlycastSetup.Configure(flycastGame,[new GunBinding(1,flyP1.MouseId,flyP1.KeyboardId,SystemId:"blamcon",ButtonMap:new(){["mouse:1"]="shoot"},Blamcon:new(){PedalMode="right"})],flyDevices,flyNames);}
     catch(InvalidOperationException){flyConflict=true;}
     Check(flyConflict && File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg"))==beforeConflict,"Conflicting physical Flycast actions are rejected before any configuration is changed");
+    string discFolder=Path.Combine(root,"naomi-content","mok");Directory.CreateDirectory(discFolder);
+    string arcadeArchive=discFolder+".zip";
+    using(var contentZip=System.IO.Compression.ZipFile.Open(arcadeArchive,System.IO.Compression.ZipArchiveMode.Create)){using var key=contentZip.CreateEntry("317-fixture.key").Open();key.WriteByte(1);}
+    var folderGame=flycastGame with{SourcePath=discFolder,Arguments=[discFolder],Platform="Sega Naomi",RequiredFiles=[discFolder]};
+    var archiveGame=FlycastSetup.ResolveContent(folderGame);
+    Check(archiveGame.Arguments.SequenceEqual([arcadeArchive]) && archiveGame.SourcePath==arcadeArchive && archiveGame.RequiredFiles!.Contains(discFolder) && archiveGame.RequiredFiles.Contains(arcadeArchive) && folderGame.Arguments[0]==discFolder,"Flycast starts the exact matching arcade ZIP beside a CHD folder while preserving the original entry and disc requirement");
+    var dreamFolderGame=folderGame with{Platform="Sega Dreamcast"};
+    Check(ReferenceEquals(FlycastSetup.ResolveContent(dreamFolderGame),dreamFolderGame),"Dreamcast content is not silently converted to a Naomi archive route");
+    var directArchiveGame=folderGame with{SourcePath="",Arguments=[arcadeArchive]};
+    Check(ReferenceEquals(FlycastSetup.ResolveContent(directArchiveGame),directArchiveGame),"A valid explicit archive launch does not require an optional source-folder hint");
+    string archiveFingerprint=GameTestFingerprint.Create(folderGame,[flyP1],root,"fixture");var archiveTime=File.GetLastWriteTimeUtc(arcadeArchive);
+    using(var contentZip=System.IO.Compression.ZipFile.Open(arcadeArchive,System.IO.Compression.ZipArchiveMode.Update)){using var key=contentZip.GetEntry("317-fixture.key")!.Open();key.WriteByte(2);}
+    File.SetLastWriteTimeUtc(arcadeArchive,archiveTime);
+    Check(GameTestFingerprint.Create(folderGame,[flyP1],root,"fixture")!=archiveFingerprint,"Resume fingerprints the arcade archive that the normal launch path actually selects");
+    File.Move(arcadeArchive,discFolder+"-other.zip");
+    Check(ReferenceEquals(FlycastSetup.ResolveContent(folderGame),folderGame),"An unrelated neighboring archive cannot be substituted for a missing matching game ZIP");
+    File.WriteAllText(arcadeArchive,"not a ZIP file");bool corruptArchiveRejected=false;
+    string corruptFingerprint=GameTestFingerprint.Create(folderGame,[flyP1],root,"fixture");
+    try{FlycastSetup.ResolveContent(folderGame,validateArchive:true);}catch(IOException){corruptArchiveRejected=true;}
+    Check(corruptArchiveRejected && corruptFingerprint.Length==64 && FlycastSetup.ResolveContent(folderGame).Arguments[0]==arcadeArchive,"A corrupt matching archive becomes a supervised launch failure while resume can still fingerprint its actual path");
     FlycastSetup.Configure(flycastGame,[flyP1],flyDevices,flyNames);
     Check(DolphinSetup.Value(File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg")),"input","device2")=="10" && DolphinSetup.Value(File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg")),"input","maple_"+FlycastSetup.DeviceId(flyP2.MouseId,"mouse"))=="-1","Disconnecting P2 disables its Flycast port rather than assigning a foreign mouse");
     MultiplayerSetup.Configure(multiGame,[p1,p2]);

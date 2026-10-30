@@ -8,6 +8,7 @@ public static class GameTestFingerprint
 {
     public static string Create(GameEntry game,IEnumerable<GunBinding> bindings,string data,string version)
     {
+        game=FlycastSetup.ResolveContent(game);
         var text=new StringBuilder(version).Append(JsonSerializer.Serialize(game,JsonDefaults.Options)).Append(JsonSerializer.Serialize(bindings,JsonDefaults.Options));
         var files=KnownFixes.InputFiles(game,data).Concat(KnownFixes.MultiplayerFiles(game))
             .Concat(new[]{game.Executable,game.SourcePath,KnownFixes.Target(game)??""}).Concat(game.RequiredFiles??[])

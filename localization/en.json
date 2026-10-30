@@ -980,5 +980,6 @@
   "Spielaktion ohne geprüfte Spielerzuordnung: ": "Game action without verified player ownership: ",
   "Mehrere Spielaktionen verwenden dieselbe Gun-Taste: ": "Different game actions share one gun input: ",
   "Flycast Basisprofile der Geräte. Spielspezifische Überschreibungen und Reaktionen im Spiel sind noch nicht geprüft.": "Flycast base device profiles. Game specific overrides and in game reactions remain unverified.",
-  "P{0}: Flycast Aktionen {1} und {2} benötigen getrennte Gun Tasten.": "P{0}: Flycast actions {1} and {2} need separate gun buttons."
+  "P{0}: Flycast Aktionen {1} und {2} benötigen getrennte Gun Tasten.": "P{0}: Flycast actions {1} and {2} need separate gun buttons.",
+  "Das passende Arcade Archiv kann nicht gelesen werden: ": "The matching arcade archive cannot be read: "
 }

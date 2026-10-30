@@ -1,9 +1,8 @@
-Bring your selected gun controls into Flycast.
+Resolve imported Flycast arcade content automatically.
 
-- Write individual mouse and keyboard profiles for each selected player, using Flycast's native input codes.
-- Route trigger, offscreen reload, the secondary action, Start, credits and directions through the saved gun action map. Mouse middle no longer inherits the emulator's default Start action.
-- Support Vyper magazine reload as a captured keyboard input alongside its A button.
-- Read the saved base device mappings and player ports for the controls reference and profile simulation.
-- Reject conflicting physical bindings before any configuration files are changed. Keep backups of replaced profiles.
+- When a Naomi or Atomiswave entry points at its CHD folder, use the exact same-named arcade ZIP beside it. Keep the disc folder as a requirement.
+- Validate the selected archive in the supervised launch path. An invalid archive becomes a per-game error and does not prevent a resumed library test from inspecting the other entries.
+- Include the selected archive in resume fingerprints, so replacing its contents invalidates earlier results.
+- Preserve explicit archive entries and Dreamcast launch paths. Never select an unrelated neighboring ZIP.
 
-Per-game overrides and complete Flycast game action requirements remain marked for review. Input routing checks retain their distinction from physical aim, feedback and in-game reaction tests.
+Flycast retains individual mouse and keyboard profiles for the selected players, including magazine reload. Profile routing, native game launch and physical gameplay remain separate verification steps.

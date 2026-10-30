@@ -116,6 +116,12 @@ read these base device profiles and check their player ports. Conflicting physic
 bindings are rejected before files change. Game specific Flycast overrides and
 complete per-title action requirements remain marked for review.
 
+For imported Naomi and Atomiswave entries that point at a CHD folder, Deadeye
+selects the exact same-named arcade ZIP beside that folder when it exists.
+It keeps the disc folder as a requirement, validates the archive before launch
+and includes the selected archive in resume checks. An unrelated neighboring
+archive is never substituted. Dreamcast disc entries retain their own launch path.
+
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
 left untested by an interrupted run, then retries failures. Executables and
