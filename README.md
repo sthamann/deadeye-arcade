@@ -89,6 +89,17 @@ full controls. Software checks do not mark physical aim, recoil or cooperative
 play as tested.
 
 For maintenance, close the frontend and run `ReaperArcade.exe --test-library`.
+Each game report includes a button simulation alongside its launch result.
+Run `ReaperArcade.exe --simulate-controls` to check the entire library without
+launching games. The report in `controls-simulation.json` records the smallest
+physical button combination for each readable action, repeated presses, release
+and separation from the other player's controls. Dolphin DSU profiles replay
+these events through the production input bridge and decode its actual output
+frames, including combined and negated actions. Other supported profiles use
+expression simulation. Unknown syntax, missing captures, shared keyboard
+collisions and incomplete required-action lists stay open. Simulation never
+marks a game's reaction, physical tracking or feedback as verified.
+
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
 left untested by an interrupted run, then retries failures. Executables and

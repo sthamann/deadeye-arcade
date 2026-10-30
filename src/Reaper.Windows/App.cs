@@ -57,6 +57,14 @@ public static class App
                     GameControlAudit.Save(state.Games,data,state.Bindings,raw.Devices);
                     return;
                 }
+                if (args is ["--simulate-controls"])
+                {
+                    using var raw = new RawInput(); raw.Refresh();
+                    var report=ControlSimulation.Run(state.Games,data,state.Bindings,raw.Devices).GetAwaiter().GetResult();
+                    ControlSimulation.Save(report,data);
+                    if(report.Games.Any(g=>g.Status!="simulation-passed")) Environment.ExitCode=2;
+                    return;
+                }
                 if (args.Length == 1 && args[0] == "--repair-controls")
                 {
                     ControlMaintenance.Run(state.Games,data).GetAwaiter().GetResult();

@@ -1,9 +1,10 @@
-Keep a failed game launch from disrupting the rest of your library check.
+Replay physical button presses against your active game profiles.
 
-- Return critical Windows loader errors to the game process and stop the batch if a blocking modal dialog remains open. Windows Error Reporting and security policy stay enabled.
-- Report Code Integrity blocks with the affected file and policy, separately from missing dependencies and input problems.
-- Add exact profile routes for Castlevania whip buttons, Let’s Go Island 3D trigger variants, Infinity Blade touch and Luigi’s Mansion Select. Unknown actions remain pending.
-- Treat required buttons assigned to the other gun as actionable routing failures.
-- Exercise reviewed Wii action profiles across all sixteen P1/P2 model combinations, including mixed manufacturers.
+- Add `--simulate-controls` to inspect the entire library without launching games. Each game test also records its own simulation result.
+- Exercise down, repeated down, release and player isolation. Report the smallest physical button combination that reaches each readable action.
+- Replay Dolphin DSU profiles through the production input bridge and decode actual output frames, including negated actions and button chords.
+- Detect global keyboard collisions, missing endpoints, wrong player routes and unsupported expressions. Incomplete action contracts remain pending.
+- Route generic coin labels by the vendor’s actual Coin1/Coin2 identifiers. Do not let a stale controller display name suppress a missing RawInput pedal binding. Existing explicit pedal routes are preserved.
+- Bound each game’s simulation and keep launch, simulation and physical gameplay verification separate.
 
-Physical button presses, aim, recoil and cooperative gameplay remain separate verification steps.
+Simulation does not certify physical tracking, recoil or in-game reactions.

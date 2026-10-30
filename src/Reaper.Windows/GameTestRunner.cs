@@ -85,6 +85,7 @@ internal static class GameTestRunner
         input.Refresh();
         var controls = OverlayControls.Read(game, data, state.Bindings, input.Devices);
         var audit = GameControlAudit.Read(game, data, state.Bindings, input.Devices);
+        var simulation = (await ControlSimulation.Run([game],data,state.Bindings,input.Devices)).Games.Single();
         bool passed = !cancelled && error is null && available && foreground && after.Length == 0 && session.CleanupIssues.Count == 0;
         string? version=System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion;
         string? fingerprint=null;
@@ -101,7 +102,7 @@ internal static class GameTestRunner
             exitedEarly = observation.State == "exited-early", windowObserved = observation.FirstReadyAt is not null,
             gameWindowAvailable = available, foreground, foregroundStableSeconds, error, failure, codeIntegrity, processDetails = details,
             processesBeforeExit = before, processesAfterExit = after, ended = !session.Active && after.Length == 0,
-            controls, controlAudit = audit, cleanupIssues = session.CleanupIssues,
+            controls, controlAudit = audit, controlSimulation = simulation, cleanupIssues = session.CleanupIssues,
             playerControls = state.Bindings.Select(binding => new { binding.Player, binding.SystemId, hints = StartupControls.ForPlayer(controls, binding) }),
             game.Helpers, game.Players, launchPassed = passed,
             player1Verified = false, player2Verified = false, recoilVerified = false

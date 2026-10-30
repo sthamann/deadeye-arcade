@@ -3,6 +3,15 @@ using System.Text;
 using System.Xml.Linq;
 using Reaper.Core;
 
+if(args is ["--simulate-controls",var simulationData])
+{
+    var simulationState=new LibraryStore(simulationData).Load();
+    var simulation=await ControlSimulation.Run(simulationState.Games,simulationData,simulationState.Bindings);
+    ControlSimulation.Save(simulation,simulationData);
+    foreach(var group in simulation.Games.GroupBy(g=>g.Status))Console.WriteLine(group.Key+": "+group.Count());
+    return;
+}
+
 int checks = 0;
 var integrityFixture=CodeIntegrityEvent.Parse("<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>3077</EventID></System><EventData><Data Name='File Name'>\\Device\\HarddiskVolume3\\Games\\Test\\game.dll</Data><Data Name='Process Name'>\\Device\\HarddiskVolume3\\Games\\Test\\game.exe</Data><Data Name='PolicyID'>policy-version</Data><Data Name='PolicyGUID'>{0283ac0f-fff1-49ae-ada1-8a933130cad6}</Data><Data Name='Status'>0xc0e90002</Data></EventData></Event>");
 Check(integrityFixture?.File.EndsWith("game.dll")==true && integrityFixture.Process.EndsWith("game.exe") && integrityFixture.Policy=="{0283ac0f-fff1-49ae-ada1-8a933130cad6}" && integrityFixture.Status=="0xc0e90002","Native Code Integrity fields with spaces retain the blocked file, process, real policy GUID and NT status");
@@ -600,7 +609,7 @@ RButton::y
     Check(File.Exists(repairProfile+".before-reaper-path-fix") && XDocument.Load(repairProfile).Descendants("Keep").Single().Value=="original" && !LaunchRules.RepairTeknoParrotPath(repair), "Profile repair retains all other settings, makes a backup and is idempotent");
     File.WriteAllText(repairProfile,"<GameProfile><GamePath>missing.exe</GamePath></GameProfile>");
     Check(!LaunchRules.RepairTeknoParrotPath(repair with {RequiredFiles=[Path.Combine(tp,"game & 1.exe"),Path.Combine(tp,"TeknoParrotUi.exe")]}), "Ambiguous game files never overwrite a profile");
-    File.WriteAllText(repairProfile,"<GameProfile><ConfigValues><FieldInformation><FieldName>Input API</FieldName><FieldValue>XInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Light Gun</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Gun Trigger</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Start</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Footpedal</ButtonName><BindName>Keep pedal</BindName></JoystickButtons></JoystickButtons></GameProfile>");
+    File.WriteAllText(repairProfile,"<GameProfile><ConfigValues><FieldInformation><FieldName>Input API</FieldName><FieldValue>XInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Light Gun</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Gun Trigger</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Start</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Footpedal</ButtonName><BindName>Keep pedal</BindName><RawInputButton><DevicePath>external-pedal</DevicePath><DeviceType>Keyboard</DeviceType><MouseButton>None</MouseButton><KeyboardKey>Space</KeyboardKey></RawInputButton></JoystickButtons></JoystickButtons></GameProfile>");
     Check(TeknoGunSetup.Configure(repair,[new(1,mouse,"keyboard-1")])>0,"TeknoParrot setup writes the selected gun's raw-input device into the actual profile");
     var configuredTp=XDocument.Load(repairProfile);
     Check(configuredTp.Descendants("DeviceType").Count(e=>e.Value=="Mouse")==2 && configuredTp.Descendants("KeyboardKey").Any(e=>e.Value=="D1"),"TeknoParrot maps aim/trigger to the gun mouse and Start to its keyboard");
@@ -701,6 +710,38 @@ RButton::y
         if(system=="sinden")foreach(var control in new[]{("pump","mouse:2"),("front-left","key:49"),("back-left","key:53"),("back-right","mouse:3"),("front-right","key:32"),("up","key:38"),("down","key:40"),("left","key:37"),("right","key:39")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
         return gun;
     }
+    var replayPair=new[]{MatrixGun("blamcon",1),MatrixGun("xgunner",2)};
+    var replay=await ControlSimulation.Replay([
+        new(1,"Fire","","Dolphin DSU replay","`L2`"),
+        new(1,"Reload without Stasis","","Dolphin DSU replay","`Cross` & !`Circle`"),
+        new(1,"Melee chord","","Dolphin DSU replay","`Cross` & `Circle`"),
+        new(2,"Start","","Dolphin DSU replay","`Options`"),
+        new(2,"Magazine","","Dolphin DSU replay","`Square`"),
+        new(1,"Global Start","","RetroArch-Konfiguration","P1|key:49"),
+        new(1,"Device Start","","TeknoParrot · RawInput","P1|key:49"),
+        new(1,"MAME Start","","MAME -listxml + effective cfg","KEYCODE_1_1"),
+        new(1,"Wrong player","","TeknoParrot · RawInput","P2|mouse:1"),
+        new(1,"Unknown channel","","Dolphin DSU replay","`Unknown`"),
+        new(1,"Unsupported syntax","","Dolphin DSU replay","`L2` + `Cross`")
+    ],replayPair);
+    Check(replay.Take(5).All(r=>r.Status=="simulated" && r.Pressed && r.Held && r.Released && r.Isolated),"Physical press, repeat and release traverse the production Dolphin DSU frames for both guns, including negated and combined controls");
+    Check(replay.Single(r=>r.Function=="Melee chord").Buttons.Length==2 && replay.Single(r=>r.Function=="Reload without Stasis").Buttons.Length==1,"The replay finds real minimal physical chords rather than treating a combination as either button");
+    Check(replay.Single(r=>r.Function=="Global Start") is {Status:"failed",Isolated:false} && replay.Where(r=>r.Function is "Device Start" or "MAME Start").All(r=>r.Status=="simulated"),"Shared keyboard codes collide in global RetroArch routes while independent TeknoParrot and MAME device routes remain isolated");
+    Check(replay.Single(r=>r.Function=="Wrong player").Status=="failed" && replay.Where(r=>r.Function is "Unknown channel" or "Unsupported syntax").All(r=>r.Status=="unsupported"),"Wrong player routes and unknown consumer syntax cannot pass the simulator");
+    var missingReplay=await ControlSimulation.Replay([new(1,"Start","","Dolphin DSU replay","`Options`")],[replayPair[0] with{KeyboardId=null}]);
+    Check(missingReplay.Single().Status=="failed","A saved keyboard mapping without a keyboard endpoint cannot create simulated button evidence");
+    var aliasedReplay=await ControlSimulation.Replay([new(1,"Start","","Dolphin DSU replay","`Options`")],[replayPair[0],replayPair[1] with{KeyboardId=replayPair[0].KeyboardId}]);
+    Check(aliasedReplay.Single() is {Status:"failed",Isolated:false},"The production bridge replay detects two players accidentally assigned to the same keyboard endpoint");
+    var differentKeys=await ControlSimulation.Replay([new(1,"Global Start","","RetroArch-Konfiguration","P1|key:49")],[MatrixGun("rs3",1),MatrixGun("rs3",2)]);
+    Check(differentKeys.Single().Status=="simulated","Cross-player checks never invent a key code that the other gun cannot emit");
+    var legacyPedal=new XDocument(matrixTemplate);
+    legacyPedal.Root!.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Player 1 Footpedal"),new XElement("InputMapping","P1Button4"),new XElement("BindName","Input Device 0 LeftTrigger")));
+    legacyPedal.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Coin"),new XElement("InputMapping","Coin2")));
+    legacyPedal.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Coin2"),new XElement("InputMapping","Coin1")));
+    legacyPedal.Save(matrixPath);TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},replayPair);
+    var repairedLegacy=XDocument.Load(matrixPath);
+    Check(repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 1 Footpedal").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[0].MouseId,"An obsolete DirectInput pedal label cannot suppress the active RawInput gun route");
+    Check(repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[1].KeyboardId && repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin2").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[0].KeyboardId,"Reversed generic coin labels follow the vendor's actual Coin1/Coin2 routing identifiers");
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
@@ -903,6 +944,8 @@ RButton::y
             DolphinSetup.Configure(title,pack,pair,26761);
             var matrixAudit=GameControlAudit.Read(title,root,pair);
             Check(matrixAudit.Status=="mapping-checked" && matrixAudit.Players.Length==2 && matrixAudit.Players.All(p=>p.Issues.Length==0),"Actual Wii profile files cover all reviewed actions for "+DolphinSetup.DiscId(title)+" with "+firstModel+" P1 and "+secondModel+" P2");
+            var simulated=(await ControlSimulation.Run([title],root,pair)).Games.Single();
+            Check(simulated.Status=="simulation-passed" && simulated.Actions.All(a=>a.Scope=="production-dsu-frames" && a.Pressed && a.Held && a.Released && a.Isolated),"Physical button replay reaches every required Wii action and releases cleanly without cross-player activation for "+DolphinSetup.DiscId(title)+" with "+firstModel+" / "+secondModel);
         }
     GameControlAudit.Save([deadspace],root,[p1,p2]);
     GameControlAudit.Save([repair],root,specialGuns,merge:true);
