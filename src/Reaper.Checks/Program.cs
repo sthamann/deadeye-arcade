@@ -38,6 +38,18 @@ if (OperatingSystem.IsWindows())
         Check(Reaper.Windows.NativeGameWindows.DolphinRenderer(Environment.ProcessId,0)==0,"A surviving Dolphin library window cannot masquerade as a rendered game after its renderer closes");
     }
     finally {if(rendererWindow!=0)WindowFixture.DestroyWindow(rendererWindow);if(libraryWindow!=0)WindowFixture.DestroyWindow(libraryWindow);}
+    nint unrealOld=WindowFixture.CreateUnreal("First renderer"),unrealNew=WindowFixture.CreateUnreal("Replacement renderer");
+    nint unrelated=WindowFixture.CreateWindowExW(0,"STATIC","Replacement renderer",0x10000000,0,0,100,100,0,0,0,0);
+    try
+    {
+        Check(unrealOld!=0&&unrealNew!=0&&Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId,unrealOld,unrealOld,unrealNew)==unrealNew,"A new owned Unreal renderer replaces the still-living old game window");
+        Check(Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId,unrealNew,unrealOld,unrelated)==unrealNew,"A non-renderer foreground window cannot replace the tracked Unreal game window");
+        Check(Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId+1,unrealNew,unrealOld,unrealNew)==0,"An Unreal window from another process is rejected even with a matching class");
+        Check(Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId,0,unrelated,unrelated)==0,"A matching window caption cannot turn a dialog into an Unreal renderer");
+        WindowFixture.DestroyWindow(unrealNew);unrealNew=0;
+        Check(Reaper.Windows.NativeGameWindows.UnrealRenderer(Environment.ProcessId,0,unrealOld,0)==unrealOld,"A surviving visible Unreal renderer remains available after a replacement closes");
+    }
+    finally {if(unrealNew!=0)WindowFixture.DestroyWindow(unrealNew);if(unrealOld!=0)WindowFixture.DestroyWindow(unrealOld);if(unrelated!=0)WindowFixture.DestroyWindow(unrelated);}
     string probe = Path.Combine(Path.GetTempPath(), "deadeye-job-" + Guid.NewGuid().ToString("N") + ".txt");
     nint job = 0; int descendant = 0;
     try
@@ -61,6 +73,7 @@ if (OperatingSystem.IsWindows())
 }
 string runtimeRoot=Path.Combine(Path.GetTempPath(),"deadeye-runtime-fixture");
 Check(GameRuntimeWindows.DolphinRenderer("Dolphin 5.0-21168 | JIT64 DC | Vulkan | HLE") && GameRuntimeWindows.DolphinRenderer("Dolphin 2512 | Cached Interpreter SC | Direct3D 12 | LLE | Test title") && !GameRuntimeWindows.DolphinRenderer("Dolphin 5.0-21168") && !GameRuntimeWindows.DolphinRenderer("Graphics Configuration"),"Dolphin's documented runtime status identifies the renderer in both separate-window and render-to-main modes");
+Check(GameRuntimeWindows.UnrealShipping(@"C:\Game\Binaries\Win64\ESGame-Win64-Shipping.exe")&&GameRuntimeWindows.UnrealShipping("/game/Binaries/Win32/Test-Win32-Shipping.exe")&&!GameRuntimeWindows.UnrealShipping(@"C:\Game\Binaries\Win32\ESGame-Win64-Shipping.exe")&&!GameRuntimeWindows.UnrealShipping("/launchers/ESGame-Win64-Shipping.exe"),"Unreal renderer selection is limited to matching packaged Shipping runtimes and architecture directories");
 Check(GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Project","Binaries","Win64","Project-Win64-Shipping.exe")) && !GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Launcher","update.exe")),"Packaged game children are recognized without accepting arbitrary updater windows");
 Check(!GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot+"-other","Project","Binaries","Win64","Project-Win64-Shipping.exe")) && GameRuntimeWindows.KnownLauncher("steam.exe"),"Known launcher windows and game binaries outside the configured game directory cannot certify a game launch");
 var slowBoot = new GameTestObservation(15);
@@ -972,10 +985,38 @@ RButton::y
     var staleVendorGame=scarlet with {SourcePath=userProfile,Executable=Path.Combine(tpDirectory,"TeknoParrotUi.exe")};
     Check(EmulatorSetup.ConfigurePaths(staleVendorGame)&&File.ReadAllText(userProfile).Contains("<Patreon>false</Patreon>")&&XDocument.Load(userProfile).Root!.Element("JoystickButtons")!.Value=="keep-buttons"&&XDocument.Load(userProfile).Root!.Element("GamePath")!.Value=="keep-game","CLI launch refreshes stale eligibility from installed official metadata while preserving game paths and input settings");
     Check(!EmulatorSetup.ConfigurePaths(staleVendorGame)&&File.Exists(userProfile+".before-deadeye-vendor-fix"),"Vendor metadata repair is idempotent and retains the original profile backup");
+    string dualVendorMain=Path.Combine(tpDirectory,"game-main"),dualVendorSecond=Path.Combine(tpDirectory,"game-sound");
+    File.WriteAllText(dualVendorMain,"");File.WriteAllText(dualVendorSecond,"");
+    File.WriteAllText(userProfile,new XDocument(new XElement("GameProfile",new XElement("EmulationProfile","RawThrillsGUN"),new XElement("HasTwoExecutables",false),new XElement("LaunchSecondExecutableFirst",false),new XElement("GamePath",dualVendorMain),new XElement("GamePath2",Path.Combine(root,"missing-drive","game-sound")),new XElement("JoystickButtons","keep-buttons"))).ToString());
+    File.WriteAllText(vendorProfile,"<GameProfile><EmulationProfile>RawThrillsGUN</EmulationProfile><HasTwoExecutables>true</HasTwoExecutables><LaunchSecondExecutableFirst>true</LaunchSecondExecutableFirst><ExecutableName2>game-sound</ExecutableName2></GameProfile>");
+    Check(EmulatorSetup.ConfigurePaths(staleVendorGame)&&XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==dualVendorSecond&&XDocument.Load(userProfile).Root!.Element("HasTwoExecutables")!.Value=="true"&&XDocument.Load(userProfile).Root!.Element("LaunchSecondExecutableFirst")!.Value=="true"&&XDocument.Load(userProfile).Root!.Element("JoystickButtons")!.Value=="keep-buttons","Stale dual-process metadata and an unavailable secondary path are repaired from the installed vendor's exact existing companion file");
+    Check(!EmulatorSetup.ConfigurePaths(staleVendorGame),"Dual-process migration preserves its working paths on repeated launches");
+    string customSecond=Path.Combine(root,"custom-sound");File.WriteAllText(customSecond,"");
+    var customDual=XDocument.Load(userProfile);customDual.Root!.Element("GamePath2")!.Value=customSecond;customDual.Save(userProfile);
+    Check(!EmulatorSetup.ConfigurePaths(staleVendorGame)&&XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==customSecond,"A working custom secondary executable is preserved");
+    customDual.Root.Element("GamePath2")!.Value=Path.Combine(root,"missing-drive","game-sound");customDual.Save(userProfile);
+    var missingCompanion=XDocument.Load(vendorProfile);missingCompanion.Root!.Element("ExecutableName2")!.Value="missing-sound";missingCompanion.Save(vendorProfile);
+    EmulatorSetup.ConfigurePaths(staleVendorGame);
+    Check(XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==customDual.Root.Element("GamePath2")!.Value&&LaunchRules.Issues(staleVendorGame).Any(i=>i.Contains("GamePath2")),"Missing vendor companion files remain an explicit setup error rather than guessed paths");
+    var relativeDual=XDocument.Load(userProfile);relativeDual.Root!.Element("GamePath")!.Value="game-main";relativeDual.Save(userProfile);
+    var namedCompanion=XDocument.Load(vendorProfile);namedCompanion.Root!.Element("ExecutableName2")!.Value="game-sound";namedCompanion.Save(vendorProfile);
+    Check(EmulatorSetup.ConfigurePaths(staleVendorGame with {WorkingDirectory=tpDirectory})&&XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==dualVendorSecond,"Relative main paths resolve against the game's working directory when locating a vendor companion");
+    foreach(string invalidCompanion in new[]{"../game-sound","..\\game-sound","C:game-sound",".",".."})
+    {
+        relativeDual.Save(userProfile);namedCompanion.Root.Element("ExecutableName2")!.Value=invalidCompanion;namedCompanion.Save(vendorProfile);
+        EmulatorSetup.ConfigurePaths(staleVendorGame with {WorkingDirectory=tpDirectory});
+        Check(XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==relativeDual.Root.Element("GamePath2")!.Value,"Vendor companion names containing path traversal or drive syntax never produce a secondary path: "+invalidCompanion);
+    }
     string asciiTarget=Path.Combine(root,"elf-game");File.WriteAllText(asciiTarget,"");
     File.WriteAllText(userProfile,"<GameProfile><EmulatorType>ElfLdr2</EmulatorType><GamePath>Arcade — folder/game</GamePath><JoystickButtons>keep-buttons</JoystickButtons></GameProfile>");
     Check(EmulatorSetup.ConfigureTeknoAsciiPath(staleVendorGame,_=>asciiTarget) && XDocument.Load(userProfile).Root!.Element("GamePath")!.Value==asciiTarget && XDocument.Load(userProfile).Root!.Element("JoystickButtons")!.Value=="keep-buttons", "ElfLoader ASCII repair changes only the game path and preserves controls");
     Check(!EmulatorSetup.ConfigureTeknoAsciiPath(staleVendorGame,_=>throw new Exception("Should not resolve twice")) && File.Exists(userProfile+".before-deadeye-ascii-fix"), "ElfLoader path repair retains a backup and skips already repaired paths");
+    File.WriteAllText(userProfile,"<GameProfile><EmulatorType>ElfLdr2</EmulatorType><HasTwoExecutables>true</HasTwoExecutables><GamePath>ä/main</GamePath><GamePath2>ä/sound</GamePath2><JoystickButtons>keep-buttons</JoystickButtons></GameProfile>");
+    Check(EmulatorSetup.ConfigureTeknoAsciiPath(staleVendorGame,p=>p.EndsWith("/main")?asciiTarget:dualVendorSecond)&&XDocument.Load(userProfile).Root!.Element("GamePath2")!.Value==dualVendorSecond&&XDocument.Load(userProfile).Root!.Element("JoystickButtons")!.Value=="keep-buttons","Both required ElfLoader processes receive validated ASCII paths while gun bindings stay intact");
+    File.WriteAllText(userProfile,"<GameProfile><EmulatorType>ElfLdr2</EmulatorType><HasTwoExecutables>true</HasTwoExecutables><GamePath>ä/main</GamePath><GamePath2>ä/sound</GamePath2></GameProfile>");
+    string beforeDualAscii=File.ReadAllText(userProfile);
+    Throws(()=>EmulatorSetup.ConfigureTeknoAsciiPath(staleVendorGame,p=>p.EndsWith("/main")?asciiTarget:Path.Combine(root,"absent-sound")),"An unavailable secondary ASCII target refuses the repair");
+    Check(File.ReadAllText(userProfile)==beforeDualAscii,"A failed secondary path conversion leaves the whole profile unchanged");
     string dolphin = Path.Combine(root,"Dolphin.exe"); File.WriteAllText(dolphin, ""); File.WriteAllText(Path.Combine(root,"portable.txt"), "");
     Directory.CreateDirectory(Path.Combine(root,"User","Config")); File.WriteAllText(Path.Combine(root,"User","Config","WiimoteNew.ini"), "[Wiimote1]\nButtons/A = `Click 1`\nButtons/B = `Click 2`\n[Wiimote2]\nButtons/A = `D2`\n");
     var dolphinControls = OverlayControls.Read(scarlet with { Source="pc", Executable=dolphin, Arguments=[] }, root, []);
@@ -1315,6 +1356,23 @@ sealed class UpdateFixture(byte[] bytes) : HttpMessageHandler
 
 static class WindowFixture
 {
+    private delegate nint WindowProcedure(nint window,uint message,nint wParam,nint lParam);
+    private static readonly WindowProcedure Procedure=DefWindowProcW;
+    private static ushort unrealClass;
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential,CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
+    private struct WindowClass
+    {
+        public uint Style;public nint Procedure;public int ClassExtra;public int WindowExtra;public nint Instance;public nint Icon;public nint Cursor;public nint Background;public string? Menu;public string Name;
+    }
+    [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]private static extern ushort RegisterClassW(ref WindowClass windowClass);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]private static extern nint DefWindowProcW(nint window,uint message,nint wParam,nint lParam);
+    [System.Runtime.InteropServices.DllImport("kernel32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]private static extern nint GetModuleHandleW(string? name);
+    public static nint CreateUnreal(string title)
+    {
+        nint module=GetModuleHandleW(null);
+        if(unrealClass==0){var definition=new WindowClass{Name="UnrealWindow",Instance=module,Procedure=System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(Procedure)};unrealClass=RegisterClassW(ref definition);}
+        return unrealClass==0?0:CreateWindowExW(0,"UnrealWindow",title,0x10000000,0,0,100,100,0,0,module,0);
+    }
     [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]
     public static extern nint CreateWindowExW(uint extendedStyle,string className,string title,uint style,int x,int y,int width,int height,nint parent,nint menu,nint instance,nint parameter);
     [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool DestroyWindow(nint window);

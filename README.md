@@ -127,6 +127,16 @@ trigger and Too Spicy's separate movement pedals to the captured left and right
 controls. Exact native action identifiers keep these routes separate from other
 games that share an emulation profile. For supported Aliens launch paths, the
 owned Game Running status window is minimized once the game renderer is ready.
+Packaged Unreal games also keep their active renderer when the game replaces its
+first window. Foreground dialogs and windows from other processes cannot take its
+place in Deadeye's session tracking.
+
+When an installed TeknoParrot vendor profile requires a second executable, Deadeye
+refreshes the corresponding loader metadata and repairs an unavailable companion
+path only when the exact vendor filename exists beside the main game binary.
+Working custom paths and gun bindings are preserved. Both required ElfLoader
+paths receive validated ASCII aliases when needed, with a backup of the profile.
+Missing companion files remain visible setup errors.
 
 The original 32 bit Windows House of the Dead 2 has a reviewed graphics repair.
 For `HOD2.EXE` using DirectDraw, Deadeye downloads the exact official DDrawCompat

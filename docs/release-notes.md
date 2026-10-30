@@ -1,7 +1,7 @@
-Continue library tests past an explicitly missing game target.
+Keep active game windows and required companion processes correctly configured.
 
-- Report the actual missing file before a generic setup status can obscure it.
-- Keep an absent target rejected before a game window exists as a failed entry, while allowing unrelated games to be tested. This also handles stale paths on an unmapped drive.
-- Still stop for unavailable security diagnostics on attempted launches, recorded blocks and malformed diagnostic metadata. No game is marked passing by this exception.
+- Track the active renderer of owned packaged Unreal games when their original window survives. Dialogs, overlays and windows from other processes cannot replace the tracked renderer.
+- Refresh dual-process loader metadata from the matching installed TeknoParrot vendor profile. Repair an unavailable companion path only from the exact vendor filename beside an existing main game binary, preserving working custom paths and gun bindings.
+- Validate ASCII aliases for both required ElfLoader processes before writing their paths. Relative paths use the game's working directory; missing companions remain explicit setup errors.
 
-Retains automatic legacy House of the Dead 2 graphics repair, the Aliens launcher handoff, matching Flycast arcade archives, additional per-game control routes and cumulative resume progress. Native launch, profile routing and physical gameplay remain separate verification steps.
+Includes regression coverage for surviving native game windows, process identity, custom companion paths, missing files, relative paths and invalid vendor filenames. Native startup, profile routing and physical gameplay remain separate verification steps.

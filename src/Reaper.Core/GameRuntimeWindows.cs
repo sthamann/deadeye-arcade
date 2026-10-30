@@ -7,6 +7,7 @@ public static class GameRuntimeWindows
     // https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/Core/Core.cpp
     public static bool DolphinRenderer(string title)=>System.Text.RegularExpressions.Regex.IsMatch(title,@"^Dolphin[^|]* \| [^|]+ (?:DC|SC) \| [^|]+ \| (?:HLE|LLE)(?: \||$)");
     public static bool KnownLauncher(string path)=>new[]{"steam.exe","steamwebhelper.exe","EpicGamesLauncher.exe","TeknoParrotUi.exe","Hotd3Arcade_Launcher.exe"}.Contains(Path.GetFileName(path),StringComparer.OrdinalIgnoreCase);
+    public static bool UnrealShipping(string image)=>System.Text.RegularExpressions.Regex.IsMatch(image.Replace('\\','/'),@"(?:^|/)Binaries/(Win32|Win64)/[^/]+-\1-Shipping\.exe$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     // A random owned child can be an updater or launcher. Accept known packaged
     // game runtimes only, inside the explicitly configured game directory.
     public static bool ChildRuntime(string launcher,string directory,string image)

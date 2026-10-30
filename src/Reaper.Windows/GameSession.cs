@@ -272,7 +272,9 @@ public sealed class GameSession
         bool legendShown=false;
         var windows=new GameWindowTracker();
         bool dolphin=DolphinSetup.IsDolphin(game);
-        nint RuntimeWindow(Process candidate)=>dolphin?NativeGameWindows.DolphinRenderer(candidate.Id,gameWindow):candidate.MainWindowHandle;
+        nint RuntimeWindow(Process candidate)=>dolphin?NativeGameWindows.DolphinRenderer(candidate.Id,gameWindow)
+            :game.Source=="teknoparrot"&&GameRuntimeWindows.UnrealShipping(candidate.MainModule?.FileName??"")
+                ?NativeGameWindows.UnrealRenderer(candidate.Id,gameWindow,candidate.MainWindowHandle,GetForegroundWindow()):candidate.MainWindowHandle;
         try
         {
             while (!stop && !cancellationToken.IsCancellationRequested)
