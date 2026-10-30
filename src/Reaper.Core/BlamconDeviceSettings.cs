@@ -27,11 +27,15 @@ public sealed record BlamconDeviceSettings(int Firmware, IReadOnlyDictionary<int
         string pedal=Get(6) switch {0=>"assignable",1=>"right",2=>"middle",_=>throw new InvalidDataException("Unsupported Vyper magazine mode.")};
         var settings=new BlamconSettings(Get(10)==1?"4:3":"16:9",Get(4) switch {0=>"off",1=>"semi",2=>"auto",3=>"burst",_=>throw new InvalidDataException("Unsupported Vyper recoil mode.")},Get(5) switch {0=>"off",1=>"move",2=>"shoot",_=>throw new InvalidDataException("Unsupported Vyper reload mode.")},Get(2)+1,pedal);
         var result=binding with {Blamcon=settings};
+        // All actions must come from the same original snapshot. ARC can swap
+        // several inputs at once; importing A must not overwrite B's old action.
+        var originalActions=GunSystems.UpgradeMap(binding);
+        var originalHardware=StartupControls.Hardware(binding);
         void Import(string id,string token)
         {
             if(result.ControlMap?.GetValueOrDefault(id)==token)return;
-            string? old=result.ControlMap?.GetValueOrDefault(id);
-            string? action=old is null?null:result.ButtonMap?.GetValueOrDefault(old);
+            string? old=originalHardware.FirstOrDefault(h=>h.Id==id)?.Token;
+            string? action=old is null?null:originalActions.GetValueOrDefault(old);
             result=BlamconSetup.Learn(result,id,token);
             if(action is not null)result=result with {ButtonMap=new(result.ButtonMap!){[token]=action}};
         }
@@ -44,12 +48,20 @@ public sealed record BlamconDeviceSettings(int Firmware, IReadOnlyDictionary<int
         var magazine=pedal=="assignable"?Token(Get(23)):Token(Get(pedal=="right"?21:22));
         if(magazine is null)throw new InvalidDataException("Unsupported Vyper magazine key.");
         Import("magazine",magazine);
-        if(Get(11)==2 && Token(Get(30)) is { } toggle) {
+        if(Get(11)==2) {
+            string toggle=Token(Get(30)) ?? throw new InvalidDataException("Unsupported Vyper selector key.");
             if(result.ControlMap!.Values.Contains(toggle))result=result with {ControlMap=new(result.ControlMap){["aux"]=toggle}};
             else Import("aux",toggle);
         }
+        else {
+            var controlsWithoutSelector=new Dictionary<string,string>(result.ControlMap!);
+            controlsWithoutSelector.Remove("aux");result=result with {ControlMap=controlsWithoutSelector};
+        }
         result=result with {ControlMap=new(result.ControlMap!){["pedal"]=magazine}};
-        return result;
+        var currentTokens=StartupControls.Hardware(result).Where(h=>h.Token is not null).Select(h=>h.Token!).ToHashSet();
+        var cleaned=new Dictionary<string,string>(result.ButtonMap!);
+        foreach(var old in originalHardware.Where(h=>h.Token is not null&&!currentTokens.Contains(h.Token)))cleaned.Remove(old.Token!);
+        return result with {ButtonMap=cleaned};
     }
     public static string[] Commands(string[] commands)
     {

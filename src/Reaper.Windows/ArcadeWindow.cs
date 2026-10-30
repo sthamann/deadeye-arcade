@@ -610,7 +610,8 @@ public sealed class ArcadeWindow : Window
                 if (closing) return;
                 try {
                     var binding=state.Bindings.FirstOrDefault(b=>GunAssignments.Matches(b,gun));
-                    bool incomplete=binding is null || new[]{"start","select","up","down","left","right"}.Any(id=>binding.ControlMap?.ContainsKey(id)!=true);
+                    var saved=state.Bindings.Concat(state.GunProfiles).FirstOrDefault(b=>GunAssignments.Matches(b,gun) && b.SystemId==gun.SystemId);
+                    bool incomplete=saved is null || new[]{"start","select","up","down","left","right"}.Any(id=>saved.ControlMap?.ContainsKey(id)!=true);
                     var snapshot=await BlamconSerial.ReadConfiguration(gun,incomplete);
                     int slot=binding?.Player ?? Enumerable.Range(1,2).FirstOrDefault(p=>!state.Bindings.Any(b=>b.Player==p));
                     var profile=GunAssignments.Profile(state,gun,slot==0?1:slot);

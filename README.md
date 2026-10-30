@@ -190,9 +190,12 @@ launch button. Menu hints use the selected gun's saved physical controls.
   channel; identical signals cannot be distinguished as separate controls.
 - **Automatic button setup:** supported firmware 2.x supplies its actual saved
   Start, Select, directions, trigger, A/B and magazine keys over USB. Deadeye
-  selects Mouse/Keyboard mode and an independent magazine channel, reads the
-  result back, then uses it for menu navigation, the emergency chord and game
-  profiles. Custom action assignments are retained. Gun Studio capture remains
+  selects Mouse/Keyboard mode and, for initial setup, an independent magazine
+  channel. Later scans preserve a saved gun profile even when that gun is sitting
+  out. It reads the result back, then uses it for menu navigation, the emergency chord and game
+  profiles. Custom action assignments survive
+  simultaneous ARC key swaps. Changing the magazine key or returning the selector
+  to recoil mode removes obsolete input assignments. Gun Studio capture remains
   available for unsupported key combinations. The two-stage mechanical trigger
   has one electrical shoot input.
 - **Native settings:** mouse/keyboard mode, 16:9/4:3, offscreen-reload behavior,
@@ -208,6 +211,10 @@ launch button. Menu hints use the selected gun's saved physical controls.
   automatically.
 
 [Detailed physical controls, shared signals and manufacturer references](docs/HARDWARE-CONTROLS.md) · [Gun Studio walkthrough](docs/gun-studio.md) · [Calibration guide](docs/compatibility.md)
+
+The menu shows separate P1 and P2 aim cursors, so moving one gun keeps the
+other player's last position visible. Player reassignment and game transitions
+clear stale positions.
 
 ### How gun profiles reach your games
 

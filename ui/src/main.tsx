@@ -127,11 +127,7 @@ function App() {
   const [busy, setBusy] = useState("");
   const [session, setSession] = useState(false);
   const [coverKey, setCoverKey] = useState("");
-  const [aim, setAim] = useState<{
-    x: number;
-    y: number;
-    player: number;
-  } | null>(null);
+  const [aims, setAims] = useState<Record<number, { x: number; y: number; player: number }>>({});
   const [gunSignal, setGunSignal] = useState<GunSignal | null>(null);
   const [lastInput, setLastInput] = useState<Input | null>(null);
   const [testStep, setTestStep] = useState(0);
@@ -251,7 +247,7 @@ function App() {
       const { type, payload } = event.data;
       if (type === "picker") setPicker(payload.closed ? null : payload);
       if (type === "state") {
-        if(payload.remoteSession || JSON.stringify(payload.bindings)!==JSON.stringify(stateRef.current.bindings))navigationRef.current?.clear();
+        if(payload.remoteSession || JSON.stringify(payload.bindings)!==JSON.stringify(stateRef.current.bindings)){navigationRef.current?.clear();setAims({});}
         setLanguage(payload.settings?.language);
         setState({
           ...payload,
@@ -281,6 +277,7 @@ function App() {
       if (type === "session") {
         navigationRef.current?.clear();
         setSession(payload.status === "running");
+        setAims({});
         if (payload.status === "ended") setJustEnded(true);
       }
       if(type==="range-aim"){if(rangeRef.current)window.dispatchEvent(new CustomEvent("deadeye-range-aim",{detail:payload}));return;}
@@ -319,7 +316,7 @@ function App() {
         const action=payload.action as string|undefined;
         if (input.kind === "keyboard" && input.player>0 && ["up","down","left","right"].includes(action??"")) {
           const binding=stateRef.current.bindings.find(b=>b.player===input.player);
-          if(binding && (!payload.deviceId||payload.deviceId===binding.keyboardId)) navigationRef.current?.input(`${input.player}:${payload.deviceId}:${payload.key}`,action!,!!input.down);
+          if(binding && (!payload.deviceId||payload.deviceId.toLowerCase()===binding.keyboardId?.toLowerCase())) navigationRef.current?.input(`${input.player}:${payload.deviceId}:${payload.key}`,action!,!!input.down);
           return;
         }
         if (input.kind === "keyboard" && input.down && input.player>0) {
@@ -352,7 +349,7 @@ function App() {
           input.y !== undefined
         ) {
           if (input.player > 0)
-            setAim({ x: input.x, y: input.y, player: input.player });
+            setAims(previous => ({...previous, [input.player]: {x: input.x!, y: input.y!, player: input.player}}));
           if ((input.buttons ?? 0) & 1) {
             const hit = document.elementFromPoint(
               input.x * window.innerWidth,
@@ -1499,8 +1496,9 @@ function App() {
           </button>
         </div>
       )}
-      {aim && aim.x >= 0 && aim.x <= 1 && aim.y >= 0 && aim.y <= 1 && (
+      {Object.values(aims).filter(aim => aim.x >= 0 && aim.x <= 1 && aim.y >= 0 && aim.y <= 1).map(aim => (
         <div
+          key={aim.player}
           className={"aim-cursor player-" + aim.player}
           style={{ left: aim.x * 100 + "%", top: aim.y * 100 + "%" }}
           aria-hidden="true"
@@ -1511,7 +1509,7 @@ function App() {
             {aim.player}
           </span>
         </div>
-      )}
+      ))}
       {state.bindingStage && (
         <div className="modal-backdrop">
           <section

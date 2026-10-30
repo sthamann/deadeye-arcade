@@ -57,6 +57,17 @@ await using(var readBridge=new DolphinGunBridge([readVyper])){
  readBridge.Key("read-keys",49,true);readBridge.Key("read-keys",53,true);readBridge.Key("read-keys",82,true);
  var frame=readBridge.Frame(2);Check((frame[36]&9)==9&&frame[49]==255,"Device-read Vyper keys reach the actual P2 Dolphin frame");
 }
+var swappedVyper=new BlamconDeviceSettings(0x20100,new Dictionary<int,int>(deviceValues){[21]=2,[22]=1}).Apply(readVyper);
+await using(var swapBridge=new DolphinGunBridge([swappedVyper])){
+ swapBridge.Mouse("read-mouse",true,30000,30000,4);var frame=swapBridge.Frame(2);
+ Check(frame[50]==255&&frame[48]==0,"Swapping Vyper A/B in ARC preserves the third-action signal in the actual Dolphin frame");
+}
+var selectorValues=new Dictionary<int,int>(deviceValues){[11]=2,[30]=18};
+var withSelector=new BlamconDeviceSettings(0x20100,selectorValues).Apply(readVyper);
+var recoilSelector=new BlamconDeviceSettings(0x20100,deviceValues).Apply(withSelector);
+Check(StartupControls.Hardware(recoilSelector).Single(h=>h.Id=="aux").Token is null&&!recoilSelector.ButtonMap!.ContainsKey("key:70"),"Changing Vyper selector back to recoil mode removes the obsolete game-button assignment");
+var movedMagazine=new BlamconDeviceSettings(0x20100,new Dictionary<int,int>(deviceValues){[23]=31}).Apply(readVyper);
+Check(movedMagazine.ButtonMap!.GetValueOrDefault("key:83")=="reload"&&!movedMagazine.ButtonMap.ContainsKey("key:82"),"A changed Vyper magazine key removes the previous shared pedal alias from game actions");
 var vyperCommands=BlamconSetup.Configure(new(Aspect:"4:3",CalibrationProfile:4,RecoilMode:"off"));
 Check(vyperCommands.Contains("CM.3.1") && vyperCommands.Contains("CM.12.3") && vyperCommands.Contains("CM.8.0") && vyperCommands.All(BlamconSetup.ValidCommand),
     "Vyper configuration uses documented aspect, recoil and existing calibration profile commands");
