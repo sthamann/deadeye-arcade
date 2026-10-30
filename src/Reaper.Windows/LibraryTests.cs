@@ -31,19 +31,22 @@ internal static class LibraryTests
         }
         using var stop = new EventWaitHandle(false, EventResetMode.ManualReset, StopName);
         using var emergency = new EmergencyExit(() => { try { stop.Set(); } catch (ObjectDisposedException) { } }, bindings: library.Bindings);
-        var games = library.Games.OrderBy(g => g.Title, StringComparer.OrdinalIgnoreCase).ToArray();
         string report = Path.Combine(data, "library-test.json");
+        var previouslyAttempted=resume?Attempted(report):[];
+        var games = library.Games.OrderBy(g=>previouslyAttempted.Contains(g.Id)?1:0).ThenBy(g => g.Title, StringComparer.OrdinalIgnoreCase).ToArray();
         var results = new List<object>();
-        bool cancelled = false, needsAttention = false;
+        bool cancelled = false, needsAttention = false;GameBlockingDialog? blockingDialog=null;
         void Save(string status, GameEntry? current = null) => Atomic(report, JsonSerializer.Serialize(new {
             schemaVersion = 1, time = DateTimeOffset.Now, status,
             total = games.Length, completed = results.Count,
             current = current is null ? null : new { current.Id, current.Title }, results,
+            blockingDialog,
             physicalGameplayVerified = false
         }, JsonDefaults.Options));
         Save("running");
         try
         {
+            if(GameSession.CurrentBlockingDialog() is {} existingDialog) {blockingDialog=existingDialog;needsAttention=true;return;}
             foreach (var game in games)
             {
                 if (stop.WaitOne(0)) { cancelled = true; break; }
@@ -116,17 +119,28 @@ internal static class LibraryTests
                 }
                 if (Passed(resultPath) && !timedOut && !cancelled && finalFingerprint is not null) Atomic(receipt, finalFingerprint);
                 else if (File.Exists(receipt)) File.Delete(receipt);
+                if(GameSession.CurrentBlockingDialog() is {} remainingDialog) {blockingDialog=remainingDialog;needsAttention=true;}
+                if(DiagnosticsUnavailable(resultPath))needsAttention=true;
                 Save(cancelled ? "cancelled" : "running");
                 if (cancelled || needsAttention) break;
                 await Task.Delay(750);
             }
         }
-        finally { Save(needsAttention ? "needs-attention" : cancelled ? "cancelled" : results.Count == games.Length ? "complete" : "interrupted"); }
+        finally { Save(needsAttention ? "needs-attention" : cancelled ? "cancelled" : results.Count == games.Length ? "complete" : "interrupted");if(needsAttention)Environment.ExitCode=2; }
     }
     private static bool Passed(string path)
     {
         try { using var json = JsonDocument.Parse(File.ReadAllText(path)); return json.RootElement.TryGetProperty("launchPassed", out var value) && value.ValueKind == JsonValueKind.True; }
         catch (Exception e) when (e is IOException or JsonException) { return false; }
+    }
+    private static HashSet<string> Attempted(string path)
+    {
+        try
+        {
+            using var json=JsonDocument.Parse(File.ReadAllText(path));
+            return json.RootElement.GetProperty("results").EnumerateArray().Select(r=>r.GetProperty("id").GetString()).Where(id=>id is not null).Select(id=>id!).ToHashSet(StringComparer.Ordinal);
+        }
+        catch(Exception e) when(e is IOException or JsonException or KeyNotFoundException or InvalidOperationException) {return [];}
     }
     private static string ControlStatus(string path)
     {
@@ -143,6 +157,11 @@ internal static class LibraryTests
             return fingerprint is not null && System.Text.RegularExpressions.Regex.IsMatch(fingerprint,"^[A-F0-9]{64}$")?fingerprint:null;
         }
         catch(Exception e) when(e is IOException or JsonException) {return null;}
+    }
+    private static bool DiagnosticsUnavailable(string path)
+    {
+        try {using var json=JsonDocument.Parse(File.ReadAllText(path));return json.RootElement.TryGetProperty("codeIntegrity",out var report) && report.TryGetProperty("checked",out var value) && value.ValueKind==JsonValueKind.False;}
+        catch(Exception e) when(e is IOException or JsonException) {return false;}
     }
     private static string? SafeFingerprint(GameEntry game, IEnumerable<GunBinding> bindings, string data)
     {

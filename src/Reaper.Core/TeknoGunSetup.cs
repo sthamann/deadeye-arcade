@@ -76,6 +76,8 @@ public static class TeknoGunSetup
                 // D-pad Down remains available as a separate game weapon control.
                 if(change && token is null) token=hardware.FirstOrDefault(h=>h.Id=="down")?.Token;
             }
+            var route=TeknoActionRoutes.Find(document.Root?.Element("EmulationProfile")?.Value??"",name,row.Element("InputMapping")?.Value??"");
+            if(route is not null) {extra=true;token=StartupControls.GameHardware(player).FirstOrDefault(h=>h.Id==route.Control)?.Token;}
             if(!aim&&(token is null||!GunSystems.ValidToken(token))) {if(action is not null||extra)Clear(row);continue;}
             bool keyboard=token?.StartsWith("key:")==true;
             string? device=keyboard?player.KeyboardId:player.MouseId;

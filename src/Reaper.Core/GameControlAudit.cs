@@ -87,7 +87,11 @@ public static class GameControlAudit
                 foreach(var row in rows.Where(r=>!r.IsAim && r.Function is not null && !r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
                     if(row.Input==I18n.T("Nicht belegt") || row.Input.StartsWith(I18n.T("Nicht belegt /")))
                     {issues.Add(I18n.T("Aktion nicht belegt: ")+row.Function);if(game.Source=="teknoparrot"||mame is not null)missing=true;else review=true;}
-                review=review || rows.Any(row=>!row.IsAim && !row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved);
+                foreach(var row in rows.Where(row=>!row.IsAim && !row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved))
+                {
+                    if(tekno is not null || mame is not null)missing=true;else review=true;
+                    issues.Add(I18n.T("Aktion nicht an der Gun erreichbar: ")+row.Function);
+                }
                 if(review && issues.Count==0) issues.Add(I18n.T("Einige Spielaktionen sind keiner physischen Gun-Taste bestätigt zugeordnet."));
                 if(TimeCrisis5Controls.Supports(game))
                     foreach(string function in new[]{"Abzug","Münze","Waffenwechsel","Linkes Pedal","Rechtes Pedal"}.Select(I18n.T))

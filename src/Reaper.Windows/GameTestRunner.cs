@@ -34,15 +34,23 @@ internal static class GameTestRunner
         // The diagnostic path must service real raw input just like the frontend.
         input.Packet += session.Input;
         var observation = new GameTestObservation(seconds);
+        var startedAt=DateTimeOffset.UtcNow;
         var elapsed = Stopwatch.StartNew();
         using var cancellation = new CancellationTokenSource();
         Task run;
         try { run = session.Run(game, data, state.Bindings, cancellation.Token); }
         catch (Exception e) { run = Task.FromException(e); }
-        bool cancelled = false;long? focusedSince=null;
+        bool cancelled = false;long? focusedSince=null;GameBlockingDialog? blockingDialog=null;long? blockedSince=null;
         while (!observation.Finished)
         {
             if (stop.WaitOne(0)) { cancelled = true; break; }
+            var dialog=session.BlockingDialog();
+            if(dialog is not null && dialog==blockingDialog)
+            {
+                blockedSince??=elapsed.ElapsedMilliseconds;
+                if(elapsed.ElapsedMilliseconds-blockedSince>=2000)break;
+            }
+            else {blockingDialog=dialog;blockedSince=null;}
             observation.Update(elapsed.ElapsedMilliseconds, session.GameWindowAvailable, run.IsCompleted);
             if(session.GameWindowAvailable && session.HasGameForeground())focusedSince??=elapsed.ElapsedMilliseconds;
             else focusedSince=null;
@@ -58,10 +66,20 @@ internal static class GameTestRunner
         try { await run; }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception e) { error = e.Message; failure = GameTestFailure.From(e); }
+        if(blockingDialog is not null) {error="A modal system or game dialog blocked the test: "+blockingDialog.Title;failure=new("blocked-dialog",error,"",0,null);}
         if (error is null && observation.State != "passed") error = cancelled ? "Test cancelled." : observation.State;
         var after = session.LiveProcesses();
         var cleanupWait = Stopwatch.StartNew();
         while(after.Length>0 && cleanupWait.Elapsed<TimeSpan.FromSeconds(3)) {await Task.Delay(100);after=session.LiveProcesses();}
+        var blockingDialogAfterExit=session.BlockingDialog();
+        var codeIntegrity=await Task.Run(()=>CodeIntegrityDiagnostics.Read(game,startedAt));
+        if(codeIntegrity.Blocks.Length>0)
+        {
+            error="Windows App Control blocked a game or emulator file: "+codeIntegrity.Blocks[0].File;
+            failure=new("windows-app-control",error,"",0,null);
+        }
+        if(error is null && !codeIntegrity.Checked) {error="Windows Code Integrity checks could not complete: "+codeIntegrity.Error;failure=new("diagnostics-unavailable",error,"",0,null);}
+        if(error is null && blockingDialogAfterExit is not null) {error="A modal system or game dialog remained after cleanup: "+blockingDialogAfterExit.Title;failure=new("blocked-dialog-after-exit",error,"",0,null);}
         if(error is null && (!foreground || foregroundStableSeconds<2)) {error="The game window did not retain foreground focus.";failure=new("foreground-missing",error,"",0,null);}
         if(error is null && (after.Length>0 || session.CleanupIssues.Count>0)) {error="The game or its helpers did not close cleanly.";failure=new("cleanup-failed",error,"",0,null);}
         input.Refresh();
@@ -79,9 +97,9 @@ internal static class GameTestRunner
             observedSeconds = observation.ObservedMilliseconds / 1000.0,
             totalSeconds = elapsed.Elapsed.TotalSeconds,
             startupSeconds = observation.FirstReadyAt / 1000.0,
-            phase = observation.State, cancelled,
+            phase = blockingDialog is null?observation.State:"blocked-dialog", cancelled, blockingDialog, blockingDialogAfterExit,
             exitedEarly = observation.State == "exited-early", windowObserved = observation.FirstReadyAt is not null,
-            gameWindowAvailable = available, foreground, foregroundStableSeconds, error, failure, processDetails = details,
+            gameWindowAvailable = available, foreground, foregroundStableSeconds, error, failure, codeIntegrity, processDetails = details,
             processesBeforeExit = before, processesAfterExit = after, ended = !session.Active && after.Length == 0,
             controls, controlAudit = audit, cleanupIssues = session.CleanupIssues,
             playerControls = state.Bindings.Select(binding => new { binding.Player, binding.SystemId, hints = StartupControls.ForPlayer(controls, binding) }),

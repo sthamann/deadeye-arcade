@@ -20,7 +20,8 @@ public static class GameTestFingerprint
             if(File.Exists(path))
             {
                 var file=new FileInfo(path);text.Append(file.Length).Append(file.LastWriteTimeUtc.Ticks);
-                if(file.Length<2_000_000)text.Append(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))));
+                if(file.Length<2_000_000 || file.Extension.Equals(".exe",StringComparison.OrdinalIgnoreCase) || file.Extension.Equals(".dll",StringComparison.OrdinalIgnoreCase))
+                {using var stream=File.OpenRead(path);text.Append(Convert.ToHexString(SHA256.HashData(stream)));}
             }
             else text.Append(Directory.Exists(path)?"directory":"missing");
         }

@@ -9,6 +9,12 @@ namespace Reaper.Windows;
 // Assign the process to its job before a launcher can create children or exit.
 internal static class NativeOwnedLaunch
 {
+    [DllImport("kernel32.dll")] private static extern uint GetErrorMode();
+    [DllImport("kernel32.dll")] private static extern uint SetErrorMode(uint mode);
+    // Inherited by games and helpers: report critical loader errors to the
+    // process instead of leaving system-owned modal boxes across later games.
+    // Windows Error Reporting and security policy remain enabled.
+    static NativeOwnedLaunch() => SetErrorMode(GetErrorMode() | 0x1u);
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
     {

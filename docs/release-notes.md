@@ -1,9 +1,9 @@
-Check your library against the controls the emulator actually requires.
+Keep a failed game launch from disrupting the rest of your library check.
 
-- Compare active TeknoParrot inputs with independent vendor templates, restore missing supported controls and repair stale routing identifiers with backups.
-- Check aim ownership against the selected physical P1/P2 guns and report unknown action ownership for review.
-- Recognize supported packaged game runtimes and TeknoParrot RPCS3 windows while keeping launchers out of foreground and readiness checks.
-- Record missing foreground focus, incomplete cleanup and native launch failures separately. Save the app version and exact tested gun assignments.
-- Invalidate retained tests when game profiles, vendor templates, executables or multiplayer helper settings change. Prevent installation during an active library run.
+- Return critical Windows loader errors to the game process and stop the batch if a blocking modal dialog remains open. Windows Error Reporting and security policy stay enabled.
+- Report Code Integrity blocks with the affected file and policy, separately from missing dependencies and input problems.
+- Add exact profile routes for Castlevania whip buttons, Let’s Go Island 3D trigger variants, Infinity Blade touch and Luigi’s Mansion Select. Unknown actions remain pending.
+- Treat required buttons assigned to the other gun as actionable routing failures.
+- Exercise reviewed Wii action profiles across all sixteen P1/P2 model combinations, including mixed manufacturers.
 
-Software checks remain separate from physical input, aiming, recoil and cooperative gameplay verification.
+Physical button presses, aim, recoil and cooperative gameplay remain separate verification steps.

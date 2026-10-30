@@ -6,6 +6,8 @@ using Reaper.Core;
 
 namespace Reaper.Windows;
 
+public record GameBlockingDialog(int ProcessId,string ProcessName,string ClassName,string Title,bool Owned=false);
+
 public sealed class GameSession
 {
     private readonly Dictionary<int, DateTime> owned = [];
@@ -49,6 +51,7 @@ public sealed class GameSession
     [DllImport("user32.dll")] private static extern bool IsZoomed(nint hwnd);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int GetWindowTextW(nint window,StringBuilder text,int capacity);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint handle,out uint processId);
     [DllImport("kernel32.dll", SetLastError=true)] private static extern bool QueryInformationJobObject(nint job,int info,nint buffer,uint size,out uint returned);
     [DllImport("kernel32.dll", SetLastError=true)] private static extern bool TerminateJobObject(nint job,uint exitCode);
@@ -78,6 +81,21 @@ public sealed class GameSession
             catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",path=(string?)null,window=0L,MainWindowTitle=e.Message};}
         }).ToArray()
     };
+    public static GameBlockingDialog? CurrentBlockingDialog()
+    {
+        nint window=GetForegroundWindow();if(window==0)return null;
+        var name=new StringBuilder(256);GetClassName(window,name,name.Capacity);
+        GetWindowThreadProcessId(window,out var id);if(id==0)return null;
+        try
+        {
+            using var process=Process.GetProcessById((int)id);
+            if(name.ToString()!="#32770" && process.ProcessName is not ("SecHealthUI" or "SecurityHealthHost"))return null;
+            var title=new StringBuilder(512);GetWindowTextW(window,title,title.Capacity);
+            return new((int)id,process.ProcessName,name.ToString(),title.ToString());
+        }
+        catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return null;}
+    }
+    public GameBlockingDialog? BlockingDialog() => CurrentBlockingDialog() is {} dialog?dialog with {Owned=LiveProcesses().Contains(dialog.ProcessId)}:null;
     private static object? ForegroundProcess()
     {
         GetWindowThreadProcessId(GetForegroundWindow(),out var id);

@@ -90,7 +90,10 @@ play as tested.
 
 For maintenance, close the frontend and run `ReaperArcade.exe --test-library`.
 Use `--test-library --resume` to keep successful results whose app version,
-gun assignments and relevant files still match. Failed tests are retried.
+gun assignments and relevant files still match. Resume first reaches titles
+left untested by an interrupted run, then retries failures. Executables and
+libraries are fingerprinted by content, including patches that preserve file
+size and timestamps.
 **Start + Coin** or **F12** stops the run, including between games;
 `ReaperArcade.exe --stop-library-test` also stops it.
 
@@ -99,6 +102,18 @@ and the individual `game-test-*.json` files. A bounded supervisor stops stuck
 workers and their owned process trees, so one failed game cannot leave the
 entire run waiting indefinitely. Saved gun settings are restored after a forced
 worker stop; a failed restore stops the batch for attention.
+
+A lingering modal Windows dialog also stops the run for attention. Critical
+loader errors are returned to the process, preventing orphaned error boxes from
+interfering with later games. Code Integrity checks report the blocked file and
+policy when Windows rejects a game or emulator component. Deadeye does not
+change that security policy automatically.
+
+Exact game action routes cover supported special inputs such as Castlevania’s
+red/yellow whip buttons and Let’s Go Island 3D’s left/right trigger variants.
+The reviewed Wii profiles are checked across all sixteen model pairings in
+software. Physical button presses and in-game reactions still require hardware
+verification.
 
 MAME checks include global and per-game overrides, preserving their unrelated
 settings and backing up changed input files. Time Crisis 5's reviewed helper is

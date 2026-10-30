@@ -4,6 +4,9 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+var integrityFixture=CodeIntegrityEvent.Parse("<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>3077</EventID></System><EventData><Data Name='File Name'>\\Device\\HarddiskVolume3\\Games\\Test\\game.dll</Data><Data Name='Process Name'>\\Device\\HarddiskVolume3\\Games\\Test\\game.exe</Data><Data Name='PolicyID'>policy-version</Data><Data Name='PolicyGUID'>{0283ac0f-fff1-49ae-ada1-8a933130cad6}</Data><Data Name='Status'>0xc0e90002</Data></EventData></Event>");
+Check(integrityFixture?.File.EndsWith("game.dll")==true && integrityFixture.Process.EndsWith("game.exe") && integrityFixture.Policy=="{0283ac0f-fff1-49ae-ada1-8a933130cad6}" && integrityFixture.Status=="0xc0e90002","Native Code Integrity fields with spaces retain the blocked file, process, real policy GUID and NT status");
+Check(CodeIntegrityEvent.Parse("<Event><System><EventID>3077</EventID></System><EventData><Data Name='FileNameBuffer'>blocked.exe</Data><Data Name='ProcessNameBuffer'>loader.exe</Data></EventData></Event>")?.File=="blocked.exe" && CodeIntegrityEvent.Parse("<Event><System><EventID>3076</EventID></System><EventData><Data Name='File Name'>audit-only.exe</Data></EventData></Event>") is null,"Alternative event field names work while audit-only events cannot become enforcement blocks");
 Check(GameTestFailure.From(new System.ComponentModel.Win32Exception(4551,"localized policy text")).Category=="windows-app-control" && GameTestFailure.From(new IOException("wrapper",new System.ComponentModel.Win32Exception(126))).Category=="missing-runtime","Game test failures distinguish Windows policy blocks from missing runtimes without matching translated error strings");
 Check(GameTestFailure.From(new InvalidOperationException("policy problem")).Category=="launch-error","An error message alone cannot invent a Windows security-policy diagnosis");
 Check(GameTestFailure.From(new IOException("outer wrapper",new System.ComponentModel.Win32Exception(193,"native architecture error"))).Message=="native architecture error" && GameTestFailure.From(new System.ComponentModel.Win32Exception("native wrapper",new InvalidOperationException("inner detail"))).ExceptionType==typeof(System.ComponentModel.Win32Exception).FullName,"Native failure classification retains the native exception and its message across exception wrappers");
@@ -16,9 +19,10 @@ if (OperatingSystem.IsWindows())
     try
     {
         var info = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
-        foreach (string argument in new[]{"-NoProfile", "-Command", "$p=Start-Process cmd.exe -ArgumentList '/c ping -n 60 127.0.0.1 > nul' -WindowStyle Hidden -PassThru; $p.Id | Set-Content -LiteralPath '"+probe+"'"}) info.ArgumentList.Add(argument);
+        foreach (string argument in new[]{"-NoProfile", "-Command", "Add-Type 'public static class ErrorModeProbe { [System.Runtime.InteropServices.DllImport(\"kernel32.dll\")] public static extern uint GetErrorMode(); }'; [ErrorModeProbe]::GetErrorMode() | Set-Content -LiteralPath '"+probe+".mode'; $p=Start-Process cmd.exe -ArgumentList '/c ping -n 60 127.0.0.1 > nul' -WindowStyle Hidden -PassThru; $p.Id | Set-Content -LiteralPath '"+probe+"'"}) info.ArgumentList.Add(argument);
         using var launcher = Reaper.Windows.NativeOwnedLaunch.Start(info, handle => job = Reaper.Windows.NativeOwnedLaunch.CreateJob(handle));
         Check(launcher.WaitForExit(20000) && launcher.ExitCode==0 && File.Exists(probe), "Windows launches a fast parent and its child inside a job before execution begins");
+        Check((uint.Parse(File.ReadAllText(probe+".mode").Trim())&1u)!=0,"Owned Windows children inherit critical-error handling instead of orphaning system loader dialogs");
         descendant = int.Parse(File.ReadAllText(probe).Trim());
         using var child = System.Diagnostics.Process.GetProcessById(descendant);
         Check(!child.HasExited, "The owned child remains supervised after its launcher has exited");
@@ -29,7 +33,7 @@ if (OperatingSystem.IsWindows())
         catch (IOException) { refused = true; }
         Check(refused, "A failed job assignment never resumes its suspended launcher");
     }
-    finally { if(job!=0) Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); if(File.Exists(probe)) File.Delete(probe); }
+    finally { if(job!=0) Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); if(File.Exists(probe)) File.Delete(probe); if(File.Exists(probe+".mode"))File.Delete(probe+".mode"); }
 }
 string runtimeRoot=Path.Combine(Path.GetTempPath(),"deadeye-runtime-fixture");
 Check(GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Project","Binaries","Win64","Project-Win64-Shipping.exe")) && !GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Launcher","update.exe")),"Packaged game children are recognized without accepting arbitrary updater windows");
@@ -643,6 +647,9 @@ RButton::y
     string vendorAim=Path.Combine(tp,"GameProfiles","aim-alias.xml");Directory.CreateDirectory(Path.GetDirectoryName(vendorAim)!);aliasAimDocument.Save(vendorAim);
     TeknoGunSetup.Configure(aliasAimGame,specialGuns);
     Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked" && OverlayControls.Read(aliasAimGame,root,specialGuns).Rows.Count(r=>r.IsAim)==2,"TeknoParrot aim aliases share the actual generator's classification and do not become unresolved button actions");
+    var wrongButton=XDocument.Load(aliasAimPath);wrongButton.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Trigger").Element("RawInputButton")!.Element("DevicePath")!.Value=specialGuns[0].MouseId;wrongButton.Save(aliasAimPath);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Players.Single(p=>p.Player==2).Status=="needs-action","A required P2 button assigned to P1 is an actionable routing failure, not just an incomplete review");
+    TeknoGunSetup.Configure(aliasAimGame,specialGuns);
     aliasAimDocument=XDocument.Load(aliasAimPath);var secondAim=aliasAimDocument.Descendants("JoystickButtons").Single(r=>r.Element("InputMapping")?.Value=="P2LightGun").Element("RawInputButton")!;
     secondAim.Element("DevicePath")!.Value=specialGuns[0].MouseId;aliasAimDocument.Save(aliasAimPath);
     Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Players.Single(p=>p.Player==2).Status=="needs-action","P2 aim routed to P1 fails for non-Light-Gun labels too");
@@ -672,6 +679,10 @@ RButton::y
     string helperFingerprint=GameTestFingerprint.Create(fingerprintGame,specialGuns,root,"test-version");File.WriteAllText(Path.Combine(helperFolder,"config.ini"),"P1Mode=HID");
     Check(GameTestFingerprint.Create(fingerprintGame,specialGuns,root,"test-version")!=helperFingerprint,"Resume includes the actual multiplayer helper's player-input configuration");
     File.Delete(fingerprintHelperExe);
+    string largeExecutable=Path.Combine(root,"fingerprint-binary.exe");File.WriteAllBytes(largeExecutable,new byte[2_000_001]);
+    var binaryGame=aliasAimGame with{Executable=largeExecutable};string binaryFingerprint=GameTestFingerprint.Create(binaryGame,specialGuns,root,"test-version");var binaryTime=File.GetLastWriteTimeUtc(largeExecutable);
+    using(var patched=File.OpenWrite(largeExecutable)){patched.Position=1_000_000;patched.WriteByte(1);}File.SetLastWriteTimeUtc(largeExecutable,binaryTime);
+    Check(GameTestFingerprint.Create(binaryGame,specialGuns,root,"test-version")!=binaryFingerprint,"An executable patch invalidates a retained result even when its size and timestamp are unchanged");File.Delete(largeExecutable);
     aliasAimDocument=XDocument.Load(aliasAimPath);aliasAimDocument.Root!.Element("JoystickButtons")!.Remove();aliasAimDocument.Save(aliasAimPath);
     Check(TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked","A missing whole input section is rebuilt from the independent template through normal setup");
     Check(!GameControlAudit.GameplayAction("TestMenu Up") && GameControlAudit.GameplayAction("Player 1 Gun Trigger"),"Cabinet test-menu navigation is not treated as a mandatory gameplay action");
@@ -686,8 +697,8 @@ RButton::y
     GunBinding MatrixGun(string system,int player)
     {
         var gun=new GunBinding(player,system+"-mouse-"+player,system+"-keyboard-"+player,SystemId:system,HardwarePlayer:player);
-        if(system=="blamcon")foreach(var control in new[]{("start","key:49"),("select","key:53")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
-        if(system=="sinden")foreach(var control in new[]{("pump","mouse:2"),("front-left","key:49"),("back-left","key:53"),("back-right","mouse:3")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
+        if(system=="blamcon")foreach(var control in new[]{("start","key:49"),("select","key:53"),("up","key:38"),("down","key:40"),("left","key:37"),("right","key:39")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
+        if(system=="sinden")foreach(var control in new[]{("pump","mouse:2"),("front-left","key:49"),("back-left","key:53"),("back-right","mouse:3"),("front-right","key:32"),("up","key:38"),("down","key:40"),("left","key:37"),("right","key:39")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
         return gun;
     }
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
@@ -695,6 +706,26 @@ RButton::y
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
         TeknoGunSetup.Configure(matrixGame,pair);var matrixAudit=GameControlAudit.Read(matrixGame,root,pair);
         Check(matrixAudit.Status=="mapping-checked" && matrixAudit.Players.Length==2 && OverlayControls.Read(matrixGame,root,pair).Rows.Where(r=>r.IsAim).All(r=>r.Expression=="P"+r.Player+"|aim"),"TeknoParrot separates learned "+firstModel+" P1 and "+secondModel+" P2 aim and all standard actions");
+    }
+    foreach(string profile in new[]{"Castlevania","SegaJvsLetsGoIsland","InfinityBlade","LuigisMansion"})
+    {
+        var actions=TeknoActionRoutes.Rules.Where(r=>r.Profile==profile && (profile!="SegaJvsLetsGoIsland" || (r.InputMapping.StartsWith("P1")?r.Function.StartsWith("Gun "):!r.Function.StartsWith("Gun ")))).ToArray();
+        var specific=new XDocument(matrixTemplate);specific.Root!.Element("EmulationProfile")!.Value=profile;
+        var container=specific.Root.Element("JoystickButtons")!;
+        foreach(var route in actions)
+        {
+            int player=route.InputMapping[1]-'0';
+            string function=profile is "InfinityBlade" or "LuigisMansion"?route.Function:"Player "+player+" "+route.Function;
+            container.Add(new XElement("JoystickButtons",new XElement("ButtonName",function),new XElement("InputMapping",route.InputMapping)));
+        }
+        specific.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));
+        foreach(string gunModel in GunSystems.Catalog.Select(g=>g.Id))
+        {
+            specific.Save(matrixPath);var pair=new[]{MatrixGun(gunModel,1),MatrixGun(gunModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
+            TeknoGunSetup.Configure(matrixGame,pair);
+            Check(GameControlAudit.Read(matrixGame,root,pair).Status=="mapping-checked","Reviewed game-specific actions reach both "+gunModel+" guns for "+profile);
+            if(profile=="Castlevania")Check(XDocument.Load(matrixPath).Descendants("JoystickButtons").Where(r=>r.Element("ButtonName")?.Value.EndsWith("Whip Yellow")==true).All(r=>r.Element("RawInputButton")?.Element("MouseButton")?.Value=="LeftButton"),"Castlevania Yellow uses the primary trigger, matching the documented control scheme for "+gunModel);
+        }
     }
     string alienProfile=Path.Combine(tp,"UserProfiles","AliensExtermination.xml");
     File.WriteAllText(alienProfile,"<GameProfile><EmulationProfile>AliensExtermination</EmulationProfile><ConfigValues><FieldInformation><CategoryName>General</CategoryName><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>Windowed</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>CustomResolution</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionWidth</FieldName><FieldValue>1920</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionHeight</FieldName><FieldValue>1080</FieldValue></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 2 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Special</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");
@@ -848,6 +879,7 @@ RButton::y
         Check((xframe[36]&1)!=0 && xframe[50]==255 && rframe[36]==0 && rframe[50]==0,
             "XGunner Coin and Space are routed to its selected player without triggering the Reaper");
     }
+    var reviewedWiiTitles=new List<GameEntry>{deadspace};
     foreach(var reviewDisc in new[]{"RBUE08","SBDE08","RHOE8P","RGSE8P","RZPE01"})
     {
         string content=Path.Combine(root,reviewDisc+".iso");File.WriteAllBytes(content,System.Text.Encoding.ASCII.GetBytes(reviewDisc+"0000000"));
@@ -855,6 +887,7 @@ RButton::y
         File.WriteAllText(Path.Combine(pack,"GameSettings",reviewDisc+".ini"),"[Controls]\nWiimoteProfile1 = "+baseProfile+"\n");
         File.WriteAllText(Path.Combine(pack,"Config","Profiles","Wiimote",baseProfile+".ini"),"[Profile]\nIR/Total Yaw = 17.5\nShake/X = `Click 1`\n");
         var title=deadspace with {Id=reviewDisc,Title=reviewDisc,Arguments=["-e",content]};
+        reviewedWiiTitles.Add(title);
         Check(DolphinSetup.Configure(title,pack,[p1,p2],26761),"Reviewed Wii title applies on the real profile-writing path: "+reviewDisc);
         var audit=GameControlAudit.Read(title,root,[p1,p2]);
         Check(audit.Status=="mapping-checked" && audit.Players.All(p=>p.Issues.Length==0),"Wii weapon/gesture actions are reachable for both physical guns: "+reviewDisc);
@@ -863,6 +896,14 @@ RButton::y
         DolphinSetup.WriteMerged(secondProfile,"Profile",new Dictionary<string,string>{{missing,""}});
         Check(GameControlAudit.Read(title,root,[p1,p2]).Status=="needs-action","Missing P2 action is detected from its actual file: "+reviewDisc);
     }
+    foreach(var title in reviewedWiiTitles)
+        foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
+        {
+            var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};
+            DolphinSetup.Configure(title,pack,pair,26761);
+            var matrixAudit=GameControlAudit.Read(title,root,pair);
+            Check(matrixAudit.Status=="mapping-checked" && matrixAudit.Players.Length==2 && matrixAudit.Players.All(p=>p.Issues.Length==0),"Actual Wii profile files cover all reviewed actions for "+DolphinSetup.DiscId(title)+" with "+firstModel+" P1 and "+secondModel+" P2");
+        }
     GameControlAudit.Save([deadspace],root,[p1,p2]);
     GameControlAudit.Save([repair],root,specialGuns,merge:true);
     var storedAudit=System.Text.Json.JsonSerializer.Deserialize<ControlAuditReport>(File.ReadAllText(Path.Combine(root,"controls-audit.json")),JsonDefaults.Options)!;
