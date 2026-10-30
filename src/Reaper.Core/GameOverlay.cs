@@ -46,6 +46,7 @@ public static class OverlayControls
             if (SupermodelSetup.IsSupermodel(game)) return SupermodelSetup.Read(game, bindings, enumeration ?? []);
             if (game.Source == "mame")
             {
+                if(MameControls.Read(game,dataDirectory) is {} titleControls)return titleControls;
                 string path = Path.Combine(dataDirectory, "controllers", "reaper.cfg");
                 var doc = XDocument.Load(path);
                 var rows = doc.Descendants("port").Select(p => new ControlRow(

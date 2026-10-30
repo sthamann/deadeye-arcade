@@ -127,7 +127,7 @@ public static class StartupControls
             label=Regex.Replace(expression,pattern,m=>Replace(m.Groups[1].Success?"mouse:"+(int.Parse(m.Groups[1].Value)+1):KeyToken(m.Groups[2].Success?m.Groups[2].Value:m.Groups[3].Value),m.Value));
             label=label.Replace(" & !",I18n.T(" ohne ")).Replace(" & "," + ").Replace(" | ",I18n.T(" oder "));
         }
-        else if(row.Evidence=="Reaper-MAME-Controller") {
+        else if(row.Evidence is "Reaper-MAME-Controller" or "MAME -listxml + effective cfg") {
             const string pattern=@"GUNCODE_([12])_BUTTON([1-5])|KEYCODE_(?:([12])_)?([A-Z0-9]+)";
             string remainder=Regex.Replace(Regex.Replace(expression,pattern,""),@"\bOR\b|\s","");
             if(remainder.Length>0)return new(row.Function,row.Input,[],false);

@@ -106,6 +106,8 @@ public static class LaunchRules
             input.Add(new XElement("mapdevice",new XAttribute("device",binding.KeyboardId!),new XAttribute("controller","KEYCODE_"+binding.Player)));
         foreach (var binding in devices)
         {
+            foreach(string axis in new[]{"X","Y"})foreach(string kind in new[]{"LIGHTGUN","AD_STICK"})
+                input.Add(new XElement("port",new XAttribute("type",$"P{binding.Player}_{kind}_{axis}"),new XElement("newseq",new XAttribute("type","standard"),$"GUNCODE_{binding.Player}_{axis}AXIS")));
             var map = binding.ButtonMap ?? GunSystems.DefaultMap(binding.DevicePlayer,binding.SystemId);
             foreach (var action in new[] { "shoot", "reload", "secondary", "auxiliary", "mode", "start", "coin", "up", "down", "left", "right" })
             {

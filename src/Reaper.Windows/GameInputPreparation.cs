@@ -22,9 +22,15 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             var before = KnownFixes.Snapshot(KnownFixes.InputFiles(game, data));
             using var raw = new RawInput(); raw.Refresh();
             setup.Players = GunConnections.ForConfiguration(bindings, raw.Devices, GunDiscovery.Scan(raw.Devices));
+            if(game.Source=="mame")
+            {
+                if(MameControls.Metadata(game,data) is null)await MameMetadata.Prepare(game,data);
+                MameControls.Configure(game,data,setup.Players);
+            }
             bool indexAvailable = GunConnections.CanIndexMice(setup.Players, raw.Devices);
             setup.Game = indexAvailable ? RetroArchSetup.Configure(game, data, setup.Players, raw.MouseOrder) : game;
             setup.Game = Rpcs3Setup.Configure(setup.Game, setup.Players);
+            setup.Game = TimeCrisis5Controls.Configure(setup.Game, setup.Players);
             if (indexAvailable) SupermodelSetup.Configure(game, setup.Players, raw.Devices);
             else setup.Log("Physical USB guns are present but their RawInput mice are hidden in this session. Device-name assignments retained; mouse-index profiles require a local launch.");
             if (indexAvailable && FlycastSetup.IsFlycast(game))
@@ -84,6 +90,25 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             try { await BlamconSerial.Send(gun,BlamconSetup.Configure(settings)); }
             catch(Exception error) { Log("Blamcon menu settings restore failed: "+error.Message); }
         blamcons.Clear();
+    }
+    internal static async Task<string[]> RestoreMenu(IEnumerable<GunBinding> bindings)
+    {
+        var issues = new List<string>();
+        using var raw = new RawInput(); raw.Refresh();
+        var guns = GunDiscovery.Scan(raw.Devices);
+        foreach (var binding in GunConnections.ForConfiguration(bindings, raw.Devices, guns).Where(b => b.SerialPort is not null))
+            try
+            {
+                if (binding.SystemId == "rs3") await new GunSerial().Command(binding.SerialPort!, binding.DevicePlayer, GunSystems.ReaperConfiguration(binding.Feedback ?? new()));
+                else if (binding.SystemId == "blamcon")
+                {
+                    var gun = guns.Single(g => GunAssignments.Matches(binding, g));
+                    await BlamconSerial.Send(gun, BlamconSetup.Configure(binding.Blamcon ?? new()));
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or TimeoutException or InvalidOperationException)
+            { issues.Add($"P{binding.Player} menu input restore failed: {e.Message}"); }
+        return issues.ToArray();
     }
     private void Log(string message)
     {

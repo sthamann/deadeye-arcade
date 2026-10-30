@@ -18,8 +18,11 @@ internal static class ControlMaintenance
         {
             try
             {
+                if(game.Source=="mame")await MameMetadata.Prepare(game,data);
                 var files=KnownFixes.InputFiles(game,data);var before=KnownFixes.Snapshot(files);
+                if(game.Source=="mame")MameControls.Configure(game,data,players);
                 if(game.Source=="teknoparrot") TeknoGunSetup.Configure(game,players);
+                _=TimeCrisis5Controls.Configure(game,players);
                 if(pack is not null && DolphinSetup.IsDolphin(game))
                 {
                     // No controller is started during a library audit. The launch

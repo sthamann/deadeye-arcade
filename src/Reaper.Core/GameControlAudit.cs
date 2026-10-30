@@ -1,7 +1,7 @@
 namespace Reaper.Core;
 
 public record PlayerControlAudit(int Player, string Status, string[] Issues, StartupControlHint[] Controls);
-public record GameControlReview(string GameId, string Title, string System, string Status, PlayerControlAudit[] Players, string Note);
+public record GameControlReview(string GameId, string Title, string System, string Status, PlayerControlAudit[] Players, string Note, bool RequiredActionsChecked = false);
 public record ControlAuditReport(DateTimeOffset Time, GameControlReview[] Games);
 
 // Read the active profile, not a list of assumed defaults. Mapping coverage never
@@ -28,16 +28,21 @@ public static class GameControlAudit
     public static GameControlReview Read(GameEntry game, string data, IEnumerable<GunBinding> bindings, IEnumerable<InputDevice>? devices = null)
     {
         var guns = bindings.Where(b=>b.Player is 1 or 2).OrderBy(b=>b.Player).ToArray();
+        if(TimeCrisis5Controls.Supports(game))guns=guns.Where(b=>b.Player==1).ToArray();
+        var mame=game.Source=="mame"?MameControls.Metadata(game,data):null;
+        if(mame is not null && MameControls.Players(mame)>0)guns=guns.Where(b=>b.Player<=MameControls.Players(mame)).ToArray();
         var controls = OverlayControls.Read(game,data,guns,devices);
         bool dolphin = DolphinSetup.IsDolphin(game);
         string? id = dolphin ? DolphinSetup.DiscId(game) : null;
         string[] required = id is null ? [] : RequiredDolphin(id);
+        bool requiredActionsChecked = dolphin ? required.Length > 0 : game.Source == "teknoparrot" || mame is not null || TimeCrisis5Controls.Supports(game);
         var players = new List<PlayerControlAudit>();
         foreach(var gun in guns)
         {
             var issues = new List<string>();
             var hints = StartupControls.ForPlayer(controls,gun);
-            bool review=false, missing=false;
+            bool review=!requiredActionsChecked, missing=false;
+            if(!requiredActionsChecked) issues.Add(I18n.T("Die vollständige Liste benötigter Spielaktionen ist noch nicht geprüft."));
             if(dolphin && required.Length>0)
             {
                 string? profile = DolphinSetup.ProfilePath(game,gun.Player);
@@ -66,11 +71,31 @@ public static class GameControlAudit
                     missing=true;
                     issues.Add(I18n.T("Dieses Spielprofil benötigt eine Gun auf P1. Weise die gewünschte Gun P1 zu."));
                 }
+                if(game.Source=="teknoparrot")
+                    foreach(var aim in rows.Where(r=>r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
+                        if(!aim.Input.StartsWith("P"+gun.Player+" · ",StringComparison.Ordinal))
+                        {missing=true;issues.Add(I18n.T("Zieleingang gehört nicht zur physischen Gun dieses Spielers: ")+aim.Function);}
                 foreach(var row in rows.Where(r=>r.Function is not null && !r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
                     if(row.Input==I18n.T("Nicht belegt") || row.Input.StartsWith(I18n.T("Nicht belegt /")))
-                    {issues.Add(I18n.T("Aktion nicht belegt: ")+row.Function);if(game.Source=="teknoparrot")missing=true;else review=true;}
+                    {issues.Add(I18n.T("Aktion nicht belegt: ")+row.Function);if(game.Source=="teknoparrot"||mame is not null)missing=true;else review=true;}
                 review=review || rows.Any(row=>!row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved);
                 if(review && issues.Count==0) issues.Add(I18n.T("Einige Spielaktionen sind keiner physischen Gun-Taste bestätigt zugeordnet."));
+                if(TimeCrisis5Controls.Supports(game))
+                    foreach(string function in new[]{"Abzug","Münze","Waffenwechsel","Linkes Pedal","Rechtes Pedal"}.Select(I18n.T))
+                        if(!rows.Any(r=>r.Function==function && StartupControls.Resolve(r,gun).Resolved))
+                        {missing=true;issues.Add(I18n.T("Aktion nicht an der Gun erreichbar: ")+function);}
+                if(mame is not null)
+                {
+                    var effective=MameControls.Effective(game,data);
+                    string controller=Path.Combine(data,"controllers","reaper.cfg");
+                    var maps=System.Xml.Linq.XDocument.Load(controller).Descendants("mapdevice").ToArray();
+                    bool Matches(string? device,string target)=>!string.IsNullOrWhiteSpace(device) && maps.Any(m=>(string?)m.Attribute("controller")==target && string.Equals((string?)m.Attribute("device"),device,StringComparison.OrdinalIgnoreCase));
+                    if(!Matches(gun.MouseId,"GUNCODE_"+gun.Player)) {missing=true;issues.Add(I18n.T("Die MAME-Gun-Nummer ist nicht an dieses physische USB-Gerät gebunden."));}
+                    if(rows.Any(r=>r.Expression?.Contains("KEYCODE_"+gun.Player+"_")==true) && !Matches(gun.KeyboardId,"KEYCODE_"+gun.Player)) {missing=true;issues.Add(I18n.T("Die MAME-Tastaturnummer ist nicht an den Tastatureingang dieser Gun gebunden."));}
+                    foreach(string axis in MameControls.RequiredPorts(mame,gun.Player).Where(p=>p.Contains("_LIGHTGUN_")||p.Contains("_AD_STICK_")))
+                        if(effective.GetValueOrDefault(axis)!=$"GUNCODE_{gun.Player}_{axis[^1]}AXIS")
+                        {missing=true;issues.Add(I18n.T("Zielachse ist nicht der zugeordneten Gun zugewiesen: ")+axis);}
+                }
                 // WinRaw keyboard binds in our generated RetroArch profiles are global.
                 // A different mouse index does not isolate equal keyboard key codes.
                 if(RetroArchSetup.IsRetroArch(game) && controls.Rows.Where(r=>r.Player==gun.Player && r.Expression?.StartsWith("P"+gun.Player+"|key:")==true)
@@ -84,14 +109,14 @@ public static class GameControlAudit
             players.Add(new(gun.Player,status,issues.Distinct().ToArray(),hints));
         }
         string state=players.Count==0?"needs-action":players.Any(p=>p.Status=="needs-action")?"needs-action":players.Any(p=>p.Status=="needs-review")?"needs-review":"mapping-checked";
-        return new(game.Id,game.Title,dolphin?"Dolphin":game.Source,state,players.ToArray(),controls.Note);
+        return new(game.Id,game.Title,dolphin?"Dolphin":game.Source,state,players.ToArray(),controls.Note,requiredActionsChecked);
     }
     public static ControlAuditReport Save(IEnumerable<GameEntry> games,string data,IEnumerable<GunBinding> bindings,IEnumerable<InputDevice>? devices=null,bool merge=false)
     {
         var guns=bindings.ToArray();var inputs=devices?.ToArray();
         var report=new ControlAuditReport(DateTimeOffset.UtcNow,games.Select(game=> {
             try { return Read(game,data,guns,inputs); }
-            catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException) {
+            catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or System.Xml.XmlException) {
                 return new GameControlReview(game.Id,game.Title,game.Source,"needs-action",[],e.Message);
             }
         }).ToArray());

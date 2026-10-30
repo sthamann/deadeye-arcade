@@ -186,6 +186,12 @@ public static class KnownFixes
     public static string[] InputFiles(GameEntry game, string data)
     {
         var files = new List<string>();
+        if(TimeCrisis5Controls.Supports(game)) files.Add(TimeCrisis5Controls.ManagedPath(game));
+        if(game.Source=="mame")
+        {
+            files.Add(Path.Combine(data,"controllers","reaper.cfg"));
+            if(MameControls.Metadata(game,data) is {} metadata)files.AddRange(new[]{Path.Combine(metadata.ConfigDirectory,"default.cfg"),Path.Combine(metadata.ConfigDirectory,metadata.Rom+".cfg")});
+        }
         if (RetroArchSetup.IsRetroArch(game)) { files.Add(RetroArchSetup.ProfilePath(game, data)); files.Add(Path.ChangeExtension(files[^1], ".opt")); }
         if (SupermodelSetup.IsSupermodel(game)) files.Add(Path.Combine(game.WorkingDirectory,"Config","Supermodel.ini"));
         if (FlycastSetup.IsFlycast(game))

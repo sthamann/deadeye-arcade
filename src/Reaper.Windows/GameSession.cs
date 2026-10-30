@@ -27,6 +27,7 @@ public sealed class GameSession
     }
     private readonly List<(nint Handle, int Show)> overlayWindows = [];
     public bool Active { get; private set; }
+    public List<string> CleanupIssues { get; } = [];
     public event Action<string>? Changed;
     public event Action<nint>? GameWindowReady;
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -49,15 +50,6 @@ public sealed class GameSession
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint handle,out uint processId);
-    [StructLayout(LayoutKind.Sequential)] private struct BasicLimits
-    { public long ProcessTime, JobTime; public uint Flags; public nuint MinWorkingSet, MaxWorkingSet; public uint ActiveProcessLimit; public nuint Affinity; public uint Priority, Scheduling; }
-    [StructLayout(LayoutKind.Sequential)] private struct IoCounters
-    { public ulong ReadOperations, WriteOperations, OtherOperations, ReadBytes, WriteBytes, OtherBytes; }
-    [StructLayout(LayoutKind.Sequential)] private struct ExtendedLimits
-    { public BasicLimits Basic; public IoCounters Io; public nuint ProcessMemory, JobMemory, PeakProcessMemory, PeakJobMemory; }
-    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern nint CreateJobObject(nint attributes,string? name);
-    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool SetInformationJobObject(nint job,int info,ref ExtendedLimits limits,uint size);
-    [DllImport("kernel32.dll", SetLastError=true)] private static extern bool AssignProcessToJobObject(nint job,nint process);
     [DllImport("kernel32.dll", SetLastError=true)] private static extern bool QueryInformationJobObject(nint job,int info,nint buffer,uint size,out uint returned);
     [DllImport("kernel32.dll", SetLastError=true)] private static extern bool TerminateJobObject(nint job,uint exitCode);
     public nint GameWindow => gameWindow;
@@ -85,18 +77,6 @@ public sealed class GameSession
             catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",path=(string?)null,window=0L,MainWindowTitle=e.Message};}
         }).ToArray()
     };
-    private void CreateSessionJob(Process process)
-    {
-        job=CreateJobObject(0,null);
-        var limits=new ExtendedLimits {Basic=new BasicLimits {Flags=0x2000}}; // KILL_ON_JOB_CLOSE
-        if(job==0 || !SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf<ExtendedLimits>()) || !AssignProcessToJobObject(job,process.Handle))
-        {
-            int error=Marshal.GetLastWin32Error();
-            try {process.Kill(true);} catch(InvalidOperationException) {}
-            if(job!=0) {CloseHandle(job);job=0;}
-            throw new System.ComponentModel.Win32Exception(error,"Cannot supervise the game process tree.");
-        }
-    }
     private HashSet<int> JobProcesses()
     {
         var result=new HashSet<int>();
@@ -153,7 +133,9 @@ public sealed class GameSession
     public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings, CancellationToken cancellationToken = default, bool fixesPrepared = false)
     {
         if (Interlocked.CompareExchange(ref reserved,1,0)!=0) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
+        CleanupIssues.Clear();
         var helpers = new List<Process>();
+        var helperJobs = new List<nint>();
         GameInputPreparation? input = null;
         try
         {
@@ -178,7 +160,7 @@ public sealed class GameSession
                 if (running) throw new IOException(I18n.T("Der Helfer läuft bereits. Bitte vor dem Start schließen: ") + Path.GetFileName(helper.Executable));
                 var info = new ProcessStartInfo(helper.Executable) { WorkingDirectory = helper.WorkingDirectory, UseShellExecute = false };
                 foreach (var argument in helper.Arguments) info.ArgumentList.Add(argument);
-                helpers.Add(Process.Start(info) ?? throw new IOException(I18n.T("Helfer konnte nicht gestartet werden.")));
+                helpers.Add(NativeOwnedLaunch.Start(info, handle => helperJobs.Add(NativeOwnedLaunch.CreateJob(handle))));
             }
             await RunGame(game, dataDirectory, players, cancellationToken);
         }
@@ -197,9 +179,10 @@ public sealed class GameSession
                     if (!helper.HasExited) helper.Kill(true);
                     await helper.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
                 }
-                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException) { }
+                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException) { CleanupIssues.Add("Helper cleanup: " + e.Message); }
                 helper.Dispose();
             }
+            foreach (nint helperJob in helperJobs) NativeOwnedLaunch.CloseHandle(helperJob);
             lock(sync) { if(job!=0) {CloseHandle(job);job=0;} }
             bridge=null;
             try {if(input is not null) await input.DisposeAsync();}
@@ -232,6 +215,7 @@ public sealed class GameSession
         {
             info.ArgumentList.Add("-multikeyboard");
             info.ArgumentList.Add("-keyboardprovider");info.ArgumentList.Add("rawinput");
+            foreach(string argument in new[]{"-lightgun","-multimouse","-lightgunprovider","rawinput","-mouseprovider","rawinput","-adstick_device","lightgun","-lightgun_device","lightgun"})info.ArgumentList.Add(argument);
             // MAME creates its own game window; its console must not cover it.
             info.CreateNoWindow = true;
             string ctrl = Path.Combine(dataDirectory, "controllers"); Directory.CreateDirectory(ctrl);
@@ -252,8 +236,7 @@ public sealed class GameSession
         targetExecutable = target;
         var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayVisible = false; overlayWindows.Clear();
         cancellationToken.ThrowIfCancellationRequested();
-        using var process = Process.Start(info) ?? throw new IOException(I18n.T("Das Spiel konnte nicht gestartet werden."));
-        CreateSessionJob(process);
+        using var process = NativeOwnedLaunch.Start(info, handle => job = NativeOwnedLaunch.CreateJob(handle));
         lock (sync) owned[process.Id] = process.StartTime;
         Active = true; Changed?.Invoke("running");
         bool targetSeen = game.Source != "teknoparrot", descendantSeen = false;

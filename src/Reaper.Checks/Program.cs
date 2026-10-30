@@ -4,6 +4,38 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+Check(WindowsArguments.Quote("")=="\"\"" && WindowsArguments.Quote("two words")=="\"two words\"", "Suspended Windows launch preserves empty arguments and spaces");
+Check(WindowsArguments.Quote("C:\\game folder\\")=="\"C:\\game folder\\\\\"" && WindowsArguments.Quote("say \"go\"")=="\"say \\\"go\\\"\"", "Owned Windows launch escapes quotes and trailing backslashes without changing arguments");
+if (OperatingSystem.IsWindows())
+{
+    string probe = Path.Combine(Path.GetTempPath(), "deadeye-job-" + Guid.NewGuid().ToString("N") + ".txt");
+    nint job = 0; int descendant = 0;
+    try
+    {
+        var info = new System.Diagnostics.ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe")) { UseShellExecute = false, CreateNoWindow = true };
+        foreach (string argument in new[]{"-NoProfile", "-Command", "$p=Start-Process cmd.exe -ArgumentList '/c ping -n 60 127.0.0.1 > nul' -WindowStyle Hidden -PassThru; $p.Id | Set-Content -LiteralPath '"+probe+"'"}) info.ArgumentList.Add(argument);
+        using var launcher = Reaper.Windows.NativeOwnedLaunch.Start(info, handle => job = Reaper.Windows.NativeOwnedLaunch.CreateJob(handle));
+        Check(launcher.WaitForExit(20000) && launcher.ExitCode==0 && File.Exists(probe), "Windows launches a fast parent and its child inside a job before execution begins");
+        descendant = int.Parse(File.ReadAllText(probe).Trim());
+        using var child = System.Diagnostics.Process.GetProcessById(descendant);
+        Check(!child.HasExited, "The owned child remains supervised after its launcher has exited");
+        Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); job = 0;
+        Check(child.WaitForExit(10000), "Closing the owning job terminates descendants even after the original launcher exits");
+        bool refused = false;
+        try { using var rejected = Reaper.Windows.NativeOwnedLaunch.Start(info, _ => throw new IOException("test assignment rejection")); }
+        catch (IOException) { refused = true; }
+        Check(refused, "A failed job assignment never resumes its suspended launcher");
+    }
+    finally { if(job!=0) Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); if(File.Exists(probe)) File.Delete(probe); }
+}
+var slowBoot = new GameTestObservation(15);
+Check(slowBoot.Update(70000,false,false)=="waiting-for-window" && slowBoot.Update(71000,true,false)=="observing" && slowBoot.Update(85000,true,false)=="observing" && slowBoot.Update(86000,true,false)=="passed","A slow-loading game receives the full observation period after its real renderer appears");
+var replacedWindow = new GameTestObservation(15);
+replacedWindow.Update(1000,true,false);replacedWindow.Update(10000,false,false);replacedWindow.Update(12000,true,false);
+Check(replacedWindow.Update(20000,true,false)=="observing" && replacedWindow.Update(27000,true,false)=="passed","A disappearing splash or replaced renderer cannot contribute stale observation time");
+Check(new GameTestObservation(15).Update(90000,false,false)=="startup-timeout" && new GameTestObservation(15).Update(1000,true,true)=="exited-early","A game that never renders or exits early cannot pass a library launch test");
+var flappingWindow=new GameTestObservation(15);flappingWindow.Update(1000,true,false);flappingWindow.Update(104000,false,false);
+Check(flappingWindow.Update(105000,true,false)=="startup-timeout","Repeated window replacement has a finite overall deadline");
 var captureMenu=new GunMenuLearning("blamcon");
 Check(captureMenu.Current=="start" && captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:49",true) && !captureMenu.Accept("key:53",true) && captureMenu.Current=="select","Vyper guided capture requires releasing a held button and ignores firmware repeats");
 captureMenu.Accept("key:49",false);Check(captureMenu.Accept("key:53",true)&&captureMenu.Current=="up","Releasing the first captured button advances to the correct next physical control");
@@ -347,6 +379,15 @@ RButton::y
     Check(tcControls.Rows.Length==7 && tcControls.Rows.Single(r=>r.Expression=="P1|mouse:2").Function=="Rechtes Pedal" && tcControls.Rows.All(r=>r.Player==1),"Time Crisis 5 legend reads the actual reviewed helper pedals and never invents a linked P2 cabinet");
     Check(StartupControls.ForPlayer(tcControls,remoteGun with {SystemId="rs3"}).Any(h=>h.ControlIds.Contains("trigger")&&h.Resolved),"Time Crisis 5 trigger resolves only through the configured DemulShooter mouse");
     Check(TimeCrisis5Controls.Read(tcGame with {Arguments=["-playside=2"]},[remoteGun]).Rows.Length==0 && TimeCrisis5Controls.Read(tcGame with {Helpers=[..tcGame.Helpers!,tcGame.Helpers![0]]},[remoteGun]).Rows.Length==0,"An alternate cabinet side or ambiguous duplicate helper cannot claim the P1 Time Crisis 5 legend");
+    string legacyTc=File.ReadAllText(tcHelper);
+    var preparedTc=TimeCrisis5Controls.Configure(tcGame,[vyper]);
+    string managedTc=TimeCrisis5Controls.ManagedPath(tcGame),managedTcText=File.ReadAllText(managedTc);
+    Check(preparedTc.Helpers!.Any(h=>h.Arguments.Contains(managedTc)) && managedTcText.Contains("Down::SendInput, o") && managedTcText.Contains("R::y") && managedTcText.Contains("RButton::t") && File.ReadAllText(tcHelper)==legacyTc,"Time Crisis 5 writes Vyper weapon change and distinct pedals into the launched helper while preserving the original");
+    File.WriteAllText(Path.Combine(multiRoot,"config.ini"),"P1Mode = RAWINPUT\nP1DeviceName = "+vyper.MouseId+"\n");
+    Check(GameControlAudit.Read(tcGame,root,[vyper,mixedX with{Player=2}]).Status=="mapping-checked" && TimeCrisis5Controls.Read(preparedTc,[vyper]).Rows.Any(r=>r.Expression=="P1|key:40"),"The actual managed Time Crisis 5 helper resolves every required P1 action without inventing a local P2 cabinet");
+    File.AppendAllText(managedTc,"\nRButton::x\n");
+    Check(TimeCrisis5Controls.Read(preparedTc,[vyper]).Rows.Length==0,"Edited managed helpers cannot retain a falsely confirmed controls legend");
+    File.Delete(managedTc);
     File.WriteAllText(Path.Combine(multiRoot,"config.ini"),"P1Mode = RAWINPUT\nP1DeviceName = DEADEYE_DISCONNECTED_P1\n");
     Check(TimeCrisis5Controls.Read(tcGame,[remoteGun]).Rows.All(r=>r.Expression!="P1|mouse:1"),"An unassigned DemulShooter channel cannot claim a working Time Crisis 5 trigger");
     File.AppendAllText(tcHelper,"\nRButton::x\n");
@@ -780,6 +821,21 @@ RButton::y
     File.WriteAllText(raConfig, "input_player1_gun_start = \"enter\"\ninput_player2_b = \"v\"\n"); File.WriteAllText(raExtra, "input_player1_gun_start = \"1\"\n");
     var raControls = OverlayControls.Read(scarlet with { Source="pc", Executable=ra, Arguments=["--config",raConfig,"--appendconfig",raExtra] }, root, []);
     Check(raControls.Rows.Any(r => r.Player == 1 && r.Function == "Start" && r.Input == "Taste 1") && raControls.Rows.Any(r => r.Player == 2 && r.Function == "B" && r.Input == "Taste v"), "RetroArch appended config overrides the base mapping and preserves P2 B");
+    string mameExe=Path.Combine(root,"mame-contract.exe"),mameCfg=Path.Combine(root,"mame-contract-cfg");File.WriteAllText(mameExe,"");Directory.CreateDirectory(mameCfg);
+    var mameContract=scarlet with{Id="mame-contract",Source="mame",Executable=mameExe,WorkingDirectory=root,Arguments=["gunbuletj"]};
+    var mameBinary=new FileInfo(mameExe);
+    var mameMetadata=new MameInputMetadata("gunbuletj","<machine><input players='2' coins='2'><control type='lightgun' player='1' buttons='1'/><control type='lightgun' player='2' buttons='1'/></input></machine>",mameCfg,mameBinary.Length,mameBinary.LastWriteTimeUtc.Ticks);
+    string mameMetaPath=MameControls.MetadataPath(mameContract,root);Directory.CreateDirectory(Path.GetDirectoryName(mameMetaPath)!);File.WriteAllText(mameMetaPath,System.Text.Json.JsonSerializer.Serialize(mameMetadata,JsonDefaults.Options));
+    string mameController=Path.Combine(root,"controllers","reaper.cfg");Directory.CreateDirectory(Path.GetDirectoryName(mameController)!);File.WriteAllText(mameController,LaunchRules.MameController([p1,p2]));
+    string mameTitle=Path.Combine(mameCfg,"gunbuletj.cfg");File.WriteAllText(mameTitle,"<mameconfig><system name='gunbuletj'><input><port type='P2_BUTTON1' tag=':IN0' mask='4'><newseq type='standard'>GUNCODE_1_BUTTON1</newseq></port></input><counters><coins>7</coins></counters></system></mameconfig>");
+    Check(GameControlAudit.Read(mameContract,root,[p1,p2]).Status!="mapping-checked","MAME per-game overrides pointing P2 at P1 invalidate the controls check");
+    Check(MameControls.RequiredPorts(mameMetadata with{MachineXml="<machine><input players='2' coins='2'><control type='stick' player='2' buttons='2'/></input></machine>"},2).Contains("P2_AD_STICK_X"),"Installed MAME analog-gun metadata uses the stick token and requires independently routed aim axes");
+    var missingMetadata=mameContract with{Id="no-driver-metadata"};
+    Check(!GameControlAudit.Read(missingMetadata,root,[p1,p2]).RequiredActionsChecked && GameControlAudit.Read(missingMetadata,root,[p1,p2]).Status!="mapping-checked","A generic controller profile cannot certify all actions without the game driver metadata");
+    Check(MameControls.Configure(mameContract,root,[p1,p2])==1 && GameControlAudit.Read(mameContract,root,[p1,p2]).Status=="mapping-checked","MAME derives the required buttons from its actual game metadata and repairs the effective per-game route");
+    Check(MameControls.Configure(mameContract,root,[p1,p2])==0 && XDocument.Load(mameTitle).Descendants("coins").Single().Value=="7" && XDocument.Load(mameTitle).Descendants("port").Single().Attribute("mask")!.Value=="4" && File.Exists(mameTitle+".before-deadeye-input"),"MAME repairs preserve bookkeeping, port identity, backups and repeated setup");
+    var brokenAim=XDocument.Load(mameTitle);brokenAim.Descendants("input").Single().Add(new XElement("port",new XAttribute("type","P2_LIGHTGUN_X"),new XElement("newseq",new XAttribute("type","standard"),"GUNCODE_1_XAXIS")));brokenAim.Save(mameTitle);
+    Check(GameControlAudit.Read(mameContract,root,[p1,p2]).Status=="needs-action","MAME checks aim axes independently of having valid fire buttons");
     using var http = new HttpClient(new FixtureHttp());
     var cover = await new CoverService(http, Path.Combine(root, "covers")).Download("Point Blank", "fixture", CancellationToken.None);
     Check(cover is not null && File.Exists(cover), "Cover service downloads an exact match and saves local artwork");

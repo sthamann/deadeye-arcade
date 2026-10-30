@@ -72,6 +72,39 @@ Original game-media files are not bundled as library assets.*
 - **An arcade look throughout:** an original app icon for Windows, Setup and
   shortcuts, with a matching dark desktop wallpaper. [Artwork and wallpaper](docs/branding.md).
 
+## Verify your library
+
+The built-in library check launches games one at a time through the same setup
+and input path used by the frontend. Loading time is separate from observation:
+a game gets a full 15 seconds after its visible game window appears. Each test
+checks process ownership, foreground focus and cleanup, then reads the active
+control profiles for the selected P1/P2 guns.
+
+Launch results and control completeness are recorded separately. Required
+controls come from the installed MAME driver's input metadata, the selected
+TeknoParrot profile, reviewed Wii title requirements and the supported Time
+Crisis 5 helper. Other systems stay marked for review until their complete
+required-action list is known. A generic button list never certifies a title's
+full controls. Software checks do not mark physical aim, recoil or cooperative
+play as tested.
+
+For maintenance, close the frontend and run `ReaperArcade.exe --test-library`.
+Use `--test-library --resume` to keep successful results whose app version,
+gun assignments and relevant files still match. Failed tests are retried.
+**Start + Coin** or **F12** stops the run, including between games;
+`ReaperArcade.exe --stop-library-test` also stops it.
+
+Results are saved after every title in `%LOCALAPPDATA%\ReaperArcade\library-test.json`
+and the individual `game-test-*.json` files. A bounded supervisor stops stuck
+workers and their owned process trees, so one failed game cannot leave the
+entire run waiting indefinitely. Saved gun settings are restored after a forced
+worker stop; a failed restore stops the batch for attention.
+
+MAME checks include global and per-game overrides, preserving their unrelated
+settings and backing up changed input files. Time Crisis 5's reviewed helper is
+adapted to the selected gun for credits, both pedals, weapon change and crosshair.
+Custom helpers are retained for review.
+
 ## Supported lightguns
 
 Deadeye supports four hardware families. **My Guns** combines detection, P1/P2
