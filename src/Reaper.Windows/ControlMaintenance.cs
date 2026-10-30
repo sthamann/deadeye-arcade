@@ -9,7 +9,7 @@ internal static class ControlMaintenance
         using var raw=new RawInput();raw.Refresh();
         var players=GunConnections.ForConfiguration(library.Bindings,raw.Devices,GunDiscovery.Scan(raw.Devices));
         string? pack=null;
-        if(games.Any(DolphinSetup.IsDolphin) && players.Any(p=>p.Player==1 && p.SystemId=="rs3"))
+        if(games.Any(DolphinSetup.IsDolphin) && players.Any(p=>p.Player==1 && DolphinSetup.Supports(p)))
             try {pack=await DolphinAccuracyPackage.Prepare(data);}
             catch(Exception e) when(e is IOException or HttpRequestException or TaskCanceledException) {
                 File.AppendAllText(Path.Combine(data,"game-input.log"),$"{DateTimeOffset.Now:o} Accuracy package unavailable: {e.Message}\n");
@@ -24,7 +24,7 @@ internal static class ControlMaintenance
                 {
                     // No controller is started during a library audit. The launch
                     // path replaces this port with the running bridge's real port.
-                    DolphinSetup.Configure(game,pack,players,players.Any(p=>p.Player==2 && p.SystemId=="rs3")?26761:null);
+                    DolphinSetup.Configure(game,pack,players,DolphinSetup.RequiresBridge(players)?26761:null);
                 }
                 KnownFixes.RecordChanges(game,data,"control-completeness",before,KnownFixes.InputFiles(game,data));
             }

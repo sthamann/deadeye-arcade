@@ -120,6 +120,12 @@ function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [platform, setPlatform] = useState("all");
+  const [platformPicker, setPlatformPicker] = useState(false);
+  const platformButton = useRef<HTMLButtonElement>(null);
+  const platformOptions = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (platformPicker) platformOptions.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+  }, [platformPicker]);
   const [previewEnabled, setPreviewEnabled] = useState(true);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<Modal>(null);
@@ -418,7 +424,8 @@ function App() {
 
       if (k === "Escape" || (state.native && k === "5")) {
         event.preventDefault();
-        if (picker) send("cancel-picker");
+        if (platformPicker) { setPlatformPicker(false); platformButton.current?.focus(); }
+        else if (picker) send("cancel-picker");
         else if (keyboard) setKeyboard(null);
         else if (state.bindingStage) send("cancel-bind");
         else if (modal) setModal(null);
@@ -440,7 +447,7 @@ function App() {
     };
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, [state.native, state.bindingStage, modal, page, picker, keyboard]);
+  }, [state.native, state.remoteSession, state.bindingStage, modal, page, picker, keyboard, platformPicker]);
   const allGames = demo ? examples : state.games;
   const games = allGames.filter(
     (g) =>
@@ -775,28 +782,29 @@ function App() {
                       </button>
                     </div>
                   </div>
-                  <label className="platform-filter">
-                    {t("System ausw\u00E4hlen") + " "}
-                    <select
+                  <div className="platform-filter">
+                    <button className="secondary" ref={platformButton}
                       aria-label={t("System filtern")}
-                      value={platform}
-                      onChange={(e) => {
-                        setPlatform(e.target.value);
-                        setSelected(null);
-                      }}
-                    >
+                      aria-expanded={platformPicker} aria-controls="platform-options"
+                      onClick={() => setPlatformPicker(open => !open)}>
+                      <Monitor size={17}/>
+                      {platform === "all" ? t("Alle Systeme") : platform}
+                      <ChevronRight size={16} style={{transform:platformPicker?"rotate(90deg)":undefined}}/>
+                    </button>
+                    {platformPicker && <div id="platform-options" className="platform-options" role="group" aria-label={t("System auswählen")} ref={platformOptions}>
                       {[
                         "all",
                         ...Array.from(
                           new Set(allGames.map((g) => g.platform)),
                         ).sort(),
                       ].map((p) => (
-                        <option key={p} value={p}>
+                        <button key={p} className="secondary" aria-pressed={platform === p}
+                          onClick={() => {setPlatform(p);setSelected(null);setPlatformPicker(false);platformButton.current?.focus();}}>
                           {p === "all" ? t("Alle Systeme") : p}
-                        </option>
+                        </button>
                       ))}
-                    </select>
-                  </label>
+                    </div>}
+                  </div>
                   <div className="filters">
                     {[
                       ["all", t("Alle Spiele")],
@@ -1829,7 +1837,7 @@ function App() {
                     )}
               </p>
             </div>
-            <button className="secondary" onClick={() => setModal(null)}>
+            <button className="secondary" data-test-navigation onClick={() => setModal(null)}>
               <X size={18} />
               {" " + t("Beenden")}
             </button>
@@ -1875,7 +1883,7 @@ function App() {
                   "Dieser Test best\u00E4tigt keine Firmwarekalibrierung und misst keine Eingabelatenz.",
                 )}
               </p>
-              <button className="primary" onClick={() => setModal(null)}>
+              <button className="primary" data-test-navigation onClick={() => setModal(null)}>
                 {t("Zur\u00FCck zu meinen Guns")}
               </button>
             </div>

@@ -59,7 +59,7 @@ public static class OverlayControls
                     .FirstOrDefault(e => Value(e, "FieldName") == "Input API") is { } field ? Value(field, "FieldValue") : I18n.T("Unbekannt");
                 var rows = doc.Descendants().Where(e => e.Name.LocalName == "JoystickButtons" && e.Elements().Any(c => c.Name.LocalName == "ButtonName"))
                     .Where(e => Value(e, "HideWith" + api) != "true")
-                    .Select(e => new ControlRow(Player(Value(e, "InputMapping"), Value(e, "ButtonName")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
+                    .Select(e => new ControlRow(TeknoPlayer(Value(e, "InputMapping"), Value(e, "ButtonName")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
                 return new(rows, I18n.T("Aus dem gestarteten TeknoParrot-Profil gelesen. Helfer wie DemulShooter können weitere Zuordnungen vornehmen."));
             }
             if (Path.GetFileName(game.Executable).Contains("dolphin", StringComparison.OrdinalIgnoreCase))
@@ -123,6 +123,7 @@ public static class OverlayControls
                     string input = match.Groups[3].Value switch { "mbtn" => I18n.T("Maustaste "), "btn" => I18n.T("Controller-Taste "), "axis" => I18n.T("Achse "), _ => I18n.T("Taste ") };
                     // Controller/axis numbers have no confirmed physical gun identity.
                     int port = int.Parse(match.Groups[1].Value);
+                    if(values.GetValueOrDefault("input_libretro_device_p"+port)=="0") continue;
                     int player = int.TryParse(values.GetValueOrDefault("deadeye_player" + port + "_physical"), out int physical) ? physical : port;
                     if(player is not (1 or 2)) continue;
                     string? token = match.Groups[3].Value switch { "" => StartupControls.KeyToken(pair.Value), "mbtn" when Regex.IsMatch(pair.Value, "^[1-5]$") => "mouse:" + pair.Value, _ => null };
@@ -158,6 +159,11 @@ public static class OverlayControls
         return key switch {"Buttons/A"=>I18n.T("Benutzen / Aktion (A)"),"Buttons/B"=>I18n.T("Schießen (B)"),"Buttons/+"=>I18n.T("Pause (+)"),_=>key};
     }
     private static string Value(XElement e, string name) => e.Elements().FirstOrDefault(c => c.Name.LocalName == name)?.Value ?? "";
+    private static int TeknoPlayer(string mapping,string name)
+    {
+        int player=Player(mapping,name);
+        return player==0 && name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute" or "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload" or "Action" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)" ? 1 : player;
+    }
     private static int Player(string name, string label = "")
     {
         // Keep P3/P4 distinct even when the frontend only displays two guns.

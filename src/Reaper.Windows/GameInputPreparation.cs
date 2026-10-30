@@ -33,7 +33,7 @@ internal sealed class GameInputPreparation : IAsyncDisposable
             if (DolphinSetup.IsDolphin(game) && setup.Players.Any(b => b.Player == 1 && DolphinSetup.Supports(b)))
             {
                 string pack = await DolphinAccuracyPackage.Prepare(data);
-                if(setup.Players.Count(DolphinSetup.Supports)>1 || setup.Players.Any(b=>b.SystemId is "xgunner" or "blamcon" or "sinden")) setup.Bridge=new(setup.Players);
+                if(DolphinSetup.RequiresBridge(setup.Players)) setup.Bridge=new(setup.Players);
                 if (!DolphinSetup.Configure(game, pack, setup.Players,setup.Bridge?.Port))
                 {
                     setup.Log("No accuracy profile for this Dolphin disc region; existing controls retained.");

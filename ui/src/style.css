@@ -2292,7 +2292,10 @@ main {
 .video-caption { position:absolute; bottom:14px; right:18px; z-index:3; font-size:11px; padding:7px 10px; background:#10151ecc; border-radius:6px; }
 .missing-media { display:grid; place-items:center; height:100%; color:#b9c2d0; padding:30px; }
 .platform-filter { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; color:#aeb8c8; }
-.platform-filter select { max-width:100%; min-height:44px; color:#e6edf7; background:#202733; border:1px solid #485365; padding:9px 12px; border-radius:8px; }
+.platform-filter > button { min-height:48px; max-width:100%; }
+.platform-options { display:flex; flex-wrap:wrap; gap:10px; width:100%; padding:12px; background:#151d28; border:1px solid #485365; border-radius:8px; }
+.platform-options button { min-height:48px; white-space:normal; text-align:left; }
+.platform-options button[aria-pressed="true"] { color:#fff; border-color:var(--orange); background:#402b27; }
 .setup-issues { padding:16px; border:1px solid #9e6243; background:#2b211d; border-radius:10px; margin:18px 0; overflow-wrap:anywhere; }
 .players-note { font-size:13px; color:#aeb8c8; }
 .feedback-actions { margin-top:16px; }

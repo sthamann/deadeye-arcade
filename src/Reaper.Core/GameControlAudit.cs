@@ -61,11 +61,24 @@ public static class GameControlAudit
             {
                 var rows = controls.Rows.Where(r=>r.Player==gun.Player && GameplayAction(r.Function)).ToArray();
                 if(rows.Length==0) {issues.Add(I18n.T("Spielbelegung für diesen Spieler ist nicht auslesbar."));review=true;}
+                if(game.Source=="teknoparrot" && rows.Length==0 && !guns.Any(g=>g.Player==1) && controls.Rows.Any(r=>r.Player==1 && GameplayAction(r.Function)))
+                {
+                    missing=true;
+                    issues.Add(I18n.T("Dieses Spielprofil benötigt eine Gun auf P1. Weise die gewünschte Gun P1 zu."));
+                }
                 foreach(var row in rows.Where(r=>r.Function is not null && !r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
                     if(row.Input==I18n.T("Nicht belegt") || row.Input.StartsWith(I18n.T("Nicht belegt /")))
                     {issues.Add(I18n.T("Aktion nicht belegt: ")+row.Function);if(game.Source=="teknoparrot")missing=true;else review=true;}
                 review=review || rows.Any(row=>!row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved);
                 if(review && issues.Count==0) issues.Add(I18n.T("Einige Spielaktionen sind keiner physischen Gun-Taste bestätigt zugeordnet."));
+                // WinRaw keyboard binds in our generated RetroArch profiles are global.
+                // A different mouse index does not isolate equal keyboard key codes.
+                if(RetroArchSetup.IsRetroArch(game) && controls.Rows.Where(r=>r.Player==gun.Player && r.Expression?.StartsWith("P"+gun.Player+"|key:")==true)
+                    .Any(row=>controls.Rows.Any(other=>other.Player!=gun.Player && guns.Any(g=>g.Player==other.Player) && other.Expression=="P"+other.Player+"|"+row.Expression!.Split('|')[1])))
+                {
+                    missing=true;
+                    issues.Add(I18n.T("RetroArch empfängt gleiche Tastaturcodes beider Guns gemeinsam. Für getrennte Spieler sind unterschiedliche Tastencodes oder gerätegetrennte Tastatureingänge erforderlich."));
+                }
             }
             string status = missing || dolphin && required.Length>0 && issues.Count>0 ? "needs-action" : review || dolphin && required.Length==0 ? "needs-review" : "mapping-checked";
             players.Add(new(gun.Player,status,issues.Distinct().ToArray(),hints));

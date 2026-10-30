@@ -46,7 +46,7 @@ var deviceValues = new Dictionary<int,int>{{0,1},{1,1},{2,0},{3,0},{4,2},{5,0},{
 var readVyper=new BlamconDeviceSettings(0x20100,deviceValues).Apply(new(2,"read-mouse","read-keys",SystemId:"blamcon",HardwarePlayer:1));
 Check(readVyper.ControlMap!.GetValueOrDefault("start")=="key:49"&&readVyper.ControlMap.GetValueOrDefault("select")=="key:53"&&readVyper.ButtonMap!.GetValueOrDefault("key:38")=="up"&&readVyper.Blamcon!.RecoilMode=="auto","USB settings fill real Vyper Start, Select, directions and feedback while preserving hardware P1 in game slot P2");
 Check(BlamconDeviceSettings.Commands(BlamconSetup.Configure(new(CalibrationProfile:4))).Contains("ZY.2.3.0")&&BlamconDeviceSettings.Commands(BlamconSetup.Pulse("recoil")).SequenceEqual(new[]{"F.0.1.1"}),"Firmware 2.x uses settings addresses and bounded feedback pulses instead of legacy control commands");
-var preservedVyper=readVyper with {ButtonMap=new(readVyper.ButtonMap!){["key:49"]="none"}};
+var preservedVyper=readVyper with {ButtonMap=new(readVyper.ButtonMap!){["key:49"]="none",["key:13"]="none"}};
 Check(new BlamconDeviceSettings(0x20100,deviceValues).Apply(preservedVyper).ButtonMap!["key:49"]=="none","Reading unchanged Vyper hardware settings preserves a custom game action");
 var changedStart=new Dictionary<int,int>(deviceValues){[25]=5};
 Check(new BlamconDeviceSettings(0x20100,changedStart).Apply(preservedVyper).ButtonMap!["key:50"]=="none","A changed device Start key carries the user's custom game action to the new physical signal");
@@ -80,6 +80,7 @@ Check(vyperProfile["Nunchuk/Buttons/C"]=="`Circle` & !`Cross`" && vyperProfile["
     "Dolphin maps Vyper magazine, A/B and the A+B shake combination without a phantom RS3 stick");
 bool missingVyper=false;try{DolphinSetup.ReaperButtons("RZJE69",new(1,"unlearned",SystemId:"blamcon"));}catch(ArgumentException){missingVyper=true;}
 Check(missingVyper,"An unlearned Vyper keyboard never silently inherits guessed Reaper key defaults");
+Check(DolphinSetup.RequiresBridge([vyper]) && DolphinSetup.RequiresBridge([new(1,"xg",SystemId:"xgunner")]) && !DolphinSetup.RequiresBridge([new(1,"rs3")]) && DolphinSetup.RequiresBridge([new(1,"rs3"),new(2,"rs3-2")]),"Dolphin launch and bulk repair share the same bridge policy for Vyper, XGunner and dual RS3");
 await using(var vyperBridge=new DolphinGunBridge([vyper,new(2,"other-vyper","other-keys",SystemId:"blamcon",Blamcon:new())]))
 {
     vyperBridge.Mouse("vyper-mouse",true,50000,20000,4|16);vyperBridge.Key("vyper-keys",53,true);vyperBridge.Key("vyper-keys",82,true);
@@ -414,6 +415,15 @@ RButton::y
     RetroArchSetup.Configure(nesGame,root,[p1,p2],[p2.MouseId,p1.MouseId]);
     string nesText=File.ReadAllText(RetroArchSetup.ProfilePath(nesGame,root));
     Check(nesText.Contains("input_libretro_device_p2 = \"258\"") && nesText.Contains("input_player2_mouse_index = \"1\"") && nesText.Contains("deadeye_player2_physical = \"1\""),"NES Zapper uses original hardware port 2 while the gun and legend remain physical P1");
+    var collidingRa=raGame with {Id="shared-keyboards"};
+    var sameKeys=GunSystems.DefaultMap(1,"xgunner");
+    var sharedGuns=new[]{new GunBinding(1,"xg-mouse","xg-keyboard",SystemId:"xgunner",ButtonMap:sameKeys),new GunBinding(2,"other-mouse","other-keyboard",SystemId:"xgunner",ButtonMap:sameKeys)};
+    RetroArchSetup.Configure(collidingRa,root,sharedGuns,sharedGuns.Select(b=>b.MouseId).ToArray());
+    Check(GameControlAudit.Read(collidingRa,root,sharedGuns).Players.All(p=>p.Status=="needs-action" && p.Issues.Any(i=>i.Contains("RetroArch"))),"RetroArch shared keyboard keys cannot be reported as isolated two-player controls");
+    RetroArchSetup.Configure(collidingRa,root,[p1,p2],[p1.MouseId,p2.MouseId]);
+    Check(!GameControlAudit.Read(collidingRa,root,[p1,p2]).Players.SelectMany(p=>p.Issues).Any(i=>i.Contains("RetroArch")),"Distinct RS3 keyboard codes remain independently assigned in RetroArch");
+    RetroArchSetup.Configure(collidingRa,root,[sharedGuns[0]],sharedGuns.Select(b=>b.MouseId).ToArray());
+    Check(!GameControlAudit.Read(collidingRa,root,[sharedGuns[0]]).Players.SelectMany(p=>p.Issues).Any(i=>i.Contains("RetroArch")),"A single active RetroArch gun has no cross-player keyboard collision");
     var fixedEstate=raGame with {Title="Blue Estate",WorkingDirectory=raRoot};File.WriteAllText(Path.Combine(raRoot,"BlueEstate_Fix.dll"),"installed fixture");
     Check(GameGunProfiles.Vyper(fixedEstate,vyper).PedalMode=="right" && GameGunProfiles.Vyper(raGame,vyper).PedalMode=="assignable" && vyper.Blamcon!.PedalMode=="assignable","Fixed-mouse Blue Estate temporarily routes Vyper magazine to right mouse while preserving the saved menu configuration");
     Check(StartupControls.Hardware(GameGunProfiles.ForGame(fixedEstate,vyper)).Single(h=>h.Id=="magazine").Token=="mouse:2" && StartupControls.Hardware(vyper).Single(h=>h.Id=="magazine").Token=="key:82","Fixed-mouse game legends reflect the temporary magazine route without changing stored physical controls");
@@ -565,6 +575,20 @@ RButton::y
     var mixedReload=extraButtons.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Start/Reload").Element("RawInputButton")!;
     Check(mixedReload.Element("DevicePath")?.Value==mixedV.KeyboardId && mixedReload.Element("KeyboardKey")?.Value=="R","TeknoParrot's actual XML maps the P2 Vyper magazine to its own keyboard, with XGunner on P1");
     Check(TeknoGunSetup.Configure(repair,[mixedX,mixedV])==0,"Mixed model title profiles remain idempotent on repeated setup");
+    TeknoGunSetup.Configure(repair,[mixedV with {Player=1}]);
+    var singleTp=XDocument.Load(repairProfile);
+    Check(singleTp.Descendants("JoystickButtons").Where(r=>r.Element("ButtonName")?.Value.StartsWith("Player 2 ")==true).All(r=>string.IsNullOrWhiteSpace(r.Element("RawInputButton")?.Element("DevicePath")?.Value)),"Moving the former P2 gun to P1 clears inactive TeknoParrot P2 input instead of controlling both players");
+    Check(TeknoGunSetup.Configure(repair,[mixedV with {Player=1}])==0 && singleTp.Descendants("JoystickButtons").Any(r=>r.Element("ButtonName")?.Value=="Player 1 Start" && r.Element("RawInputButton")?.Element("DevicePath")?.Value==mixedV.KeyboardId),"Removing P2 preserves the active P1 route and remains idempotent");
+    TeknoGunSetup.Configure(repair,[mixedX,mixedV]);
+    Check(XDocument.Load(repairProfile).Descendants("JoystickButtons").Any(r=>r.Element("ButtonName")?.Value=="Player 2 Change" && r.Element("RawInputButton")?.Element("DevicePath")?.Value==mixedV.KeyboardId && r.Element("RawInputButton")?.Element("KeyboardKey")?.Value=="Down"),"Reassigning P2 routes Vyper weapon change to its learned D-pad Down when the selector controls recoil");
+    var noStart=mixedX with {ButtonMap=new(GunSystems.DefaultMap(mixedX.DevicePlayer,"xgunner")){["key:49"]="none",["key:13"]="none"}};
+    TeknoGunSetup.Configure(repair,[noStart,mixedV]);
+    Check(XDocument.Load(repairProfile).Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 1 Start").Element("RawInputButton")?.Element("DevicePath")?.Value=="","Removing a Studio action clears its old game route instead of silently retaining it");
+    string soloProfile=Path.Combine(tp,"UserProfiles","solo.xml");
+    File.WriteAllText(soloProfile,"<GameProfile><ConfigValues><FieldInformation><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Start</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Trigger</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");
+    var soloGame=repair with {SourcePath=soloProfile};
+    TeknoGunSetup.Configure(soloGame,[mixedX]);TeknoGunSetup.Configure(soloGame,[mixedV]);
+    Check(GameControlAudit.Read(soloGame,root,[mixedV]).Players.Single().Issues.Any(i=>i.Contains("P1")),"A P1-only game with a sole P2 gun explicitly asks for P1 assignment instead of keeping stale vendor routes");
     string alienProfile=Path.Combine(tp,"UserProfiles","AliensExtermination.xml");
     File.WriteAllText(alienProfile,"<GameProfile><EmulationProfile>AliensExtermination</EmulationProfile><ConfigValues><FieldInformation><CategoryName>General</CategoryName><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>Windowed</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>CustomResolution</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionWidth</FieldName><FieldValue>1920</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionHeight</FieldName><FieldValue>1080</FieldValue></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 2 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Special</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");
     var aliens=repair with {SourcePath=alienProfile};

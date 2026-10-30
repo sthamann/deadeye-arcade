@@ -121,7 +121,10 @@ available. Shortcuts implemented inside the gun's own firmware still apply.
 The D-pad or stick moves focus through games and menus; holding a direction keeps
 moving and scrolls the focused item into view. Aim and trigger also work with the
 fixed scrolling buttons. Selecting a cover returns to the featured game and its
-launch button. Menu hints use the selected gun's saved physical controls.
+launch button. The system filter opens large buttons that work with gun aiming,
+trigger selection and directional navigation. Menu hints use the selected gun's
+saved physical controls. Keyboard navigation follows local and Remote Desktop
+mode changes without restarting the frontend.
 
 ### RS3 Reaper Pro
 
@@ -226,11 +229,16 @@ profile supplies the startup controls reference.
 | Integration | How player controls are applied |
 | --- | --- |
 | **MAME** | Separate gun mice and raw keyboards for P1/P2. Identical Start/Coin key codes from mixed families keep their own player channels. Supported action routes include the Vyper's separate A/B actions. |
-| **TeknoParrot RawInput** | Writes assigned device paths and supported mouse/key actions into the selected profile. Named title actions such as weapon change and pedals follow their reviewed routes. |
+| **TeknoParrot RawInput** | Writes assigned device paths and supported mouse/key actions into the selected profile. Named title actions such as weapon change and pedals follow their reviewed routes. Inactive players and removed actions lose their old input routes. Vyper weapon change uses learned D-pad Down when its selector is reserved for recoil. |
 | **Dolphin / Wii** | Uses a matching disc-region accuracy profile and the gun's captured controls. Independent bridge channels carry each player's aim and buttons, including supported mixed pairs and fully captured Sinden controls. |
 | **Standalone RPCS3** | Prepares supported Raw Mouse / PS Move profiles with separate physical inputs and additional button channels. |
-| **RetroArch and Supermodel** | Generates supported device/action routes from the current assignment. A captured magazine reload takes priority over a retained pedal alias. |
+| **RetroArch and Supermodel** | Generates supported device/action routes from the current assignment. A captured magazine reload takes priority over a retained pedal alias. The controls check flags shared RetroArch keyboard codes rather than treating equal keys as isolated player inputs. |
 | **Recognized multiplayer plugins** | Prepares each installed integration's required device format. Blue Estate and HOTD 2: Remake fixed mouse layouts temporarily switch the Vyper magazine channel to right mouse, then restore its saved mode. |
+
+The bulk controls repair uses the same Dolphin model support and bridge policy
+as game launch, including Vyper, XGunner and supported mixed pairs. The report
+checks the written files and identifies remaining actions; it does not mark a
+game as physically tested.
 
 Fixed mouse layouts are not arbitrary remapping systems. The controls reference
 shows their required bindings, and patches must match the installed game build.

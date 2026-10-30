@@ -5,6 +5,7 @@ namespace Reaper.Core;
 public static class DolphinSetup
 {
     public static bool Supports(GunBinding binding) => binding.SystemId is "rs3" or "xgunner" or "blamcon" || binding.SystemId=="sinden" && StartupControls.GameHardware(binding).Where(h=>h.Id!="stick").All(h=>h.Token is not null);
+    public static bool RequiresBridge(IEnumerable<GunBinding> bindings) => bindings.Count(Supports)>1 || bindings.Any(b=>b.SystemId is "xgunner" or "blamcon" or "sinden");
     public static bool IsDolphin(GameEntry game) => Path.GetFileName(game.Executable).Equals("Dolphin.exe",StringComparison.OrdinalIgnoreCase);
     public static string UserDirectory(GameEntry game)
     {
