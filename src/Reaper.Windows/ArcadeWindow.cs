@@ -292,6 +292,7 @@ public sealed class ArcadeWindow : Window
     { if (ready && web.CoreWebView2 is not null) web.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new { type, payload }, JsonDefaults.Options)); }
     private void SendState()
     {
+        if (closing || !ready) return;
         if (web.CoreWebView2 is not null && Directory.Exists(@"C:\Lightgun\Media"))
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("collection.reaper.local", @"C:\Lightgun\Media", CoreWebView2HostResourceAccessKind.DenyCors);
         foreach (var binding in state.Bindings.Where(b => !raw.Devices.Any(d => string.Equals(d.Id, b.KeyboardId, StringComparison.OrdinalIgnoreCase))))
@@ -602,18 +603,37 @@ public sealed class ArcadeWindow : Window
                     Log("gun setup: " + error.Message);
                 }
             }
+            // Menu navigation needs mouse output even before the first game is launched.
+            // Keep the user's calibration, IR layout, button map and feedback settings intact.
+            foreach (var gun in guns.Where(g => g.SystemId == "blamcon" && g.DriverHealthy && g.Port is not null))
+            {
+                if (closing) return;
+                try {
+                    var binding=state.Bindings.FirstOrDefault(b=>GunAssignments.Matches(b,gun));
+                    bool incomplete=binding is null || new[]{"start","select","up","down","left","right"}.Any(id=>binding.ControlMap?.ContainsKey(id)!=true);
+                    var snapshot=await BlamconSerial.ReadConfiguration(gun,incomplete);
+                    int slot=binding?.Player ?? Enumerable.Range(1,2).FirstOrDefault(p=>!state.Bindings.Any(b=>b.Player==p));
+                    var profile=GunAssignments.Profile(state,gun,slot==0?1:slot);
+                    profile=snapshot.Apply(profile) with {SoftwareConfigured=true};
+                    state=GunAssignments.Remember(state,profile);
+                    if(binding is not null)state.Bindings[state.Bindings.IndexOf(binding)]=profile;
+                    else if(slot!=0&&!state.Settings.ManualGunAssignments)state.Bindings.Add(profile);
+                    Log("Vyper settings read back: "+gun.Port+" firmware="+snapshot.Firmware+" controls="+profile.ControlMap?.Count);
+                }
+                catch (Exception error) { gunIssues[gun.Id] = error.Message; Log("Vyper menu setup: " + error); }
+            }
             await PrepareGunSoftware();
             foreach (var gun in guns.Where(g => g.SystemId != "rs3" && g.DriverHealthy && g.MouseId is not null))
             {
                 var existing = state.Bindings.FirstOrDefault(b => GunAssignments.Matches(b, gun));
                 if (existing is not null)
                 {
-                    state.Bindings[state.Bindings.IndexOf(existing)] = GunAssignments.Profile(state, gun, existing.Player);
+                    state.Bindings[state.Bindings.IndexOf(existing)] = GunAssignments.Profile(state, gun, existing.Player) with {SoftwareConfigured=!gunIssues.ContainsKey(gun.Id) && existing.SoftwareConfigured};
                     continue;
                 }
                 if (state.Settings.ManualGunAssignments) continue;
                 int player = Enumerable.Range(1, 2).FirstOrDefault(p => !state.Bindings.Any(b => b.Player == p));
-                if (player != 0) state.Bindings.Add(GunAssignments.Profile(state, gun, player));
+                if (player != 0) state.Bindings.Add(GunAssignments.Profile(state, gun, player) with {SoftwareConfigured=!gunIssues.ContainsKey(gun.Id) && GunAssignments.Profile(state,gun,player).SoftwareConfigured});
             }
             if (!closing) { store.Save(state); SendState(); }
         }
@@ -881,6 +901,19 @@ public sealed class ArcadeWindow : Window
                     state.Bindings[i] = b with { Feedback = feedback, SoftwareConfigured = true }; Persist();
                     Send("notice", new { message = I18n.T("Mausmodus, Bildformat und Offscreen-Reload angefordert. Feedback-Auswahl für die Testimpulse gespeichert; die DIP-Schalter an der Gun bleiben maßgeblich.") }); break;
                 }
+            case "blamcon-mouse-mode":
+                {
+                    var selected = state.Bindings.First(b => b.Player == Player() && b.SystemId == "blamcon");
+                    var gun = guns.First(g => GunAssignments.Matches(selected, g));
+                    busy = true;
+                    try
+                    {
+                        await BlamconSerial.Send(gun, BlamconSetup.MouseMode());
+                        Send("notice", new { message = I18n.T("Maus/Tastatur-Modus angefordert. Wenn der Zeiger stillsteht, in ARC die IR-Anordnung und alle vier Kamerapunkte prüfen.") });
+                    }
+                    finally { busy = false; SendState(); }
+                    break;
+                }
             case "set-blamcon":
                 {
                     var selected = state.Bindings.First(b => b.Player == Player() && b.SystemId == "blamcon");
@@ -891,7 +924,8 @@ public sealed class ArcadeWindow : Window
                     try
                     {
                         await BlamconSerial.Send(gun, commands);
-                        state.Bindings[state.Bindings.IndexOf(selected)] = selected with { Blamcon = options, SoftwareConfigured = true };
+                        var snapshot=await BlamconSerial.ReadConfiguration(gun);
+                        state.Bindings[state.Bindings.IndexOf(selected)] = snapshot.Apply(selected) with { SoftwareConfigured = true };
                         Persist(); Send("notice", new { message = I18n.T("Vyper-Einstellungen gesendet. Tasten und Zielgenauigkeit am Bildschirm prüfen.") });
                     }
                     finally { busy = false; SendState(); }

@@ -41,6 +41,22 @@ Check(vyper.ButtonMap!.GetValueOrDefault("key:53")=="coin" && StartupControls.Ga
     "Capturing Vyper Select feeds both menu Coin and the independent emergency exit");
 Check(StartupControls.GameHardware(vyper).Single(h=>h.Id=="reload").Token=="key:82" && StartupControls.GameHardware(vyper).Single(h=>h.Id=="magazine").Token=="mouse:2" && StartupControls.GameHardware(vyper).First(h=>h.Id=="side").Token=="mouse:3",
     "Vyper A, B and the configured magazine channel feed separate canonical game controls");
+Check(BlamconSetup.MouseMode().SequenceEqual(new[]{"CM.0.0","ES"}) && BlamconSetup.MouseMode().All(BlamconSetup.ValidCommand),"Vyper cursor recovery requests only mouse mode and serial-mode exit, preserving calibration and feedback");
+var deviceValues = new Dictionary<int,int>{{0,1},{1,1},{2,0},{3,0},{4,2},{5,0},{6,0},{10,0},{11,1},{20,0},{21,1},{22,2},{23,30},{24,8},{25,4},{26,44},{27,45},{28,46},{29,47},{30,30}};
+var readVyper=new BlamconDeviceSettings(0x20100,deviceValues).Apply(new(2,"read-mouse","read-keys",SystemId:"blamcon",HardwarePlayer:1));
+Check(readVyper.ControlMap!.GetValueOrDefault("start")=="key:49"&&readVyper.ControlMap.GetValueOrDefault("select")=="key:53"&&readVyper.ButtonMap!.GetValueOrDefault("key:38")=="up"&&readVyper.Blamcon!.RecoilMode=="auto","USB settings fill real Vyper Start, Select, directions and feedback while preserving hardware P1 in game slot P2");
+Check(BlamconDeviceSettings.Commands(BlamconSetup.Configure(new(CalibrationProfile:4))).Contains("ZY.2.3.0")&&BlamconDeviceSettings.Commands(BlamconSetup.Pulse("recoil")).SequenceEqual(new[]{"F.0.1.1"}),"Firmware 2.x uses settings addresses and bounded feedback pulses instead of legacy control commands");
+var preservedVyper=readVyper with {ButtonMap=new(readVyper.ButtonMap!){["key:49"]="none"}};
+Check(new BlamconDeviceSettings(0x20100,deviceValues).Apply(preservedVyper).ButtonMap!["key:49"]=="none","Reading unchanged Vyper hardware settings preserves a custom game action");
+var changedStart=new Dictionary<int,int>(deviceValues){[25]=5};
+Check(new BlamconDeviceSettings(0x20100,changedStart).Apply(preservedVyper).ButtonMap!["key:50"]=="none","A changed device Start key carries the user's custom game action to the new physical signal");
+Check(StartupControls.GameHardware(readVyper).Single(h=>h.Id=="reload").Token=="key:82"&&StartupControls.GameHardware(readVyper).Single(h=>h.Id=="magazine").Token=="mouse:2","The independently configured Vyper magazine and A button reach separate game functions");
+bool rejectedGamepad=false;try{new BlamconDeviceSettings(0x20100,new Dictionary<int,int>(deviceValues){[3]=1}).Apply(readVyper);}catch(InvalidDataException){rejectedGamepad=true;}
+Check(rejectedGamepad&&BlamconDeviceSettings.Token(48)==null,"Gamepad mappings and shifted key combinations cannot silently become incorrect mouse-mode mappings");
+await using(var readBridge=new DolphinGunBridge([readVyper])){
+ readBridge.Key("read-keys",49,true);readBridge.Key("read-keys",53,true);readBridge.Key("read-keys",82,true);
+ var frame=readBridge.Frame(2);Check((frame[36]&9)==9&&frame[49]==255,"Device-read Vyper keys reach the actual P2 Dolphin frame");
+}
 var vyperCommands=BlamconSetup.Configure(new(Aspect:"4:3",CalibrationProfile:4,RecoilMode:"off"));
 Check(vyperCommands.Contains("CM.3.1") && vyperCommands.Contains("CM.12.3") && vyperCommands.Contains("CM.8.0") && vyperCommands.All(BlamconSetup.ValidCommand),
     "Vyper configuration uses documented aspect, recoil and existing calibration profile commands");

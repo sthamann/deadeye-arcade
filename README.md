@@ -179,14 +179,22 @@ launch button. Menu hints use the selected gun's saved physical controls.
 
 ### Blamcon Vyper
 
+- **Pointer setup:** detection restores Mouse/Keyboard mode before the first game.
+  **Restore mouse pointer** repeats this without changing calibration or feedback.
+  With four RS3 emitters at the screen edges, select **Crosshair** under ARC
+  Tracking, check all four points in Live View, then calibrate. Buttons responding
+  alone do not confirm working camera tracking.
 - **Default actions:** trigger shoots, **magazine pull reloads**, A is the second
   action and B is the third action. The magazine microswitch uses the FOOT channel,
   defaulting to keyboard R in assignable mode. An optional pedal shares this
   channel; identical signals cannot be distinguished as separate controls.
-- **Capture:** learn Start, Select and the stick directions once, plus changed
-  magazine or auxiliary selector signals. Captured controls feed menu navigation,
-  the emergency chord and supported game profiles. The two-stage mechanical
-  trigger has one electrical shoot input.
+- **Automatic button setup:** supported firmware 2.x supplies its actual saved
+  Start, Select, directions, trigger, A/B and magazine keys over USB. Deadeye
+  selects Mouse/Keyboard mode and an independent magazine channel, reads the
+  result back, then uses it for menu navigation, the emergency chord and game
+  profiles. Custom action assignments are retained. Gun Studio capture remains
+  available for unsupported key combinations. The two-stage mechanical trigger
+  has one electrical shoot input.
 - **Native settings:** mouse/keyboard mode, 16:9/4:3, offscreen-reload behavior,
   off/semi/automatic recoil, magazine/pedal mode and one of four existing
   calibration profiles. Per-game settings restore the saved menu settings on exit.

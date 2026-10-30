@@ -8,7 +8,7 @@ export function BlamconPanel({binding,player,connected,busy,remote,send}:{bindin
  useEffect(()=>setOptions(binding?.blamcon??defaults),[binding?.physicalId,binding?.blamcon]);
  const fields:[keyof BlamconSettings,string,[string,string][]][]=[
   ['aspect','Bildformat',[['16:9','Vollbild / 16:9'],['4:3','4:3']]],
-  ['recoilMode','Rückstoßmodus',[['off','Aus'],['semi','Einzelschuss'],['auto','Dauerfeuer']]],
+  ['recoilMode','Rückstoßmodus',[['off','Aus'],['semi','Einzelschuss'],['auto','Dauerfeuer'],['burst','Drei-Schuss-Modus']]],
   ['reloadMode','Offscreen-Reload',[['off','Aus'],['move','Außerhalb zielen'],['shoot','Außerhalb schießen']]],
   ['pedalMode','Magazin und Pedal',[['assignable','Eigene Taste'],['right','Wie Taste A'],['middle','Wie Taste B']]],
   ['calibrationProfile','Kalibrierungsprofil',[['1','1'],['2','2'],['3','3'],['4','4']]],
@@ -16,9 +16,11 @@ export function BlamconPanel({binding,player,connected,busy,remote,send}:{bindin
  return <section className="blamcon-panel">
   <h2>{t('Vyper konfigurieren')}</h2>
   <p>{t('Die Vyper speichert Tracking und Kalibrierung in der Gun. USB versorgt die Steuerung; der Rückstoß benötigt zusätzlich die 12-V-Stromversorgung.')}</p>
+  <div className="feedback-tests"><button className="secondary" disabled={busy||!connected} onClick={()=>send('blamcon-mouse-mode',{player})}>{t('Zeiger wieder aktivieren')}</button></div>
+  <p>{t('Tasten funktionieren, aber der Zeiger bleibt stehen? Zuerst Maus/Tastatur aktivieren. Bei RS3-Punkten an den vier Bildschirmkanten in ARC Tracking die IR-Anordnung Crosshair wählen. In Live View müssen vier Punkte sichtbar sein; danach kalibrieren.')}</p>
   <div className="blamcon-options">{fields.map(([key,label,choices])=><fieldset key={key}><legend>{t(label)}</legend><div>{choices.map(([value,title])=><button className={String(options[key])===value?'primary':'secondary'} aria-pressed={String(options[key])===value} disabled={busy||!connected} key={value} onClick={()=>setOptions({...options,[key]:key==='calibrationProfile'?+value:value})}>{t(title)}</button>)}</div></fieldset>)}</div>
   <button className="primary" disabled={busy||!connected} onClick={()=>send('set-blamcon',{player,options})}>{t('Einstellungen an Vyper senden')}</button>
-  <p>{t('Wählt Maus/Tastatur und ein vorhandenes Kalibrierungsprofil. Danach Start, Select und Steuerkreuz einmal mit Capture erfassen. Magazin und Pedal können denselben Eingang teilen; geänderte ARC-Belegungen ebenfalls erfassen.')}</p>
+  <p>{t('Firmware 2.x liefert Start, Select, Steuerkreuz und die gespeicherten Tasten automatisch über USB. Bei der Ersteinrichtung erhält das Magazin einen eigenen Nachladekanal. Magazin und ein optionales Pedal teilen denselben Eingang. Capture bleibt für Sonderbelegungen verfügbar.')}</p>
   <div className="feedback-tests">{[['recoil',t('Rückstoß testen')],['rumble',t('Vibration testen')]].map(([effect,title])=><button className="secondary" key={effect} disabled={busy||!connected||remote} onClick={()=>send('test-blamcon-feedback',{player,effect})}>{title}</button>)}</div>
   <p>{t('Die Tests senden genau einen Impuls und stellen danach das automatische Feedback wieder her. Spielefeedback aus Munition oder Treffern benötigt ein passendes Output-Profil.')}</p>
   <button className="secondary" disabled={busy} onClick={()=>send('setup-gun',{system:'blamcon'})}>{t('Blamcon ARC installieren / öffnen')}</button>
