@@ -94,6 +94,15 @@ public static class StartupControls
     {
         string? expression=row.Expression;
         if(string.IsNullOrWhiteSpace(expression)) return new(row.Function,row.Input,[],false);
+        if(row.Evidence=="RetroArch-Konfiguration" && expression.Contains(" OR "))
+        {
+            const string atom=@"P([12])\|(mouse:[1-5]|key:[0-9]+)";
+            if(!Regex.IsMatch(expression,"^"+atom+"(?: OR "+atom+")*$"))return new(row.Function,row.Input,[],false);
+            var inputs=Regex.Matches(expression,atom);
+            if(inputs.Any(m=>int.Parse(m.Groups[1].Value)!=binding.Player))return new(row.Function,row.Input,[],false);
+            var alternatives=Hardware(binding).Where(h=>h.Token is not null && inputs.Any(m=>m.Groups[2].Value==h.Token)).ToArray();
+            return new(row.Function,alternatives.Length>0?string.Join(" / ",alternatives.Select(h=>h.Label).Distinct()):row.Input,alternatives.Select(h=>h.Id).Distinct().ToArray(),alternatives.Length>0);
+        }
         var scoped=Regex.Match(expression,@"^P([12])\|(.+)$");
         if(scoped.Success) {
             if(int.Parse(scoped.Groups[1].Value)!=binding.Player) return new(row.Function,row.Input,[],false);

@@ -98,7 +98,9 @@ release events through the production input bridge and decode its actual output
 frames, including combined and negated actions. Other supported profiles use
 expression simulation, labeled `profile-routed`; their consumer transition
 results remain unset. Unknown syntax, missing captures, shared keyboard
-collisions and incomplete required-action lists stay open. Simulation never
+collisions, conflicting special actions and incomplete required-action lists stay open.
+RetroArch keeps alternative bindings for each action and reports offscreen
+shooting separately from reload. Simulation never
 marks a game's reaction, physical tracking or feedback as verified.
 
 Use `--test-library --resume` to keep successful results whose app version,

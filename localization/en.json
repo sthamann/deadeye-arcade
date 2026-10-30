@@ -977,5 +977,6 @@
   "Time Crisis 5 benötigt getrennte Tasten für Münze, Pedale, Waffenwechsel und Fadenkreuz.": "Time Crisis 5 needs distinct controls for credits, pedals, weapon change and crosshair.",
   "Time Crisis 5 benötigt eine Gun auf P1.": "Time Crisis 5 needs a gun assigned to P1.",
   "Benötigter Eingang fehlt im Spielprofil: ": "Required input is missing from the game profile: ",
-  "Spielaktion ohne geprüfte Spielerzuordnung: ": "Game action without verified player ownership: "
+  "Spielaktion ohne geprüfte Spielerzuordnung: ": "Game action without verified player ownership: ",
+  "Mehrere Spielaktionen verwenden dieselbe Gun-Taste: ": "Different game actions share one gun input: "
 }

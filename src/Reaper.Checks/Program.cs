@@ -749,6 +749,10 @@ RButton::y
     var movedReplayGun=replayPair[0] with{MouseId="replacement-mouse",KeyboardId="replacement-keyboard"};
     TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},[movedReplayGun,replayPair[1]]);
     Check(XDocument.Load(matrixPath).Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 1 Footpedal").Element("RawInputButton")?.Element("DevicePath")?.Value==movedReplayGun.MouseId,"A Deadeye-managed pedal follows a replacement gun while explicit external pedal assignments remain preserved");
+    matrixTemplate.Save(matrixPath);var unsupportedKey=GunSystems.LearnControl(MatrixGun("rs3",1),"trigger","key:112");
+    TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},[unsupportedKey,replayPair[1]]);
+    Check(!XDocument.Load(matrixPath).Descendants("RawInputButton").Any(r=>!r.HasElements),"An unsupported captured key cannot leave a stray empty RawInput element while other controls are configured");
+    Check(GameControlAudit.ExtraInputConflicts([new(1,"Player 1 Sub Trigger","","","P1|mouse:3",SourceKey:"P1Button3"),new(1,"Player 1 Option","","","P1|mouse:3",SourceKey:"P1Button4")]).Length==1 && GameControlAudit.ExtraInputConflicts([new(1,"Player 1 Sub Trigger","","","P1|mouse:3",SourceKey:"P1Button3"),new(1,"Player 1 Option","","","P1|mouse:3",SourceKey:"P1Button3")]).Length==0,"Distinct extra game actions sharing one input are surfaced while duplicate labels for the same native action remain aliases");
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
@@ -978,6 +982,11 @@ RButton::y
     File.WriteAllText(raConfig, "input_player1_gun_start = \"enter\"\ninput_player2_b = \"v\"\n"); File.WriteAllText(raExtra, "input_player1_gun_start = \"1\"\n");
     var raControls = OverlayControls.Read(scarlet with { Source="pc", Executable=ra, Arguments=["--config",raConfig,"--appendconfig",raExtra] }, root, []);
     Check(raControls.Rows.Any(r => r.Player == 1 && r.Function == "Start" && r.Input == "Taste 1") && raControls.Rows.Any(r => r.Player == 2 && r.Function == "B" && r.Input == "Taste v"), "RetroArch appended config overrides the base mapping and preserves P2 B");
+    File.AppendAllText(raExtra,"input_player1_gun_reload = \"z\"\ninput_player1_gun_reload_mbtn = \"2\"\ninput_player1_gun_offscreen_shot = \"r\"\n");
+    var alternativeControls=OverlayControls.Read(scarlet with{Source="pc",Executable=ra,Arguments=["--config",raConfig,"--appendconfig",raExtra]},root,[]);
+    var reloadAlternatives=alternativeControls.Rows.Single(r=>r.SourceKey=="gun_reload");
+    Check(reloadAlternatives.Expression=="P1|key:90 OR P1|mouse:2" && alternativeControls.Rows.Single(r=>r.SourceKey=="gun_offscreen_shot").Expression=="P1|key:82","RetroArch preserves every alternative input for one action and keeps offscreen shooting distinct from reload");
+    Check(StartupControls.Resolve(reloadAlternatives,MatrixGun("rs3",1)).Resolved && (await ControlSimulation.Replay([reloadAlternatives],[MatrixGun("rs3",1)])).Single().Status=="profile-routed","A usable mouse alternative remains reachable when the configured keyboard alternative is absent from the gun");
     string mameExe=Path.Combine(root,"mame-contract.exe"),mameCfg=Path.Combine(root,"mame-contract-cfg");File.WriteAllText(mameExe,"");Directory.CreateDirectory(mameCfg);
     var mameContract=scarlet with{Id="mame-contract",Source="mame",Executable=mameExe,WorkingDirectory=root,Arguments=["gunbuletj"]};
     var mameBinary=new FileInfo(mameExe);

@@ -91,9 +91,9 @@ public static class TeknoGunSetup
             bool keyboard=token?.StartsWith("key:")==true;
             string? device=keyboard?player.KeyboardId:player.MouseId;
             if(string.IsNullOrWhiteSpace(device)){if(aim||action is not null||extra)Clear(row);continue;}
-            var input=row.Element("RawInputButton"); if(input is null){input=new XElement("RawInputButton");row.Add(input);}
             string mouse=aim||keyboard?"None":token switch {"mouse:1"=>"LeftButton","mouse:2"=>"RightButton","mouse:3"=>"MiddleButton","mouse:4"=>"Button4","mouse:5"=>"Button5",_=>"None"};
-            string key=keyboard?KeyName(int.Parse(token![4..])):"None";if(key=="None"&&keyboard)continue;
+            string key=keyboard?KeyName(int.Parse(token![4..])):"None";if(key=="None"&&keyboard){Clear(row);continue;}
+            var input=row.Element("RawInputButton"); if(input is null){input=new XElement("RawInputButton");row.Add(input);}
             Set(input,"DevicePath",device);Set(input,"DeviceType",keyboard?"Keyboard":"Mouse");Set(input,"MouseButton",mouse);Set(input,"KeyboardKey",key);
             Set(row,"BindNameRi",$"Reaper P{player.Player} · {(aim?"Aim":keyboard?key:mouse)}");Set(row,"BindName",row.Element("BindNameRi")!.Value);
         }

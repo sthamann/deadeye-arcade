@@ -128,11 +128,12 @@ public static class OverlayControls
                     int player = int.TryParse(values.GetValueOrDefault("deadeye_player" + port + "_physical"), out int physical) ? physical : port;
                     if(player is not (1 or 2)) continue;
                     string? token = match.Groups[3].Value switch { "" => StartupControls.KeyToken(pair.Value), "mbtn" when Regex.IsMatch(pair.Value, "^[1-5]$") => "mouse:" + pair.Value, _ => null };
-                    rows.Add(new(player, label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration",token is null ? null : "P" + player + "|" + token));
+                    rows.Add(new(player, label, pair.Value == "nul" || pair.Value == "-1" ? I18n.T("Nicht belegt") : input + pair.Value, "RetroArch-Konfiguration",token is null ? null : "P" + player + "|" + token,SourceKey:match.Groups[2].Value));
                 }
-                var compact=rows.GroupBy(r=>(r.Player,r.Function)).Select(group=> {
+                var compact=rows.GroupBy(r=>(r.Player,r.Function,r.SourceKey)).Select(group=> {
                     var assigned=group.Where(r=>r.Input!=I18n.T("Nicht belegt")).Select(r=>r.Input).Distinct().ToArray();
-                    return group.First() with {Input=assigned.Length==0?I18n.T("Nicht belegt"):string.Join(" / ",assigned),Expression=group.Select(r=>r.Expression).FirstOrDefault(e=>e is not null)};
+                    string[] alternatives=group.Select(r=>r.Expression).Where(e=>e is not null).Select(e=>e!).Distinct().ToArray();
+                    return group.First() with {Input=assigned.Length==0?I18n.T("Nicht belegt"):string.Join(" / ",assigned),Expression=alternatives.Length==0?null:string.Join(" OR ",alternatives)};
                 }).ToArray();
                 return new(compact, I18n.T("RetroArch-Konfiguration mit expliziten Zusatzdateien. Core-/Content-Overrides und Remaps sind nicht bestätigt."));
             }

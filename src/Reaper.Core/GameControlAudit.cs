@@ -71,6 +71,9 @@ public static class GameControlAudit
             {
                 var rows = controls.Rows.Where(r=>r.Player==gun.Player && GameplayAction(r.Function)).ToArray();
                 if(tekno is not null)
+                    foreach(var conflict in ExtraInputConflicts(rows))
+                    {missing=true;issues.Add(I18n.T("Mehrere Spielaktionen verwenden dieselbe Gun-Taste: ")+conflict);}
+                if(tekno is not null)
                     foreach(var requiredRow in tekno.Rows.Where(r=>r.Player==gun.Player))
                         if(tekno.Match(requiredRow,rows) is null)
                         {missing=true;issues.Add(I18n.T("Benötigter Eingang fehlt im Spielprofil: ")+requiredRow.Function);}
@@ -123,6 +126,14 @@ public static class GameControlAudit
         }
         string state=players.Count==0?"needs-action":players.Any(p=>p.Status=="needs-action")?"needs-action":players.Any(p=>p.Status=="needs-review")?"needs-review":"mapping-checked";
         return new(game.Id,game.Title,dolphin?"Dolphin":game.Source,state,players.ToArray(),controls.Note,requiredActionsChecked);
+    }
+    public static string[] ExtraInputConflicts(IEnumerable<ControlRow> rows)
+    {
+        static bool Extra(ControlRow r)=>System.Text.RegularExpressions.Regex.Replace(System.Text.RegularExpressions.Regex.Replace(r.Function,@"^(?:Player [12] |P[12] )",""),@" P[12]$","")
+            is "Option" or "Sub Trigger" or "Option L" or "Footpedal" or "Foot Pedal" or "Pedal" or "Hyperenergy Tech Lever Forward (Attack)";
+        return rows.Where(r=>Extra(r) && !string.IsNullOrWhiteSpace(r.Expression)).GroupBy(r=>(r.Player,r.Expression))
+            .Where(g=>g.Select(r=>r.SourceKey).Where(k=>!string.IsNullOrEmpty(k)).Distinct().Count()>1 && g.Select(r=>r.Function).Distinct().Count()>1)
+            .Select(g=>string.Join(" / ",g.Select(r=>r.Function).Distinct())).ToArray();
     }
     public static ControlAuditReport Save(IEnumerable<GameEntry> games,string data,IEnumerable<GunBinding> bindings,IEnumerable<InputDevice>? devices=null,bool merge=false)
     {
