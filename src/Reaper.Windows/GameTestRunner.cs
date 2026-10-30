@@ -39,36 +39,49 @@ internal static class GameTestRunner
         Task run;
         try { run = session.Run(game, data, state.Bindings, cancellation.Token); }
         catch (Exception e) { run = Task.FromException(e); }
-        bool cancelled = false;
+        bool cancelled = false;long? focusedSince=null;
         while (!observation.Finished)
         {
             if (stop.WaitOne(0)) { cancelled = true; break; }
             observation.Update(elapsed.ElapsedMilliseconds, session.GameWindowAvailable, run.IsCompleted);
+            if(session.GameWindowAvailable && session.HasGameForeground())focusedSince??=elapsed.ElapsedMilliseconds;
+            else focusedSince=null;
             if (!observation.Finished) await Task.Delay(100);
         }
-        bool foreground = session.HasGameForeground(), available = session.GameWindowAvailable;
+        bool available = session.GameWindowAvailable;
+        bool foreground = session.HasGameForeground();
+        double foregroundStableSeconds=focusedSince is {} since?(elapsed.ElapsedMilliseconds-since)/1000.0:0;
         var before = session.LiveProcesses(); var details = session.InspectProcesses();
         cancellation.Cancel();
         await session.End();
-        string? error = null;
+        string? error = null; GameTestFailure? failure = null;
         try { await run; }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
-        catch (Exception e) { error = e.Message; }
+        catch (Exception e) { error = e.Message; failure = GameTestFailure.From(e); }
         if (error is null && observation.State != "passed") error = cancelled ? "Test cancelled." : observation.State;
         var after = session.LiveProcesses();
+        var cleanupWait = Stopwatch.StartNew();
+        while(after.Length>0 && cleanupWait.Elapsed<TimeSpan.FromSeconds(3)) {await Task.Delay(100);after=session.LiveProcesses();}
+        if(error is null && (!foreground || foregroundStableSeconds<2)) {error="The game window did not retain foreground focus.";failure=new("foreground-missing",error,"",0,null);}
+        if(error is null && (after.Length>0 || session.CleanupIssues.Count>0)) {error="The game or its helpers did not close cleanly.";failure=new("cleanup-failed",error,"",0,null);}
         input.Refresh();
         var controls = OverlayControls.Read(game, data, state.Bindings, input.Devices);
         var audit = GameControlAudit.Read(game, data, state.Bindings, input.Devices);
         bool passed = !cancelled && error is null && available && foreground && after.Length == 0 && session.CleanupIssues.Count == 0;
+        string? version=System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion;
+        string? fingerprint=null;
+        try {fingerprint=GameTestFingerprint.Create(game,state.Bindings,data,version??"");}
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or System.Xml.XmlException or JsonException) { }
         string file = Path.Combine(data, "game-test-" + game.Id + ".json");
         string json = JsonSerializer.Serialize(new {
             schemaVersion = 2, time = DateTimeOffset.Now, game.Id, game.Title, seconds,
+            appVersion = version, configurationFingerprint = fingerprint, testedAssignments = state.Bindings,
             observedSeconds = observation.ObservedMilliseconds / 1000.0,
             totalSeconds = elapsed.Elapsed.TotalSeconds,
             startupSeconds = observation.FirstReadyAt / 1000.0,
             phase = observation.State, cancelled,
             exitedEarly = observation.State == "exited-early", windowObserved = observation.FirstReadyAt is not null,
-            gameWindowAvailable = available, foreground, error, processDetails = details,
+            gameWindowAvailable = available, foreground, foregroundStableSeconds, error, failure, processDetails = details,
             processesBeforeExit = before, processesAfterExit = after, ended = !session.Active && after.Length == 0,
             controls, controlAudit = audit, cleanupIssues = session.CleanupIssues,
             playerControls = state.Bindings.Select(binding => new { binding.Player, binding.SystemId, hints = StartupControls.ForPlayer(controls, binding) }),

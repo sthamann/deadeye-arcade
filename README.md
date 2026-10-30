@@ -82,7 +82,7 @@ control profiles for the selected P1/P2 guns.
 
 Launch results and control completeness are recorded separately. Required
 controls come from the installed MAME driver's input metadata, the selected
-TeknoParrot profile, reviewed Wii title requirements and the supported Time
+TeknoParrot vendor template, reviewed Wii title requirements and the supported Time
 Crisis 5 helper. Other systems stay marked for review until their complete
 required-action list is known. A generic button list never certifies a title's
 full controls. Software checks do not mark physical aim, recoil or cooperative
@@ -103,7 +103,16 @@ worker stop; a failed restore stops the batch for attention.
 MAME checks include global and per-game overrides, preserving their unrelated
 settings and backing up changed input files. Time Crisis 5's reviewed helper is
 adapted to the selected gun for credits, both pedals, weapon change and crosshair.
-Custom helpers are retained for review.
+Custom helpers are retained for review. TeknoParrot checks compare the active
+profile with the independent template shipped by the emulator, detect missing
+rows and stale action identifiers, and restore supported routes with backups.
+Aim routes are checked against the exact physical gun for each player. Unknown
+action ownership stays pending. Each game report records the app version and
+the exact tested gun assignments. Per-configuration results are retained under
+`%LOCALAPPDATA%\ReaperArcade\test-history`, so testing another gun pair does
+not erase previous evidence. Changing profiles, helpers or assignments
+invalidates a retained result. Equal keyboard codes shared by two RetroArch
+guns are reported as a player isolation problem.
 
 ## Supported lightguns
 

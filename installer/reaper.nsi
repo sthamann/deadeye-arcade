@@ -12,6 +12,12 @@ Unicode true
 !ifndef OUTPUT
 !error "OUTPUT is required"
 !endif
+!ifndef BOOTSTRAPPER
+!error "BOOTSTRAPPER is required"
+!endif
+!ifndef UNINSTALL_FILES
+!error "UNINSTALL_FILES is required"
+!endif
 Name "Deadeye Arcade"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\Deadeye Arcade"
@@ -37,6 +43,8 @@ VIAddVersionKey "LegalCopyright" "Copyright 2026 Stefan Hamann"
 !insertmacro MUI_LANGUAGE "German"
 LangString CloseApp ${LANG_ENGLISH} "Please close Deadeye Arcade before installing."
 LangString CloseApp ${LANG_GERMAN} "Bitte Deadeye Arcade vor der Installation schließen."
+LangString CloseTests ${LANG_ENGLISH} "Please stop the library test before installing."
+LangString CloseTests ${LANG_GERMAN} "Bitte den Bibliothekstest vor der Installation beenden."
 LangString RuntimeFailed ${LANG_ENGLISH} "WebView2 could not be installed. Check your Internet connection and run Setup again."
 LangString RuntimeFailed ${LANG_GERMAN} "WebView2 konnte nicht installiert werden. Internetverbindung prüfen und Setup erneut starten."
 Var Restart
@@ -48,6 +56,14 @@ Function .onInit
     Abort
   ${EndIf}
   !insertmacro MUI_LANGDLL_DISPLAY
+  System::Call 'kernel32::OpenMutexW(i 0x100000, i 0, w "Local\DeadeyeLibraryTests-v1") p.r0'
+  ${If} $0 != 0
+    System::Call 'kernel32::CloseHandle(p r0)'
+    IfSilent +2
+      MessageBox MB_OK "$(CloseTests)"
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
   ${GetParameters} $0
   ClearErrors
   ${GetOptions} $0 "/RESTART" $1
@@ -140,6 +156,14 @@ Section "Deadeye Arcade"
 SectionEnd
 Function un.onInit
   SetShellVarContext current
+  System::Call 'kernel32::OpenMutexW(i 0x100000, i 0, w "Local\DeadeyeLibraryTests-v1") p.r0'
+  ${If} $0 != 0
+    System::Call 'kernel32::CloseHandle(p r0)'
+    IfSilent +2
+      MessageBox MB_OK "$(CloseTests)"
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
   System::Call 'kernel32::OpenMutexW(i 0x100000, i 0, w "Local\ReaperArcade-v1") p.r0'
   ${If} $0 != 0
     System::Call 'kernel32::CloseHandle(p r0)'

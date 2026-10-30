@@ -57,7 +57,7 @@ public sealed class GameSession
     {
         get
         {
-            if (gameWindow == 0 || !IsWindowVisible(gameWindow) || !IsRenderWindow(gameWindow)) return false;
+            if (gameWindow == 0 || !IsWindowVisible(gameWindow) || IsIconic(gameWindow) || !IsRenderWindow(gameWindow)) return false;
             GetWindowThreadProcessId(gameWindow, out var id);
             return LiveProcesses().Contains((int)id);
         }
@@ -71,12 +71,20 @@ public sealed class GameSession
         }).Select(pair=>pair.Key).ToArray();
     }
     public object InspectProcesses() => new {
-        targetExecutable,
+        targetExecutable, gameWindow = gameWindow.ToInt64(), foregroundWindow = GetForegroundWindow().ToInt64(),
+        foregroundProcess = ForegroundProcess(),
         processes=LiveProcesses().Select(id=> {
             try {using var p=Process.GetProcessById(id);return new {id,p.ProcessName,path=p.MainModule?.FileName,window=p.MainWindowHandle.ToInt64(),p.MainWindowTitle};}
             catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",path=(string?)null,window=0L,MainWindowTitle=e.Message};}
         }).ToArray()
     };
+    private static object? ForegroundProcess()
+    {
+        GetWindowThreadProcessId(GetForegroundWindow(),out var id);
+        if(id==0)return null;
+        try {using var process=Process.GetProcessById((int)id);return new {id,process.ProcessName,process.MainWindowTitle};}
+        catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return new {id,ProcessName="",MainWindowTitle=e.Message};}
+    }
     private HashSet<int> JobProcesses()
     {
         var result=new HashSet<int>();
@@ -90,14 +98,8 @@ public sealed class GameSession
         } finally {Marshal.FreeHGlobal(buffer);}
         return result;
     }
-    public bool HasGameForeground()
-    {
-        if(!Active || overlayVisible || ending is not null) return false;
-        GetWindowThreadProcessId(GetForegroundWindow(),out var id);
-        DateTime start; lock(sync) if(!owned.TryGetValue((int)id,out start))return false;
-        try {using var process=Process.GetProcessById((int)id);return !process.HasExited && process.StartTime==start;}
-        catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) {return false;}
-    }
+    public bool HasGameForeground() => Active && !overlayVisible && ending is null
+        && GameWindowAvailable && GetForegroundWindow()==gameWindow;
     public void HideForOverlay()
     {
         bridge?.Pause(true);
@@ -277,13 +279,14 @@ public sealed class GameSession
                         catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     }
                     // Minimized frontend may otherwise leave a terminal ahead of a slowly created game window.
-                    // Focus each session window once, only during startup and while no overlay is open.
+                    // Focus the actual renderer once, only during startup and while no overlay is open.
                     if (!overlayVisible && DateTime.Now - started < TimeSpan.FromSeconds(20))
                         foreach (var pair in owned.ToArray())
                             try
                             {
                                 using var gameProcess = Process.GetProcessById(pair.Key);
                                 if (gameProcess.HasExited || gameProcess.StartTime != pair.Value) continue;
+                                if(!IsGameRuntime(gameProcess,game,target,process.Id))continue;
                                 var handle = gameProcess.MainWindowHandle;
                                 if (handle != 0 && IsWindowVisible(handle) && presented.Add(handle)) { if(IsIconic(handle)) ShowWindowAsync(handle, 9); SetForegroundWindow(handle); }
                             }
@@ -302,9 +305,7 @@ public sealed class GameSession
                                 if(candidate.HasExited || candidate.StartTime!=pair.Value) continue;
                                 var handle=candidate.MainWindowHandle;
                                 if(handle==0 || !IsWindowVisible(handle) || IsIconic(handle) || !IsRenderWindow(handle)) continue;
-                                if(string.Equals(candidate.MainModule?.FileName,target,StringComparison.OrdinalIgnoreCase)
-                                    || game.Source=="teknoparrot" && IsTeknoRuntime(candidate)
-                                    || game.Source!="teknoparrot" && pair.Key!=process.Id) {readyWindow=handle;break;}
+                                if(IsGameRuntime(candidate,game,target,process.Id)) {readyWindow=handle;break;}
                             } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                         if(readyWindow==0) legendWindow=0;
                         else if(legendWindow!=readyWindow) {legendWindow=readyWindow;legendSince=Environment.TickCount64;}
@@ -353,8 +354,16 @@ public sealed class GameSession
         }
         stop = true;
     }
+    private static bool IsGameRuntime(Process candidate,GameEntry game,string target,int launcherPid)
+    {
+        string? image=candidate.MainModule?.FileName;
+        return !GameRuntimeWindows.KnownLauncher(target) && string.Equals(image,target,StringComparison.OrdinalIgnoreCase)
+            || game.Source=="teknoparrot" && IsTeknoRuntime(candidate)
+            || game.Source!="teknoparrot" && candidate.Id!=launcherPid && image is not null && GameRuntimeWindows.ChildRuntime(game.Executable,game.WorkingDirectory,image);
+    }
     private static bool IsTeknoRuntime(Process process) => process.ProcessName.Equals("BudgieLoader",StringComparison.OrdinalIgnoreCase)
         || process.ProcessName.Equals("elfldr2",StringComparison.OrdinalIgnoreCase)
         || process.ProcessName.Equals("linuxloader",StringComparison.OrdinalIgnoreCase)
+        || process.ProcessName.Equals("rpcs3",StringComparison.OrdinalIgnoreCase) && process.MainWindowTitle.Equals("RPCS3 via TeknoParrot",StringComparison.Ordinal)
         || process.ProcessName.Equals("Play",StringComparison.OrdinalIgnoreCase) && process.MainWindowTitle.StartsWith("Play! - [",StringComparison.Ordinal);
 }

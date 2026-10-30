@@ -25,7 +25,7 @@ public sealed class TriggerHold
     public void Reset() { down.Clear(); since = null; consumed = false; }
 }
 
-public record ControlRow(int Player, string Function, string Input, string Evidence, string? Expression = null);
+public record ControlRow(int Player, string Function, string Input, string Evidence, string? Expression = null, bool IsAim = false, string? SourceKey = null);
 public record GameControls(ControlRow[] Rows, string Note);
 
 public static class OverlayControls
@@ -60,7 +60,7 @@ public static class OverlayControls
                     .FirstOrDefault(e => Value(e, "FieldName") == "Input API") is { } field ? Value(field, "FieldValue") : I18n.T("Unbekannt");
                 var rows = doc.Descendants().Where(e => e.Name.LocalName == "JoystickButtons" && e.Elements().Any(c => c.Name.LocalName == "ButtonName"))
                     .Where(e => Value(e, "HideWith" + api) != "true")
-                    .Select(e => new ControlRow(TeknoPlayer(Value(e, "InputMapping"), Value(e, "ButtonName")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings))).ToArray();
+                    .Select(e => new ControlRow(TeknoPlayer(Value(e, "InputMapping"), Value(e, "ButtonName")), Value(e, "ButtonName"), TeknoInput(e, api, bindings), "TeknoParrot · " + api, TeknoToken(e, api, bindings), TeknoAim(e), Value(e,"InputMapping"))).ToArray();
                 return new(rows, I18n.T("Aus dem gestarteten TeknoParrot-Profil gelesen. Helfer wie DemulShooter können weitere Zuordnungen vornehmen."));
             }
             if (Path.GetFileName(game.Executable).Contains("dolphin", StringComparison.OrdinalIgnoreCase))
@@ -160,7 +160,9 @@ public static class OverlayControls
         return key switch {"Buttons/A"=>I18n.T("Benutzen / Aktion (A)"),"Buttons/B"=>I18n.T("Schießen (B)"),"Buttons/+"=>I18n.T("Pause (+)"),_=>key};
     }
     private static string Value(XElement e, string name) => e.Elements().FirstOrDefault(c => c.Name.LocalName == name)?.Value ?? "";
-    private static int TeknoPlayer(string mapping,string name)
+    internal static bool TeknoAim(XElement button) => TeknoGunSetup.IsAimControl(Value(button,"ButtonName"))
+        || Regex.IsMatch(Value(button,"InputMapping"),@"^P[1-4]LightGun$",RegexOptions.IgnoreCase);
+    internal static int TeknoPlayer(string mapping,string name)
     {
         int player=Player(mapping,name);
         return player==0 && name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute" or "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload" or "Action" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)" ? 1 : player;
@@ -211,6 +213,8 @@ public static class OverlayControls
         string device=Value(raw,"DevicePath");
         var binding=bindings.FirstOrDefault(b=>string.Equals(b.MouseId,device,StringComparison.OrdinalIgnoreCase)||string.Equals(b.KeyboardId,device,StringComparison.OrdinalIgnoreCase));
         if(string.IsNullOrWhiteSpace(device) || binding is null) return null;
+        if(TeknoAim(button)) return Value(raw,"DeviceType")=="Mouse" && string.Equals(device,binding.MouseId,StringComparison.OrdinalIgnoreCase)
+            && Value(raw,"MouseButton") is "" or "None" && Value(raw,"KeyboardKey") is "" or "None" ? "P"+binding.Player+"|aim" : null;
         string? token=Value(raw,"DeviceType") switch {
             "Mouse"=>Value(raw,"MouseButton") switch {"LeftButton"=>"mouse:1","RightButton"=>"mouse:2","MiddleButton"=>"mouse:3","Button4"=>"mouse:4","Button5"=>"mouse:5",_=>null},
             "Keyboard"=>StartupControls.KeyToken(Value(raw,"KeyboardKey")),_=>null

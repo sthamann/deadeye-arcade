@@ -186,6 +186,7 @@ public static class KnownFixes
     public static string[] InputFiles(GameEntry game, string data)
     {
         var files = new List<string>();
+        if(game.Source=="teknoparrot")files.AddRange(new[]{game.SourcePath,TeknoRequirements.TemplatePath(game)});
         if(TimeCrisis5Controls.Supports(game)) files.Add(TimeCrisis5Controls.ManagedPath(game));
         if(game.Source=="mame")
         {

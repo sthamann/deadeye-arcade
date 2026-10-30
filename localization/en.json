@@ -975,5 +975,7 @@
   "Time Crisis 5 benötigt erfasste Tasten für die ausgewählte Gun.": "Time Crisis 5 requires captured controls for the selected gun.",
   "Time Crisis 5 benötigt den linken Mausabzug für DemulShooter.": "Time Crisis 5 DemulShooter requires the gun's left mouse trigger.",
   "Time Crisis 5 benötigt getrennte Tasten für Münze, Pedale, Waffenwechsel und Fadenkreuz.": "Time Crisis 5 needs distinct controls for credits, pedals, weapon change and crosshair.",
-  "Time Crisis 5 benötigt eine Gun auf P1.": "Time Crisis 5 needs a gun assigned to P1."
+  "Time Crisis 5 benötigt eine Gun auf P1.": "Time Crisis 5 needs a gun assigned to P1.",
+  "Benötigter Eingang fehlt im Spielprofil: ": "Required input is missing from the game profile: ",
+  "Spielaktion ohne geprüfte Spielerzuordnung: ": "Game action without verified player ownership: "
 }

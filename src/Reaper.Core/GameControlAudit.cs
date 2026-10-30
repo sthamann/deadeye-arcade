@@ -9,7 +9,7 @@ public record ControlAuditReport(DateTimeOffset Time, GameControlReview[] Games)
 public static class GameControlAudit
 {
     public static bool GameplayAction(string name) => !name.Contains("NOT USED",StringComparison.OrdinalIgnoreCase)
-        && !System.Text.RegularExpressions.Regex.IsMatch(name,@"^(Service|Test|Volume|Xtreme Audio|Rear Cover Eye|Enter Switch|Up Select|Down Select|Select Up|Select Down|Menu Up|Menu Down)\b",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        && !System.Text.RegularExpressions.Regex.IsMatch(name,@"^(Service|Test(?:Menu)?|Volume|Xtreme Audio|Rear Cover Eye|Enter Switch|Up Select|Down Select|Select Up|Select Down|Menu Up|Menu Down)\b",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     public static string[] RequiredDolphin(string id)
     {
         string[] common = ["Buttons/A", "Buttons/B", "Buttons/+"];
@@ -31,11 +31,13 @@ public static class GameControlAudit
         if(TimeCrisis5Controls.Supports(game))guns=guns.Where(b=>b.Player==1).ToArray();
         var mame=game.Source=="mame"?MameControls.Metadata(game,data):null;
         if(mame is not null && MameControls.Players(mame)>0)guns=guns.Where(b=>b.Player<=MameControls.Players(mame)).ToArray();
+        var tekno=TeknoRequirements.Read(game);
+        if(tekno is not null && guns.Any(b=>tekno.Rows.Any(r=>r.Player==b.Player && r.IsAim)))guns=guns.Where(b=>tekno.Rows.Any(r=>r.Player==b.Player && r.IsAim)).ToArray();
         var controls = OverlayControls.Read(game,data,guns,devices);
         bool dolphin = DolphinSetup.IsDolphin(game);
         string? id = dolphin ? DolphinSetup.DiscId(game) : null;
         string[] required = id is null ? [] : RequiredDolphin(id);
-        bool requiredActionsChecked = dolphin ? required.Length > 0 : game.Source == "teknoparrot" || mame is not null || TimeCrisis5Controls.Supports(game);
+        bool requiredActionsChecked = dolphin ? required.Length > 0 : tekno is not null && tekno.Rows.All(r=>r.Player is >=1 and <=4) || mame is not null || TimeCrisis5Controls.Supports(game);
         var players = new List<PlayerControlAudit>();
         foreach(var gun in guns)
         {
@@ -43,6 +45,9 @@ public static class GameControlAudit
             var hints = StartupControls.ForPlayer(controls,gun);
             bool review=!requiredActionsChecked, missing=false;
             if(!requiredActionsChecked) issues.Add(I18n.T("Die vollständige Liste benötigter Spielaktionen ist noch nicht geprüft."));
+            if(tekno is not null)
+                foreach(var unscoped in tekno.Rows.Where(r=>r.Player==0))
+                    issues.Add(I18n.T("Spielaktion ohne geprüfte Spielerzuordnung: ")+unscoped.Function);
             if(dolphin && required.Length>0)
             {
                 string? profile = DolphinSetup.ProfilePath(game,gun.Player);
@@ -65,6 +70,10 @@ public static class GameControlAudit
             else
             {
                 var rows = controls.Rows.Where(r=>r.Player==gun.Player && GameplayAction(r.Function)).ToArray();
+                if(tekno is not null)
+                    foreach(var requiredRow in tekno.Rows.Where(r=>r.Player==gun.Player))
+                        if(tekno.Match(requiredRow,rows) is null)
+                        {missing=true;issues.Add(I18n.T("Benötigter Eingang fehlt im Spielprofil: ")+requiredRow.Function);}
                 if(rows.Length==0) {issues.Add(I18n.T("Spielbelegung für diesen Spieler ist nicht auslesbar."));review=true;}
                 if(game.Source=="teknoparrot" && rows.Length==0 && !guns.Any(g=>g.Player==1) && controls.Rows.Any(r=>r.Player==1 && GameplayAction(r.Function)))
                 {
@@ -72,13 +81,13 @@ public static class GameControlAudit
                     issues.Add(I18n.T("Dieses Spielprofil benötigt eine Gun auf P1. Weise die gewünschte Gun P1 zu."));
                 }
                 if(game.Source=="teknoparrot")
-                    foreach(var aim in rows.Where(r=>r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
-                        if(!aim.Input.StartsWith("P"+gun.Player+" · ",StringComparison.Ordinal))
+                    foreach(var aim in rows.Where(r=>r.IsAim))
+                        if(aim.Expression!="P"+gun.Player+"|aim")
                         {missing=true;issues.Add(I18n.T("Zieleingang gehört nicht zur physischen Gun dieses Spielers: ")+aim.Function);}
-                foreach(var row in rows.Where(r=>r.Function is not null && !r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
+                foreach(var row in rows.Where(r=>!r.IsAim && r.Function is not null && !r.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase)))
                     if(row.Input==I18n.T("Nicht belegt") || row.Input.StartsWith(I18n.T("Nicht belegt /")))
                     {issues.Add(I18n.T("Aktion nicht belegt: ")+row.Function);if(game.Source=="teknoparrot"||mame is not null)missing=true;else review=true;}
-                review=review || rows.Any(row=>!row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved);
+                review=review || rows.Any(row=>!row.IsAim && !row.Function.Contains("Light Gun",StringComparison.OrdinalIgnoreCase) && !row.Function.Contains("Service",StringComparison.OrdinalIgnoreCase) && !StartupControls.Resolve(row,gun).Resolved);
                 if(review && issues.Count==0) issues.Add(I18n.T("Einige Spielaktionen sind keiner physischen Gun-Taste bestätigt zugeordnet."));
                 if(TimeCrisis5Controls.Supports(game))
                     foreach(string function in new[]{"Abzug","Münze","Waffenwechsel","Linkes Pedal","Rechtes Pedal"}.Select(I18n.T))

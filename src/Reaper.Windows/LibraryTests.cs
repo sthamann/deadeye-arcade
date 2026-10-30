@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Reaper.Core;
 
@@ -106,7 +104,16 @@ internal static class LibraryTests
                     GameTestRunner.WriteFailure(game, data, status, testError ?? (timedOut ? "The game test exceeded its deadline." : "The test process exited without a result."));
                 results.Add(new { game.Id, game.Title, status, controlStatus = ControlStatus(resultPath), exitCode, resultPath });
                 // Failed and interrupted games are retried; only successful launches can be retained.
-                string? finalFingerprint = SafeFingerprint(game, store.Load().Bindings, data);
+                // Use the worker's actual snapshot, never settings reloaded after
+                // the test: those may already belong to a different gun selection.
+                string? finalFingerprint = ResultFingerprint(resultPath);
+                // Keep evidence for other gun selections and app/profile versions.
+                // The latest report alone must not erase a previously tested pair.
+                if(finalFingerprint is not null && File.Exists(resultPath))
+                {
+                    string history=Path.Combine(data,"test-history",System.Text.RegularExpressions.Regex.Replace(game.Id,"[^a-zA-Z0-9_-]","_"));
+                    Directory.CreateDirectory(history);Atomic(Path.Combine(history,finalFingerprint+".json"),File.ReadAllText(resultPath));
+                }
                 if (Passed(resultPath) && !timedOut && !cancelled && finalFingerprint is not null) Atomic(receipt, finalFingerprint);
                 else if (File.Exists(receipt)) File.Delete(receipt);
                 Save(cancelled ? "cancelled" : "running");
@@ -126,25 +133,23 @@ internal static class LibraryTests
         try { using var json = JsonDocument.Parse(File.ReadAllText(path)); return json.RootElement.GetProperty("controlAudit").GetProperty("status").GetString() ?? "needs-review"; }
         catch (Exception e) when (e is IOException or JsonException or KeyNotFoundException or InvalidOperationException) { return "needs-review"; }
     }
+    private static string? ResultFingerprint(string path)
+    {
+        try
+        {
+            using var json=JsonDocument.Parse(File.ReadAllText(path));
+            if(!json.RootElement.TryGetProperty("configurationFingerprint",out var value) || value.ValueKind!=JsonValueKind.String)return null;
+            string? fingerprint=value.GetString();
+            return fingerprint is not null && System.Text.RegularExpressions.Regex.IsMatch(fingerprint,"^[A-F0-9]{64}$")?fingerprint:null;
+        }
+        catch(Exception e) when(e is IOException or JsonException) {return null;}
+    }
     private static string? SafeFingerprint(GameEntry game, IEnumerable<GunBinding> bindings, string data)
     {
         try { return Fingerprint(game, bindings, data); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or System.Xml.XmlException or JsonException) { return null; }
     }
-    private static string Fingerprint(GameEntry game, IEnumerable<GunBinding> bindings, string data)
-    {
-        var text = new StringBuilder(System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion);
-        text.Append(JsonSerializer.Serialize(game, JsonDefaults.Options)).Append(JsonSerializer.Serialize(bindings, JsonDefaults.Options));
-        foreach (string path in KnownFixes.InputFiles(game, data).Append(game.Executable).Distinct().Order(StringComparer.OrdinalIgnoreCase))
-        {
-            text.Append(path);
-            if (File.Exists(path))
-            {
-                var file = new FileInfo(path); text.Append(file.Length).Append(file.LastWriteTimeUtc.Ticks);
-                if (file.Length < 2_000_000) text.Append(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))));
-            }
-        }
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
-    }
+    private static string Fingerprint(GameEntry game, IEnumerable<GunBinding> bindings, string data) =>
+        GameTestFingerprint.Create(game,bindings,data,System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion??"");
     private static void Atomic(string path, string text) { File.WriteAllText(path + ".new", text); File.Move(path + ".new", path, true); }
 }

@@ -4,6 +4,9 @@ using System.Xml.Linq;
 using Reaper.Core;
 
 int checks = 0;
+Check(GameTestFailure.From(new System.ComponentModel.Win32Exception(4551,"localized policy text")).Category=="windows-app-control" && GameTestFailure.From(new IOException("wrapper",new System.ComponentModel.Win32Exception(126))).Category=="missing-runtime","Game test failures distinguish Windows policy blocks from missing runtimes without matching translated error strings");
+Check(GameTestFailure.From(new InvalidOperationException("policy problem")).Category=="launch-error","An error message alone cannot invent a Windows security-policy diagnosis");
+Check(GameTestFailure.From(new IOException("outer wrapper",new System.ComponentModel.Win32Exception(193,"native architecture error"))).Message=="native architecture error" && GameTestFailure.From(new System.ComponentModel.Win32Exception("native wrapper",new InvalidOperationException("inner detail"))).ExceptionType==typeof(System.ComponentModel.Win32Exception).FullName,"Native failure classification retains the native exception and its message across exception wrappers");
 Check(WindowsArguments.Quote("")=="\"\"" && WindowsArguments.Quote("two words")=="\"two words\"", "Suspended Windows launch preserves empty arguments and spaces");
 Check(WindowsArguments.Quote("C:\\game folder\\")=="\"C:\\game folder\\\\\"" && WindowsArguments.Quote("say \"go\"")=="\"say \\\"go\\\"\"", "Owned Windows launch escapes quotes and trailing backslashes without changing arguments");
 if (OperatingSystem.IsWindows())
@@ -28,6 +31,9 @@ if (OperatingSystem.IsWindows())
     }
     finally { if(job!=0) Reaper.Windows.NativeOwnedLaunch.CloseHandle(job); if(File.Exists(probe)) File.Delete(probe); }
 }
+string runtimeRoot=Path.Combine(Path.GetTempPath(),"deadeye-runtime-fixture");
+Check(GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Project","Binaries","Win64","Project-Win64-Shipping.exe")) && !GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot,"Launcher","update.exe")),"Packaged game children are recognized without accepting arbitrary updater windows");
+Check(!GameRuntimeWindows.ChildRuntime("Railbreak.exe",runtimeRoot,Path.Combine(runtimeRoot+"-other","Project","Binaries","Win64","Project-Win64-Shipping.exe")) && GameRuntimeWindows.KnownLauncher("steam.exe"),"Known launcher windows and game binaries outside the configured game directory cannot certify a game launch");
 var slowBoot = new GameTestObservation(15);
 Check(slowBoot.Update(70000,false,false)=="waiting-for-window" && slowBoot.Update(71000,true,false)=="observing" && slowBoot.Update(85000,true,false)=="observing" && slowBoot.Update(86000,true,false)=="passed","A slow-loading game receives the full observation period after its real renderer appears");
 var replacedWindow = new GameTestObservation(15);
@@ -630,6 +636,66 @@ RButton::y
     var soloGame=repair with {SourcePath=soloProfile};
     TeknoGunSetup.Configure(soloGame,[mixedX]);TeknoGunSetup.Configure(soloGame,[mixedV]);
     Check(GameControlAudit.Read(soloGame,root,[mixedV]).Players.Single().Issues.Any(i=>i.Contains("P1")),"A P1-only game with a sole P2 gun explicitly asks for P1 assignment instead of keeping stale vendor routes");
+    string aliasAimPath=Path.Combine(tp,"UserProfiles","aim-alias.xml");
+    var aliasAimDocument=new XDocument(new XElement("GameProfile",new XElement("EmulationProfile","AimFixture"),new XElement("ConfigValues",new XElement("FieldInformation",new XElement("FieldName","Input API"),new XElement("FieldValue","RawInput"),new XElement("FieldOptions",new XElement("string","RawInput")))),new XElement("JoystickButtons",
+        Enumerable.Range(1,2).SelectMany(p=>new[]{new XElement("JoystickButtons",new XElement("ButtonName","Player "+p+" "+(p==1?"Spray Controller":"Proton Pack")),new XElement("InputMapping","P"+p+"LightGun")),new XElement("JoystickButtons",new XElement("ButtonName","Player "+p+" Trigger"))}))));
+    aliasAimDocument.Save(aliasAimPath);var aliasAimGame=repair with{SourcePath=aliasAimPath};
+    string vendorAim=Path.Combine(tp,"GameProfiles","aim-alias.xml");Directory.CreateDirectory(Path.GetDirectoryName(vendorAim)!);aliasAimDocument.Save(vendorAim);
+    TeknoGunSetup.Configure(aliasAimGame,specialGuns);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked" && OverlayControls.Read(aliasAimGame,root,specialGuns).Rows.Count(r=>r.IsAim)==2,"TeknoParrot aim aliases share the actual generator's classification and do not become unresolved button actions");
+    aliasAimDocument=XDocument.Load(aliasAimPath);var secondAim=aliasAimDocument.Descendants("JoystickButtons").Single(r=>r.Element("InputMapping")?.Value=="P2LightGun").Element("RawInputButton")!;
+    secondAim.Element("DevicePath")!.Value=specialGuns[0].MouseId;aliasAimDocument.Save(aliasAimPath);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Players.Single(p=>p.Player==2).Status=="needs-action","P2 aim routed to P1 fails for non-Light-Gun labels too");
+    secondAim.Element("DevicePath")!.Value=specialGuns[1].MouseId;secondAim.Element("DeviceType")!.Value="Keyboard";aliasAimDocument.Save(aliasAimPath);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Players.Single(p=>p.Player==2).Status=="needs-action","An aim row cannot be certified from a matching USB name with the wrong input kind");
+    TeknoGunSetup.Configure(aliasAimGame,specialGuns);aliasAimDocument=XDocument.Load(aliasAimPath);
+    aliasAimDocument.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Trigger").Remove();aliasAimDocument.Save(aliasAimPath);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Players.Single(p=>p.Player==2).Issues.Any(i=>i.Contains("Player 2 Trigger")),"A deleted required trigger row is detected against the installed vendor template");
+    Check(TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked" && TeknoGunSetup.Configure(aliasAimGame,specialGuns)==0,"Missing vendor input rows are restored and assigned through the normal setup path without repeated changes");
+    File.Move(vendorAim,vendorAim+".saved");
+    Check(!GameControlAudit.Read(aliasAimGame,root,specialGuns).RequiredActionsChecked && GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="needs-review","The editable user profile alone cannot certify its own required-action coverage");
+    File.Move(vendorAim+".saved",vendorAim);
+    aliasAimDocument=XDocument.Load(aliasAimPath);var aliasTrigger=aliasAimDocument.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Trigger");aliasTrigger.Add(new XElement("InputMapping","P1Button1"));aliasAimDocument.Save(aliasAimPath);
+    // Give the independent template an explicit key so a stale current identifier cannot pass.
+    var keyedVendor=XDocument.Load(vendorAim);keyedVendor.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Trigger").Add(new XElement("InputMapping","P2Button1"));keyedVendor.Save(vendorAim);
+    Check(GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="needs-action" && TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && XDocument.Load(aliasAimPath).Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 2 Trigger").Element("InputMapping")!.Value=="P2Button1","Stale P2 action identifiers are detected and repaired from the independent vendor definition");
+    aliasAimDocument=XDocument.Load(aliasAimPath);aliasAimDocument.Descendants("FieldValue").Single().Value="XInput";aliasAimDocument.Save(aliasAimPath);
+    Check(TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && XDocument.Load(aliasAimPath).Descendants("FieldValue").Single().Value=="RawInput" && TeknoGunSetup.Configure(aliasAimGame,specialGuns)==0,"The selected input API is repaired even when every stored RawInput button route already matches");
+    aliasAimDocument=XDocument.Load(aliasAimPath);var bareAim=aliasAimDocument.Descendants("JoystickButtons").Single(r=>r.Element("InputMapping")?.Value=="P2LightGun");bareAim.Element("ButtonName")!.Value="Proton Pack";bareAim.Element("RawInputButton")!.Remove();aliasAimDocument.Save(aliasAimPath);
+    keyedVendor=XDocument.Load(vendorAim);keyedVendor.Descendants("JoystickButtons").Single(r=>r.Element("InputMapping")?.Value=="P2LightGun").Element("ButtonName")!.Value="Proton Pack";keyedVendor.Save(vendorAim);
+    Check(TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked","An unprefixed vendor aim row obtains its player and physical mouse from the actual InputMapping field");
+    var fingerprintBefore=GameTestFingerprint.Create(aliasAimGame,specialGuns,root,"test-version");
+    var profileTime=File.GetLastWriteTimeUtc(aliasAimPath);var changedProfile=XDocument.Load(aliasAimPath);changedProfile.Root!.Add(new XElement("UnrelatedNote","new"));changedProfile.Save(aliasAimPath);File.SetLastWriteTimeUtc(aliasAimPath,profileTime);
+    Check(GameTestFingerprint.Create(aliasAimGame,specialGuns,root,"test-version")!=fingerprintBefore,"Resume invalidates a successful test when the real TeknoParrot profile changes, including preserved timestamps");
+    string helperFolder=Path.Combine(root,"fingerprint-helper");Directory.CreateDirectory(helperFolder);string fingerprintHelperExe=Path.Combine(helperFolder,"DemulShooter.exe");File.WriteAllBytes(fingerprintHelperExe,[0]);File.WriteAllText(Path.Combine(helperFolder,"config.ini"),"P1Mode=RAWINPUT");
+    var fingerprintGame=aliasAimGame with{Helpers=[new(fingerprintHelperExe,["-target=win"],helperFolder)]};
+    string helperFingerprint=GameTestFingerprint.Create(fingerprintGame,specialGuns,root,"test-version");File.WriteAllText(Path.Combine(helperFolder,"config.ini"),"P1Mode=HID");
+    Check(GameTestFingerprint.Create(fingerprintGame,specialGuns,root,"test-version")!=helperFingerprint,"Resume includes the actual multiplayer helper's player-input configuration");
+    File.Delete(fingerprintHelperExe);
+    aliasAimDocument=XDocument.Load(aliasAimPath);aliasAimDocument.Root!.Element("JoystickButtons")!.Remove();aliasAimDocument.Save(aliasAimPath);
+    Check(TeknoGunSetup.Configure(aliasAimGame,specialGuns)>0 && GameControlAudit.Read(aliasAimGame,root,specialGuns).Status=="mapping-checked","A missing whole input section is rebuilt from the independent template through normal setup");
+    Check(!GameControlAudit.GameplayAction("TestMenu Up") && GameControlAudit.GameplayAction("Player 1 Gun Trigger"),"Cabinet test-menu navigation is not treated as a mandatory gameplay action");
+    keyedVendor=XDocument.Load(vendorAim);keyedVendor.Root!.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Shared Gameplay Switch"),new XElement("InputMapping","ExtensionOne12")));keyedVendor.Save(vendorAim);
+    TeknoGunSetup.Configure(aliasAimGame,specialGuns);
+    var unscopedAudit=GameControlAudit.Read(aliasAimGame,root,specialGuns);
+    Check(!unscopedAudit.RequiredActionsChecked && unscopedAudit.Status=="needs-review" && unscopedAudit.Players.All(p=>p.Issues.Any(i=>i.Contains("Shared Gameplay Switch"))),"A required vendor action with unknown player ownership cannot silently disappear from completeness checks");
+    string matrixPath=Path.Combine(tp,"UserProfiles","model-matrix.xml");
+    var matrixTemplate=new XDocument(new XElement("GameProfile",new XElement("EmulationProfile","ModelMatrix"),new XElement("ConfigValues",new XElement("FieldInformation",new XElement("FieldName","Input API"),new XElement("FieldValue","RawInput"),new XElement("FieldOptions",new XElement("string","RawInput")))),new XElement("JoystickButtons",
+        Enumerable.Range(1,2).SelectMany(p=>new[]{("Light Gun","LightGun"),("Trigger","Button1"),("Reload","Button2"),("Start","Start"),("Coin","Coin"),("Grenade","Button3")}.Select(action=>new XElement("JoystickButtons",new XElement("ButtonName","Player "+p+" "+action.Item1),new XElement("InputMapping","P"+p+action.Item2)))))));
+    matrixTemplate.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));
+    GunBinding MatrixGun(string system,int player)
+    {
+        var gun=new GunBinding(player,system+"-mouse-"+player,system+"-keyboard-"+player,SystemId:system,HardwarePlayer:player);
+        if(system=="blamcon")foreach(var control in new[]{("start","key:49"),("select","key:53")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
+        if(system=="sinden")foreach(var control in new[]{("pump","mouse:2"),("front-left","key:49"),("back-left","key:53"),("back-right","mouse:3")})gun=GunSystems.LearnControl(gun,control.Item1,control.Item2);
+        return gun;
+    }
+    foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
+    {
+        matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
+        TeknoGunSetup.Configure(matrixGame,pair);var matrixAudit=GameControlAudit.Read(matrixGame,root,pair);
+        Check(matrixAudit.Status=="mapping-checked" && matrixAudit.Players.Length==2 && OverlayControls.Read(matrixGame,root,pair).Rows.Where(r=>r.IsAim).All(r=>r.Expression=="P"+r.Player+"|aim"),"TeknoParrot separates learned "+firstModel+" P1 and "+secondModel+" P2 aim and all standard actions");
+    }
     string alienProfile=Path.Combine(tp,"UserProfiles","AliensExtermination.xml");
     File.WriteAllText(alienProfile,"<GameProfile><EmulationProfile>AliensExtermination</EmulationProfile><ConfigValues><FieldInformation><CategoryName>General</CategoryName><FieldName>Input API</FieldName><FieldValue>RawInput</FieldValue><FieldOptions><string>RawInput</string></FieldOptions></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>Windowed</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>CustomResolution</FieldName><FieldValue>0</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionWidth</FieldName><FieldValue>1920</FieldValue></FieldInformation><FieldInformation><CategoryName>General</CategoryName><FieldName>ResolutionHeight</FieldName><FieldValue>1080</FieldValue></FieldInformation></ConfigValues><JoystickButtons><JoystickButtons><ButtonName>Player 1 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 2 Flame</ButtonName></JoystickButtons><JoystickButtons><ButtonName>Player 1 Special</ButtonName></JoystickButtons></JoystickButtons></GameProfile>");
     var aliens=repair with {SourcePath=alienProfile};

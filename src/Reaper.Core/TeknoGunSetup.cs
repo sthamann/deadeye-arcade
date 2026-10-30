@@ -3,6 +3,11 @@ using System.Xml.Linq;
 namespace Reaper.Core;
 public static class TeknoGunSetup
 {
+    public static bool IsAimControl(string name)
+    {
+        string control=Regex.Replace(Regex.Replace(name,@"^(?:Player [1-4] |P[1-4] )","",RegexOptions.IgnoreCase),@" P[1-4]$","",RegexOptions.IgnoreCase);
+        return control is "Light Gun" or "Gun" or "Spray Controller" or "Proton Pack" or "Touch" or "Light Whip";
+    }
     // Only controls explicitly named by the selected profile are changed.
     // Special controls such as pedals, weapon selectors or two-stage triggers retain their vendor bindings.
     public static int Configure(GameEntry game,IEnumerable<GunBinding> players)
@@ -11,7 +16,7 @@ public static class TeknoGunSetup
         var document=XDocument.Load(game.SourcePath);
         var api=document.Descendants("FieldInformation").FirstOrDefault(f=>f.Element("FieldName")?.Value=="Input API");
         if(api is null||!api.Descendants("string").Any(x=>x.Value=="RawInput"))return 0;
-        var changes=0;
+        var changes=TeknoRequirements.Read(game)?.RestoreMissing(document)??0;
         void Set(XElement node,string name,string value){var child=node.Element(name);if(child?.Value==value)return;if(child is null)node.Add(new XElement(name,value));else child.Value=value;changes++;}
         void Clear(XElement row)
         {
@@ -31,7 +36,12 @@ public static class TeknoGunSetup
             else if(Regex.IsMatch(name,@"^(Coin|Coin Chute|Credits?) ?[12]$",RegexOptions.IgnoreCase)){number=name[^1]-'0';control="Coin";}
             else if(name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute"){number=1;control="Coin";}
             else if(name is "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload" or "Action" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)"){number=1;control=name;}
-            else continue;
+            else
+            {
+                number=OverlayControls.TeknoPlayer(row.Element("InputMapping")?.Value??"",name);
+                if(number is not (1 or 2))continue;
+                control=name;
+            }
             var player=active.SingleOrDefault(p=>p.Player==number);
             if(player is null)
             {
@@ -40,7 +50,7 @@ public static class TeknoGunSetup
                 continue;
             }
             var map=player.ButtonMap??GunSystems.DefaultMap(player.DevicePlayer,player.SystemId);
-            bool aim=control is "Light Gun" or "Gun" or "Spray Controller" or "Proton Pack" or "Touch" or "Light Whip";
+            bool aim=OverlayControls.TeknoAim(row);
             string? action=control switch {"Start" or "Start Button"=>"start","Coin" or "Credits"=>"coin","Gun Trigger" or "Gun Trigger 1" or "Trigger" or "Right Trigger" or "Trigger Left" or "Shoot" or "Vacuum Button" or "Touch/Click"=>"shoot","Reload" or "Start/Reload" or "Gun Trigger 2" or "Trigger Right" or "Pump Reload" or "Pump" or "Vacuum Lever" or "Reload/Guard"=>"reload","Rage" or "Grenade" or "Grenades" or "Action" or "Action Button" or "Gun Button" or "Special" or "Vacuum Screen Out"=>"secondary",_=>null};
             // Extermination uses the reload/right-mouse control for its flame weapon.
             if(control=="Flame" && document.Root?.Element("EmulationProfile")?.Value=="AliensExtermination") action="reload";
@@ -76,8 +86,8 @@ public static class TeknoGunSetup
             Set(input,"DevicePath",device);Set(input,"DeviceType",keyboard?"Keyboard":"Mouse");Set(input,"MouseButton",mouse);Set(input,"KeyboardKey",key);
             Set(row,"BindNameRi",$"Reaper P{player.Player} · {(aim?"Aim":keyboard?key:mouse)}");Set(row,"BindName",row.Element("BindNameRi")!.Value);
         }
-        if(changes==0)return 0;
         Set(api,"FieldValue","RawInput");
+        if(changes==0)return 0;
         string backup=game.SourcePath+".before-reaper-input-fix";if(!File.Exists(backup))File.Copy(game.SourcePath,backup);
         string temporary=game.SourcePath+".reaper-new";document.Save(temporary);File.Move(temporary,game.SourcePath,true);
         return changes;
