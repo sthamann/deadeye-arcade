@@ -85,7 +85,7 @@ internal static class GameTestRunner
         input.Refresh();
         var controls = OverlayControls.Read(game, data, state.Bindings, input.Devices);
         var audit = GameControlAudit.Read(game, data, state.Bindings, input.Devices);
-        var simulation = (await ControlSimulation.Run([game],data,state.Bindings,input.Devices)).Games.Single();
+        var simulation = (await Task.Run(()=>ControlSimulation.Run([game],data,state.Bindings,input.Devices))).Games.Single();
         bool passed = !cancelled && error is null && available && foreground && after.Length == 0 && session.CleanupIssues.Count == 0;
         string? version=System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion;
         string? fingerprint=null;

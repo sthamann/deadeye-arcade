@@ -164,6 +164,11 @@ public static class OverlayControls
         || Regex.IsMatch(Value(button,"InputMapping"),@"^P[1-4]LightGun$",RegexOptions.IgnoreCase);
     internal static int TeknoPlayer(string mapping,string name)
     {
+        // Generic coin captions can disagree with their real routing identifiers
+        // (for example Coin/Coin2). Explicit "Player 2 Coin" labels stay scoped.
+        if(Regex.IsMatch(name,@"^(?:Coin|Coin Chute|Credits?) ?[12]?$",RegexOptions.IgnoreCase)
+            && Regex.Match(mapping,@"^Coin([12])$",RegexOptions.IgnoreCase) is {Success:true} coin)
+            return int.Parse(coin.Groups[1].Value);
         int player=Player(mapping,name);
         return player==0 && name is "Coin" or "Coins" or "COINS" or "COIN" or "Credit" or "Coin Chute" or "Gun Trigger" or "Trigger" or "Start" or "Start Button" or "Reload" or "Action" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)" ? 1 : player;
     }

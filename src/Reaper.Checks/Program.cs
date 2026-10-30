@@ -724,16 +724,18 @@ RButton::y
         new(1,"Unknown channel","","Dolphin DSU replay","`Unknown`"),
         new(1,"Unsupported syntax","","Dolphin DSU replay","`L2` + `Cross`")
     ],replayPair);
-    Check(replay.Take(5).All(r=>r.Status=="simulated" && r.Pressed && r.Held && r.Released && r.Isolated),"Physical press, repeat and release traverse the production Dolphin DSU frames for both guns, including negated and combined controls");
+    Check(replay.Take(5).All(r=>r.Status=="simulated" && r.Pressed==true && r.Held==true && r.Released==true && r.Isolated),"Physical press, repeat and release traverse the production Dolphin DSU frames for both guns, including negated and combined controls");
     Check(replay.Single(r=>r.Function=="Melee chord").Buttons.Length==2 && replay.Single(r=>r.Function=="Reload without Stasis").Buttons.Length==1,"The replay finds real minimal physical chords rather than treating a combination as either button");
-    Check(replay.Single(r=>r.Function=="Global Start") is {Status:"failed",Isolated:false} && replay.Where(r=>r.Function is "Device Start" or "MAME Start").All(r=>r.Status=="simulated"),"Shared keyboard codes collide in global RetroArch routes while independent TeknoParrot and MAME device routes remain isolated");
+    Check(replay.Single(r=>r.Function=="Global Start") is {Status:"failed",Isolated:false} && replay.Where(r=>r.Function is "Device Start" or "MAME Start").All(r=>r is {Status:"profile-routed",Pressed:null,Held:null,Released:null}),"Shared keyboard codes collide in global RetroArch routes while independent device routes remain isolated without claiming consumer transition verification");
     Check(replay.Single(r=>r.Function=="Wrong player").Status=="failed" && replay.Where(r=>r.Function is "Unknown channel" or "Unsupported syntax").All(r=>r.Status=="unsupported"),"Wrong player routes and unknown consumer syntax cannot pass the simulator");
     var missingReplay=await ControlSimulation.Replay([new(1,"Start","","Dolphin DSU replay","`Options`")],[replayPair[0] with{KeyboardId=null}]);
     Check(missingReplay.Single().Status=="failed","A saved keyboard mapping without a keyboard endpoint cannot create simulated button evidence");
     var aliasedReplay=await ControlSimulation.Replay([new(1,"Start","","Dolphin DSU replay","`Options`")],[replayPair[0],replayPair[1] with{KeyboardId=replayPair[0].KeyboardId}]);
     Check(aliasedReplay.Single() is {Status:"failed",Isolated:false},"The production bridge replay detects two players accidentally assigned to the same keyboard endpoint");
     var differentKeys=await ControlSimulation.Replay([new(1,"Global Start","","RetroArch-Konfiguration","P1|key:49")],[MatrixGun("rs3",1),MatrixGun("rs3",2)]);
-    Check(differentKeys.Single().Status=="simulated","Cross-player checks never invent a key code that the other gun cannot emit");
+    Check(differentKeys.Single().Status=="profile-routed","Cross-player checks never invent a key code that the other gun cannot emit");
+    var absentReplay=await ControlSimulation.Replay([new(1,"Start","","Dolphin DSU replay","`Options`")],replayPair,[]);
+    Check(absentReplay.Single().Status=="failed","A current empty device scan prevents stale saved endpoints from passing a connected-gun simulation");
     var legacyPedal=new XDocument(matrixTemplate);
     legacyPedal.Root!.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Player 1 Footpedal"),new XElement("InputMapping","P1Button4"),new XElement("BindName","Input Device 0 LeftTrigger")));
     legacyPedal.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Coin"),new XElement("InputMapping","Coin2")));
@@ -742,6 +744,8 @@ RButton::y
     var repairedLegacy=XDocument.Load(matrixPath);
     Check(repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 1 Footpedal").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[0].MouseId,"An obsolete DirectInput pedal label cannot suppress the active RawInput gun route");
     Check(repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[1].KeyboardId && repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin2").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[0].KeyboardId,"Reversed generic coin labels follow the vendor's actual Coin1/Coin2 routing identifiers");
+    var coinRows=OverlayControls.Read(repair with{SourcePath=matrixPath},root,replayPair).Rows;
+    Check(coinRows.Single(r=>r.Function=="Coin").Player==2 && coinRows.Single(r=>r.Function=="Coin2").Player==1 && (await ControlSimulation.Replay(coinRows.Where(r=>r.Function is "Coin" or "Coin2"),replayPair)).All(r=>r.Status=="profile-routed"),"Active profile readers and button replay use the same actual coin ownership as the configuration writer");
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};
@@ -945,7 +949,7 @@ RButton::y
             var matrixAudit=GameControlAudit.Read(title,root,pair);
             Check(matrixAudit.Status=="mapping-checked" && matrixAudit.Players.Length==2 && matrixAudit.Players.All(p=>p.Issues.Length==0),"Actual Wii profile files cover all reviewed actions for "+DolphinSetup.DiscId(title)+" with "+firstModel+" P1 and "+secondModel+" P2");
             var simulated=(await ControlSimulation.Run([title],root,pair)).Games.Single();
-            Check(simulated.Status=="simulation-passed" && simulated.Actions.All(a=>a.Scope=="production-dsu-frames" && a.Pressed && a.Held && a.Released && a.Isolated),"Physical button replay reaches every required Wii action and releases cleanly without cross-player activation for "+DolphinSetup.DiscId(title)+" with "+firstModel+" / "+secondModel);
+            Check(simulated.Status=="simulation-passed" && simulated.Actions.All(a=>a.Scope=="production-dsu-frames" && a.Pressed==true && a.Held==true && a.Released==true && a.Isolated),"Physical button replay reaches every required Wii action and releases cleanly without cross-player activation for "+DolphinSetup.DiscId(title)+" with "+firstModel+" / "+secondModel);
         }
     GameControlAudit.Save([deadspace],root,[p1,p2]);
     GameControlAudit.Save([repair],root,specialGuns,merge:true);

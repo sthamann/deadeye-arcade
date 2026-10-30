@@ -46,8 +46,8 @@ public static class TeknoGunSetup
             // The routing identifier, rather than the display label, owns them.
             if(control=="Coin")
             {
-                var coinRoute=Regex.Match(row.Element("InputMapping")?.Value??"",@"^Coin([12])$",RegexOptions.IgnoreCase);
-                if(coinRoute.Success)number=int.Parse(coinRoute.Groups[1].Value);
+                int coinPlayer=OverlayControls.TeknoPlayer(row.Element("InputMapping")?.Value??"",name);
+                if(coinPlayer is 1 or 2)number=coinPlayer;
             }
             var player=active.SingleOrDefault(p=>p.Player==number);
             if(player is null)

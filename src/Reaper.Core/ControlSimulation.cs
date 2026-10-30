@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Reaper.Core;
 
-public record SimulatedAction(int Player,string Function,string Expression,string Scope,string Status,string[] Buttons,bool Pressed,bool Held,bool Released,bool Isolated,string? Error=null);
+public record SimulatedAction(int Player,string Function,string Expression,string Scope,string Status,string[] Buttons,bool? Pressed,bool? Held,bool? Released,bool Isolated,string? Error=null);
 public record SimulatedGame(string GameId,string Title,string Status,GameControlReview Audit,SimulatedAction[] Actions,string? Error=null);
 public record ControlSimulationReport(DateTimeOffset Time,SimulatedGame[] Games,bool HardwareVerified=false,bool GameplayVerified=false);
 
@@ -34,9 +34,10 @@ public static class ControlSimulation
                             rows.Add(new(gun.Player,key,"",device=="DSUClient/"+(gun.Player-1)+"/"+DolphinGunBridge.DeviceName?"Dolphin DSU replay":"Unsupported Dolphin device",DolphinSetup.Value(text,"Profile",key)));
                     }
                 }
-                var actions=await Replay(rows,guns);
+                var actions=await Replay(rows,guns,devices);
                 string status=audit.Status=="needs-action" || actions.Any(a=>a.Status=="failed")?"needs-action"
-                    : audit.Status!="mapping-checked" || actions.Length==0 || actions.Any(a=>a.Status!="simulated")?"needs-review":"simulation-passed";
+                    : audit.Status!="mapping-checked" || actions.Length==0 || actions.Any(a=>a.Status is not ("simulated" or "profile-routed"))?"needs-review"
+                    : actions.All(a=>a.Status=="simulated")?"simulation-passed":"profile-routed";
                 results.Add(new(game.Id,game.Title,status,audit,actions));
             }
             catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or System.Xml.XmlException)
@@ -44,9 +45,10 @@ public static class ControlSimulation
         }
         return new(DateTimeOffset.UtcNow,results.ToArray());
     }
-    public static async Task<SimulatedAction[]> Replay(IEnumerable<ControlRow> rows,IEnumerable<GunBinding> bindings)
+    public static async Task<SimulatedAction[]> Replay(IEnumerable<ControlRow> rows,IEnumerable<GunBinding> bindings,IEnumerable<InputDevice>? devices=null)
     {
         var guns=bindings.Where(b=>b.Player is 1 or 2).ToArray();var result=new List<SimulatedAction>();
+        var connected=devices?.ToArray();
         if(guns.GroupBy(g=>g.Player).Any(g=>g.Count()>1))
             return rows.Select(r=>new SimulatedAction(r.Player,r.Function,r.Expression??"","unavailable","failed",[],false,false,false,false,"Multiple guns are assigned to the same player slot.")).ToArray();
         await using var bridge=new DolphinGunBridge(guns);
@@ -64,11 +66,15 @@ public static class ControlSimulation
                 if(row.Evidence=="Unsupported Dolphin device")throw new NotSupportedException("This profile does not consume the production DSU bridge.");
                 var expression=new Expression(row.Expression);
                 GunControl[] Physical(GunBinding b)=>StartupControls.Hardware(b).Where(h=>h.Token is not null && GunSystems.ValidToken(h.Token)
-                    && (h.Token.StartsWith("mouse:")?!string.IsNullOrWhiteSpace(b.MouseId):!string.IsNullOrWhiteSpace(b.KeyboardId))).DistinctBy(h=>h.Token).ToArray();
+                    && (h.Token.StartsWith("mouse:")?!string.IsNullOrWhiteSpace(b.MouseId):!string.IsNullOrWhiteSpace(b.KeyboardId))
+                    && (connected is null || connected.Any(d=>d.Kind==(h.Token.StartsWith("mouse:")?"mouse":"keyboard") && d.Id.Equals(h.Token.StartsWith("mouse:")?b.MouseId:b.KeyboardId,StringComparison.OrdinalIgnoreCase)))).DistinctBy(h=>h.Token).ToArray();
                 var hardware=Physical(gun);
                 if(hardware.Length>16)throw new NotSupportedException("More than sixteen distinct physical controls.");
                 bool Evaluate(GunBinding source,ISet<string> down)
-                    => expression.Evaluate(atom=>dsu?Channel(bridge.Frame(gun.Player),atom):ProfileAtom(atom,row,gun,source,down));
+                {
+                    byte[]? frame=dsu?bridge.Frame(gun.Player):null;
+                    return expression.Evaluate(atom=>frame is not null?Channel(frame,atom):ProfileAtom(atom,row,gun,source,down));
+                }
                 void Send(GunBinding source,IEnumerable<string> tokens,bool down)
                 {
                     foreach(string token in tokens)
@@ -105,7 +111,7 @@ public static class ControlSimulation
                     break;
                 }
                 bool pass=pressed&&held&&released&&isolated;
-                result.Add(new(row.Player,row.Function,row.Expression,scope,pass?"simulated":"failed",found??[],pressed,held,released,isolated,pass?null:!pressed?"No physical button combination activates this action.":!isolated?"The other player's inputs activate this action.":"Hold or release did not match the profile."));
+                result.Add(new(row.Player,row.Function,row.Expression,scope,pass?dsu?"simulated":"profile-routed":"failed",found??[],dsu?pressed:null,dsu?held:null,dsu?released:null,isolated,pass?null:!pressed?"No physical button combination activates this action.":!isolated?"The other player's inputs activate this action.":"Hold or release did not match the profile."));
             }
             catch(NotSupportedException e) {result.Add(new(row.Player,row.Function,row.Expression??"",scope,"unsupported",[],false,false,false,false,e.Message));}
             catch(ArgumentException e) {result.Add(new(row.Player,row.Function,row.Expression??"",scope,"failed",[],false,false,false,false,e.Message));}
