@@ -544,6 +544,9 @@ RButton::y
     try {FlycastSetup.Configure(flycastGame,[new GunBinding(1,flyP1.MouseId,flyP1.KeyboardId,SystemId:"blamcon",ButtonMap:new(){["mouse:1"]="shoot"},Blamcon:new(){PedalMode="right"})],flyDevices,flyNames);}
     catch(InvalidOperationException){flyConflict=true;}
     Check(flyConflict && File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg"))==beforeConflict,"Conflicting physical Flycast actions are rejected before any configuration is changed");
+    var attemptedAcrossResumes=LibraryTestProgress.Attempted("{\"attemptedIds\":[\"first\",\"second\"],\"results\":[{\"id\":\"third\",\"status\":\"needs-action\"},{\"id\":\"first\"}],\"current\":{\"id\":\"not-finished\"}}");
+    Check(attemptedAcrossResumes.SetEquals(["first","second","third"]) && LibraryTestProgress.Attempted("{\"results\":[{\"id\":\"legacy\"}]}").SetEquals(["legacy"]),"Interrupted library resumes retain the union of earlier attempts and current results without inventing a completed current game");
+    Check(LibraryTestProgress.Attempted("{\"attemptedIds\":[null,7,\"\",\"valid\"],\"results\":[null,3,{\"id\":false}]}").SetEquals(["valid"]) && LibraryTestProgress.Attempted("broken JSON").Count==0,"Malformed resume progress cannot create phantom attempts or abort the next library test");
     string discFolder=Path.Combine(root,"naomi-content","mok");Directory.CreateDirectory(discFolder);
     string arcadeArchive=discFolder+".zip";
     using(var contentZip=System.IO.Compression.ZipFile.Open(arcadeArchive,System.IO.Compression.ZipArchiveMode.Create)){using var key=contentZip.CreateEntry("317-fixture.key").Open();key.WriteByte(1);}
@@ -819,6 +822,21 @@ RButton::y
     var marsActions=OverlayControls.Read(repair with{SourcePath=matrixPath},root,replayPair).Rows.Where(r=>r.Function.EndsWith("Weapon Change")).ToArray();
     Check(marsActions.Length==2 && marsActions.All(r=>r.Expression==(r.Player==1?"P1|mouse:2":"P2|mouse:3")) && (await ControlSimulation.Replay(marsActions,replayPair)).All(r=>r.Status=="profile-routed"),"Mars Sortie weapon change reaches Vyper A and XGunner's middle button through the actual profile writer and reader");
     Check(TeknoActionRoutes.Find("WartranTroopers","Shoulder P1","P1Button2") is null && TeknoActionRoutes.Find("WartranTroopers","Weapon Change P1","P1Button3") is null,"A shared emulation profile cannot apply Mars Sortie routes to different Wartran actions or routing identifiers");
+    foreach(string routeModel in GunSystems.Catalog.Select(g=>g.Id))
+    {
+        var throwProfile=new XDocument(matrixTemplate);throwProfile.Root!.Element("EmulationProfile")!.Value="WartranTroopers";
+        foreach(var row in throwProfile.Descendants("JoystickButtons").Where(r=>r.Element("ButtonName")?.Value.EndsWith(" Trigger")==true))row.Element("ButtonName")!.Value=row.Element("ButtonName")!.Value.Replace(" Trigger"," Throw");
+        throwProfile.Save(matrixPath);var pair=new[]{MatrixGun(routeModel,1),MatrixGun(routeModel,2)};var routeGame=repair with{SourcePath=matrixPath};
+        TeknoGunSetup.Configure(routeGame,pair);
+        var throws=OverlayControls.Read(routeGame,root,pair).Rows.Where(r=>r.Function.EndsWith(" Throw")).ToArray();
+        Check(throws.Length==2 && throws.All(r=>StartupControls.Resolve(r,pair.Single(g=>g.Player==r.Player)).Resolved) && (await ControlSimulation.Replay(throws,pair)).All(r=>r.Status=="profile-routed"),"Gashaaaan Throw reaches each "+routeModel+" trigger through the saved profile without sharing players");
+        var spicy=new XDocument(matrixTemplate);spicy.Root!.Element("EmulationProfile")!.Value="TooSpicy";
+        foreach(var direction in new[]{"Left","Right"})spicy.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName","Pedal "+direction),new XElement("InputMapping","P1Button"+direction)));
+        spicy.Save(matrixPath);TeknoGunSetup.Configure(routeGame,pair);
+        var pedals=OverlayControls.Read(routeGame,root,pair).Rows.Where(r=>r.Function.StartsWith("Pedal ")).ToArray();
+        Check(pedals.Length==2 && pedals.All(r=>r.Player==1 && StartupControls.Resolve(r,pair[0]).Resolved) && pedals.Select(r=>r.Expression).Distinct().Count()==2 && (await ControlSimulation.Replay(pedals,pair)).All(r=>r.Status=="profile-routed"),"Too Spicy keeps left and right movement on separate captured "+routeModel+" directions for its P1 cabinet");
+    }
+    Check(TeknoActionRoutes.Find("WartranTroopers","Player 1 Throw","P1Button2") is null && TeknoActionRoutes.Find("TooSpicy","Pedal Left","P1ButtonRight") is null,"Throw and pedal routes require the exact vendor action and native routing identifier");
     matrixTemplate.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {

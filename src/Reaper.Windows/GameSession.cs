@@ -335,6 +335,18 @@ public sealed class GameSession
                             } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                         if(windows.Observe(readyWindow.ToInt64(),Environment.TickCount64)) {
                             gameWindow=readyWindow;GamePresentation.Apply(game,readyWindow);
+                            // Aliens' TeknoParrot status window can remain ahead of
+                            // the GLUT renderer. Minimize only this session's own
+                            // non-modal launcher after the renderer is ready.
+                            // Other applications and real error dialogs stay visible.
+                            if(game.Source=="teknoparrot" && TeknoDisplaySetup.Supports(game))
+                                try {
+                                    process.Refresh();
+                                    var launcherWindow=process.MainWindowHandle;
+                                    if(!process.HasExited && launcherWindow!=0 && launcherWindow!=readyWindow && IsRenderWindow(launcherWindow)
+                                        && process.MainWindowTitle.Equals("Game Running",StringComparison.OrdinalIgnoreCase))
+                                        ShowWindowAsync(launcherWindow,6);
+                                } catch(Exception e) when(e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
                             SetForegroundWindow(readyWindow);
                             if(!legendShown) {legendShown=true;GameWindowReady?.Invoke(readyWindow);}
                         }

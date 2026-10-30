@@ -23,6 +23,9 @@ public static class TeknoActionRoutes
         rows.Add(new("InfinityBlade","TOUCH 1","P1Button1","trigger","TeknoParrot installed InfinityBlade vendor template"));
         rows.Add(new("LuigisMansion","Select Switch","P1Button4","side","TeknoParrot installed LuigisMansion vendor template"));
         Both("WartranTroopers","Weapon Change","Button2","magazine","https://github.com/argonlefou/DemulShooter/wiki/Arcade-PC-%7C-Mars-Sortie");
+        Both("WartranTroopers","Throw","Button1","trigger","TeknoParrot installed Gashaaaan vendor template");
+        rows.Add(new("TooSpicy","Pedal Left","P1ButtonLeft","left","TeknoParrot installed 2Spicy vendor template"));
+        rows.Add(new("TooSpicy","Pedal Right","P1ButtonRight","right","TeknoParrot installed 2Spicy vendor template"));
         return rows.ToArray();
     }
     public static TeknoActionRoute? Find(string profile,string function,string inputMapping)

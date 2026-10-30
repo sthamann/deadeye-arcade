@@ -122,9 +122,16 @@ It keeps the disc folder as a requirement, validates the archive before launch
 and includes the selected archive in resume checks. An unrelated neighboring
 archive is never substituted. Dreamcast disc entries retain their own launch path.
 
+Game specific TeknoParrot routes also map Gashaaaan Throw to each player's
+trigger and Too Spicy's separate movement pedals to the captured left and right
+controls. Exact native action identifiers keep these routes separate from other
+games that share an emulation profile. For supported Aliens launch paths, the
+owned Game Running status window is minimized once the game renderer is ready.
+
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
-left untested by an interrupted run, then retries failures. Executables and
+left untested by an interrupted run, then retries failures. Its cumulative attempt
+list survives further interruptions, so each resume can continue reaching new titles. Executables and
 libraries are fingerprinted by content, including patches that preserve file
 size and timestamps.
 **Start + Coin** or **F12** stops the run, including between games;

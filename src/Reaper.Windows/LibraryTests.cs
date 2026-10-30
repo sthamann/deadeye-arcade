@@ -40,6 +40,7 @@ internal static class LibraryTests
             schemaVersion = 1, time = DateTimeOffset.Now, status,
             total = games.Length, completed = results.Count,
             current = current is null ? null : new { current.Id, current.Title }, results,
+            attemptedIds=previouslyAttempted.Order(StringComparer.Ordinal).ToArray(),
             blockingDialog,
             physicalGameplayVerified = false
         }, JsonDefaults.Options));
@@ -57,7 +58,7 @@ internal static class LibraryTests
                 string? fingerprint = SafeFingerprint(game, library.Bindings, data);
                 if (resume && fingerprint is not null && Passed(resultPath) && File.Exists(receipt) && File.ReadAllText(receipt) == fingerprint)
                 {
-                    results.Add(new { game.Id, game.Title, status = "retained", controlStatus = ControlStatus(resultPath), resultPath }); Save("running"); continue;
+                    previouslyAttempted.Add(game.Id);results.Add(new { game.Id, game.Title, status = "retained", controlStatus = ControlStatus(resultPath), resultPath }); Save("running"); continue;
                 }
                 Save("running", game);
                 bool timedOut = false, forced = false; int exitCode = -1; string? testError = null;
@@ -105,7 +106,7 @@ internal static class LibraryTests
                 string status = timedOut ? "watchdog-timeout" : cancelled ? "cancelled" : exitCode == 0 && Passed(resultPath) ? "launch-passed" : "needs-action";
                 if (!File.Exists(resultPath) || timedOut || testError is not null)
                     GameTestRunner.WriteFailure(game, data, status, testError ?? (timedOut ? "The game test exceeded its deadline." : "The test process exited without a result."));
-                results.Add(new { game.Id, game.Title, status, controlStatus = ControlStatus(resultPath), exitCode, resultPath });
+                previouslyAttempted.Add(game.Id);results.Add(new { game.Id, game.Title, status, controlStatus = ControlStatus(resultPath), exitCode, resultPath });
                 // Failed and interrupted games are retried; only successful launches can be retained.
                 // Use the worker's actual snapshot, never settings reloaded after
                 // the test: those may already belong to a different gun selection.
@@ -137,8 +138,7 @@ internal static class LibraryTests
     {
         try
         {
-            using var json=JsonDocument.Parse(File.ReadAllText(path));
-            return json.RootElement.GetProperty("results").EnumerateArray().Select(r=>r.GetProperty("id").GetString()).Where(id=>id is not null).Select(id=>id!).ToHashSet(StringComparer.Ordinal);
+            return LibraryTestProgress.Attempted(File.ReadAllText(path));
         }
         catch(Exception e) when(e is IOException or JsonException or KeyNotFoundException or InvalidOperationException) {return [];}
     }

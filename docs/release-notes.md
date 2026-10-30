@@ -1,8 +1,9 @@
-Resolve imported Flycast arcade content automatically.
+Improve the handoff from launcher to game and complete additional game controls.
 
-- When a Naomi or Atomiswave entry points at its CHD folder, use the exact same-named arcade ZIP beside it. Keep the disc folder as a requirement.
-- Validate the selected archive in the supervised launch path. An invalid archive becomes a per-game error and does not prevent a resumed library test from inspecting the other entries.
-- Include the selected archive in resume fingerprints, so replacing its contents invalidates earlier results.
-- Preserve explicit archive entries and Dreamcast launch paths. Never select an unrelated neighboring ZIP.
+- For supported Aliens launch paths, minimize the session's own Game Running status window after the renderer is ready. Other windows and modal dialogs remain available.
+- Map Gashaaaan Throw to each player's trigger using its exact native action identifier.
+- Map Too Spicy's separate P1 movement pedals to the gun's captured left and right controls.
+- Preserve the cumulative list of attempted games across interrupted library resumes. Passing still requires matching app, gun and content fingerprints.
+- Retain automatic matching arcade archive selection for Flycast Naomi and Atomiswave entries, archive validation and content-aware resume checks.
 
-Flycast retains individual mouse and keyboard profiles for the selected players, including magazine reload. Profile routing, native game launch and physical gameplay remain separate verification steps.
+Bindings remain tied to the selected physical guns. Profile routing, native game launch and physical gameplay remain separate verification steps.
