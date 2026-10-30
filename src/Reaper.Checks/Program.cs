@@ -369,6 +369,36 @@ try
     string retainedHash=KnownFixes.Hash(retainedDll);
     var retainedRepair=KnownFixes.Apply([repairGame with{Source="custom",Executable=mixedMain,WorkingDirectory=mixedRoot}],repairRoot,true,NoDownload).GetAwaiter().GetResult();
     Check(retainedRepair.Findings.Any(f=>f.RuleId=="openal"&&f.Status=="needs-action") && KnownFixes.Hash(retainedDll)==retainedHash,"An incompatible existing OpenAL runtime stays intact and receives a visible review finding");
+    string graphicsRoot=Path.Combine(repairRoot,"legacy-graphics");Directory.CreateDirectory(graphicsRoot);
+    string legacyExe=Path.Combine(graphicsRoot,"HOD2.EXE"),legacyDll=Path.Combine(graphicsRoot,"ddraw.dll"),legacyIni=Path.Combine(graphicsRoot,"DDrawCompat.ini");
+    WriteNative(legacyExe,false,"ddraw.dll");File.WriteAllText(legacyDll,"user wrapper");File.WriteAllText(legacyIni,"# Keep this comment\nResolutionScale = desktop\nSupportedDevices = hal, tnl\n");
+    var graphicsGame=repairGame with{Title="The House of the Dead 2",Source="custom",Executable=legacyExe,WorkingDirectory=graphicsRoot,SourcePath=legacyExe};
+    var unknownGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,NoDownload);
+    Check(unknownGraphics.Findings.Any(f=>f.RuleId=="hod2-graphics"&&f.Status=="needs-action") && File.ReadAllText(legacyDll)=="user wrapper" && File.ReadAllText(legacyIni).Contains("hal, tnl") && !File.Exists(legacyIni+".before-deadeye-graphics"),"An unrecognized existing graphics wrapper and its settings remain untouched with a visible finding");
+    Check(!KnownFixes.LegacyHod2(graphicsGame with{Title="The House of the Dead 2: Remake"}) && !KnownFixes.LegacyHod2(graphicsGame with{Executable=Path.Combine(graphicsRoot,"other.exe")}),"The legacy HAL fix cannot select remakes or another game executable");
+    File.Delete(legacyDll);
+    var corruptGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,_=>Task.FromResult(fixturePackage));
+    Check(corruptGraphics.Findings.Any(f=>f.RuleId=="repair-error") && !File.Exists(legacyDll) && File.ReadAllText(legacyIni).Contains("hal, tnl"),"A mismatched graphics archive is rejected before DLL installation or configuration changes");
+    WriteNative(legacyExe,true,"ddraw.dll");var wrongGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,NoDownload);
+    Check(!wrongGraphics.Findings.Any(f=>f.RuleId=="hod2-graphics")&&!File.Exists(legacyDll),"A 64 bit executable never receives the legacy 32 bit graphics wrapper");
+    WriteNative(legacyExe,false,"ddraw.dll");
+    if(args is ["--graphics-package",var graphicsArchive])
+    {
+        string beforeGraphics=File.ReadAllText(legacyIni);
+        var officialGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,_=>Task.FromResult(graphicsArchive));
+        Check(officialGraphics.Findings.Any(f=>f.RuleId=="hod2-graphics"&&f.Status=="repaired")&&KnownFixes.Hash(legacyDll)==KnownFixes.DDrawCompatDllHash&&NativeImports.Read(legacyDll).Architecture=="x86","The official pinned DDrawCompat package installs the exact matching 32 bit implementation through automatic repair");
+        Check(File.ReadAllText(legacyIni)==beforeGraphics.Replace("hal, tnl","hal")&&File.ReadAllText(legacyIni+".before-deadeye-graphics")==beforeGraphics&&File.ReadAllText(Path.Combine(graphicsRoot,"DeadeyeThirdParty","DDrawCompat-0BSD.txt")).Contains("Permission to use"),"The HAL repair preserves unrelated display preferences, retains the previous config and installs the upstream license");
+        var healthyGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,NoDownload);
+        Check(!healthyGraphics.Findings.Any(f=>f.Status=="repaired"),"A healthy legacy graphics configuration requires no download and creates no repeated repair");
+        File.WriteAllText(legacyIni,"ResolutionScale=desktop\nSupportedDevices=hal # Existing preference\n");string semanticHal=File.ReadAllText(legacyIni);
+        var unchangedGraphics=await KnownFixes.Apply([graphicsGame],repairRoot,true,NoDownload);
+        Check(!unchangedGraphics.Findings.Any(f=>f.Status=="repaired")&&File.ReadAllText(legacyIni)==semanticHal,"An already effective HAL preference retains its own spacing and inline comment without repeated repairs");
+        File.AppendAllText(legacyIni,"SupportedDevices=tnl\n");await KnownFixes.Apply([graphicsGame],repairRoot,true,NoDownload);
+        Check(System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(legacyIni),@"(?m)^SupportedDevices[ \t]*=").Count==1&&File.ReadAllText(legacyIni).Contains("ResolutionScale=desktop"),"Duplicate graphics device keys become one effective HAL preference while unrelated settings remain intact");
+        string graphicsFingerprint=GameTestFingerprint.Create(graphicsGame,[],repairRoot,"fixture");File.AppendAllText(legacyIni,"# Changed configuration\n");
+        Check(GameTestFingerprint.Create(graphicsGame,[],repairRoot,"fixture")!=graphicsFingerprint,"The actual graphics wrapper and settings participate in resume fingerprints");
+        Console.WriteLine($"{checks} targeted checks passed, including the official graphics package.");return;
+    }
     if (args.Length == 3 && args[0] == "--repair-packages")
     {
         Task<string> OfficialPackage(FixPackage package) => Task.FromResult(args[package.Id == KnownFixes.OpenAl.Id ? 1 : 2]);
@@ -1199,7 +1229,7 @@ RButton::y
     try { await AppUpdates.Download(updateClient, release, updateDirectory, null, cancel.Token); } catch (OperationCanceledException) { cancelled = true; }
     Check(cancelled && !File.Exists(downloaded + ".partial"), "Cancelled updates clean partial downloads");
     Check(new AppSettings().CheckForUpdates && System.Text.Json.JsonSerializer.Deserialize<AppSettings>("{}", JsonDefaults.Options)!.CheckForUpdates, "Automatic update checks default on for new and existing libraries");
-    if (args.Length > 1 && args[0] != "--repair-packages")
+    if (args.Length > 1 && !args[0].StartsWith("--",StringComparison.Ordinal))
     {
         var actual = CollectionImporter.Read(args[1]);
         using var fixture = System.Text.Json.JsonDocument.Parse(File.ReadAllText(args[1]));

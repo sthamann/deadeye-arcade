@@ -128,6 +128,16 @@ controls. Exact native action identifiers keep these routes separate from other
 games that share an emulation profile. For supported Aliens launch paths, the
 owned Game Running status window is minimized once the game renderer is ready.
 
+The original 32 bit Windows House of the Dead 2 has a reviewed graphics repair.
+For `HOD2.EXE` using DirectDraw, Deadeye downloads the exact official DDrawCompat
+0.7.2 package when the wrapper is missing and disables its T&L device with
+`SupportedDevices = hal`. Package and DLL hashes are verified, the upstream
+license is retained, and existing display preferences are preserved with a backup.
+Unknown installed wrappers remain untouched and are flagged for review. The
+wrapper and its settings also invalidate stale resume results when changed.
+This repairs the graphics startup path; player setup and gameplay remain separate
+checks.
+
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
 left untested by an interrupted run, then retries failures. Its cumulative attempt

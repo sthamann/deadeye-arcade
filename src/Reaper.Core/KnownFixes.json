@@ -142,5 +142,13 @@
     "scope": "Active game profiles for P1 and P2",
     "source": "https://github.com/ProfgLX/Dolphin-Lightguns-Accuracy-Inis",
     "verification": "Reads actual game profiles, repairs reviewed Dolphin weapon/gesture mappings and explicit TeknoParrot controls, reports missing assignments without asserting gameplay or physical input validation."
+  },
+  {
+    "id": "hod2-graphics",
+    "name": "House of the Dead 2 Grafik",
+    "mode": "automatic",
+    "scope": "Original x86 Windows HOD2.EXE importing DirectDraw",
+    "source": "https://github.com/narzoul/DDrawCompat/issues/445",
+    "verification": "Pinned official 0.7.2 archive and DLL hashes; existing unknown wrappers retained; per-game HAL setting backed up and fingerprinted. Native launch validated; physical gameplay remains separate."
   }
 ]

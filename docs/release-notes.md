@@ -1,9 +1,9 @@
-Improve the handoff from launcher to game and complete additional game controls.
+Repair the original Windows House of the Dead 2 graphics startup automatically.
 
-- For supported Aliens launch paths, minimize the session's own Game Running status window after the renderer is ready. Other windows and modal dialogs remain available.
-- Map Gashaaaan Throw to each player's trigger using its exact native action identifier.
-- Map Too Spicy's separate P1 movement pedals to the gun's captured left and right controls.
-- Preserve the cumulative list of attempted games across interrupted library resumes. Passing still requires matching app, gun and content fingerprints.
-- Retain automatic matching arcade archive selection for Flycast Naomi and Atomiswave entries, archive validation and content-aware resume checks.
+- Recognize the original 32 bit HOD2.EXE with a DirectDraw import, excluding remakes.
+- Download the pinned official DDrawCompat 0.7.2 package only when its DLL is missing. Verify both archive and DLL hashes and retain the upstream 0BSD license.
+- Disable the T&L device with SupportedDevices = hal. Preserve other display settings and back up the previous configuration.
+- Keep an unknown existing wrapper and its settings intact, with an actionable repair report.
+- Include the graphics wrapper and settings in resume fingerprints and record successful repairs in the existing repair history.
 
-Bindings remain tied to the selected physical guns. Profile routing, native game launch and physical gameplay remain separate verification steps.
+Retains the Aliens launcher handoff, Flycast matching arcade archive selection, additional game control routes and cumulative progress across interrupted library tests. Graphics startup, profile routing and physical gameplay remain separate verification steps.

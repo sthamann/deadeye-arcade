@@ -38,3 +38,9 @@ application license does not grant rights to games, ROMs or artwork.
   2.11.1 support images and a sound file can be restored separately for the exact
   recognized installed executable. Its upstream LICENSE is retained. No emulator
   or game data is included in the Deadeye installer.
+
+- [DDrawCompat](https://github.com/narzoul/DDrawCompat/releases/tag/v0.7.2)
+  0.7.2 can be downloaded separately for the original Windows House of the Dead 2.
+  Its archive and DLL hashes are pinned. The app keeps the upstream 0BSD license
+  in the game folder; a copy is included in `licenses/ddrawcompat-0BSD.txt`.
+  The implementation DLL is not bundled with Deadeye.

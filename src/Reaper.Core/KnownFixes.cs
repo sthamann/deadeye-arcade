@@ -14,7 +14,7 @@ public record FixPackage(string Id, string Url, string Sha256, int MaxBytes);
 // Reviewed rules only: the catalog cannot contain scripts, executable commands or arbitrary downloads.
 public static class KnownFixes
 {
-    public const int Version = 2;
+    public const int Version = 3;
     public static FixRule[] Catalog { get; } = LoadCatalog();
     public static readonly FixPackage OpenAl = new("openal-soft-1.25.2",
         "https://openal-soft.org/openal-binaries/openal-soft-1.25.2-bin.zip",
@@ -23,6 +23,12 @@ public static class KnownFixes
         "https://github.com/DirtBagXon/hypseus-singe/releases/download/v2.11.1/Hypseus.Singe-v2.11.1-win64.zip",
         "50d23be1a22868f39505a9711fd8b00b0c0e97a98b41a10a12230029494bf3bc", 15_000_000);
     public const string HypseusExecutableHash = "28bb5ae18dceec60df76fe1fc8a9ccab8afd2b0c1b3f311d855f9ab75131d287";
+    public static readonly FixPackage DDrawCompat = new("ddrawcompat-0.7.2",
+        "https://github.com/narzoul/DDrawCompat/releases/download/v0.7.2/DDrawCompat-v0.7.2.zip",
+        "a932a4dcb2100552b6918fd4a3cc7de138bb97448bbca2a7051954993a397b39",3_000_000);
+    public const string DDrawCompatDllHash="94895cf6ede8fd0f74ee1447fdc08b7044a9c65a1a25a49a4df893a0370975a3";
+    public static bool LegacyHod2(GameEntry game)=>Path.GetFileName(game.Executable).Equals("HOD2.EXE",StringComparison.OrdinalIgnoreCase)
+        && !game.Title.Contains("Remake",StringComparison.OrdinalIgnoreCase);
     private static readonly object historyLock = new();
     private static readonly string[] HypseusAssets = [
 "pics/led10.bmp","pics/player1.bmp","pics/oncaptain.bmp","pics/led6.bmp","pics/overlayleds1.bmp","pics/led2.bmp","pics/cadet.bmp","pics/led11.bmp","pics/captain.bmp","pics/led14.bmp","pics/led8.bmp","pics/led7.bmp","pics/annunon.png","pics/player2.bmp","pics/led3.bmp","pics/led12.bmp","pics/overlayleds2.bmp","pics/lives.bmp","pics/ldp1450font.bmp","pics/offcadet.bmp","pics/led4.bmp","pics/led16.bmp","pics/tqkeys.png","pics/led13.bmp","pics/annunoff.png","pics/led0.bmp","pics/onspaceace.bmp","pics/led9.bmp","pics/offcaptain.bmp","pics/led15.bmp","pics/shoot.bmp","pics/credits.bmp","pics/led5.bmp","pics/spaceace.bmp","pics/oncadet.bmp","pics/ConsoleFont.bmp","pics/led17.bmp","pics/offspaceace.bmp","pics/led1.bmp","sound/grumble.wav"];
@@ -69,6 +75,7 @@ public static class KnownFixes
                 }
                 await RepairOpenAl(game);
                 await RepairHypseus(game);
+                await RepairHod2Graphics(game);
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Xml.XmlException or HttpRequestException or TaskCanceledException or InvalidDataException or ArgumentException)
             { Add(game, "repair-error", "needs-action", error.Message, []); }
@@ -158,6 +165,51 @@ public static class KnownFixes
             }
             if (copied.Count > 0) Add(game, "hypseus-assets", "repaired", "Fehlende Hypseus-Bilder und Tondateien aus der exakt passenden Version ergänzt.", copied.ToArray());
         }
+        async Task RepairHod2Graphics(GameEntry game)
+        {
+            if(!LegacyHod2(game)||!File.Exists(game.Executable))return;
+            NativeImage image;
+            try{image=NativeImports.Read(game.Executable);}catch(Exception e) when(e is IOException or BadImageFormatException or ArgumentOutOfRangeException){return;}
+            if(image.Architecture!="x86" || !image.Imports.Any(i=>i.Name.Equals("ddraw.dll",StringComparison.OrdinalIgnoreCase)))return;
+            string folder=Path.GetDirectoryName(Path.GetFullPath(game.Executable))!,dll=Path.Combine(folder,"ddraw.dll"),ini=Path.Combine(folder,"DDrawCompat.ini");
+            if(File.Exists(dll)&&Hash(dll)!=DDrawCompatDllHash)
+            {Add(game,"hod2-graphics","needs-action","Vorhandener Grafikwrapper weicht von der geprüften Version ab. Dateien und Einstellungen bleiben erhalten.",[dll]);return;}
+            bool installed=false;
+            if(!File.Exists(dll))
+            {
+                string package=await preparePackage(DDrawCompat);
+                if(!ValidPackage(package,DDrawCompat))throw new InvalidDataException(I18n.T("Das Reparaturpaket stimmt nicht mit der geprüften Herstellerdatei überein."));
+                using var zip=ZipFile.OpenRead(package);
+                var entry=zip.GetEntry("ddraw.dll")??throw new InvalidDataException("DDrawCompat component missing.");
+                string temporary=dll+".deadeye-new";
+                try{
+                    entry.ExtractToFile(temporary,true);
+                    if(Hash(temporary)!=DDrawCompatDllHash)throw new InvalidDataException("DDrawCompat DLL mismatch.");
+                    WriteGraphicsLicense(folder);
+                    File.Move(temporary,dll,false);installed=true;
+                }finally{if(File.Exists(temporary))File.Delete(temporary);}
+            }
+            string old=File.Exists(ini)?File.ReadAllText(ini):"";
+            const string setting=@"(?im)^[ \t]*SupportedDevices[ \t]*=[^\r\n]*";
+            var settings=Regex.Matches(old,setting);int occurrence=0;
+            bool alreadyHal=settings.Count==1&&Regex.IsMatch(settings[0].Value,@"^[ \t]*SupportedDevices[ \t]*=[ \t]*hal[ \t]*(?:#.*)?$");
+            string text=alreadyHal?old:settings.Count>0?Regex.Replace(old,setting,_=>occurrence++==0?"SupportedDevices = hal":"# Duplicate SupportedDevices removed by Deadeye")
+                :old+(old.Length>0&&!old.EndsWith('\n')?Environment.NewLine:"")+"SupportedDevices = hal"+Environment.NewLine;
+            if(text!=old)
+            {
+                if(File.Exists(ini)&&!File.Exists(ini+".before-deadeye-graphics"))File.Copy(ini,ini+".before-deadeye-graphics");
+                string temporary=ini+".deadeye-new";
+                try{File.WriteAllText(temporary,text);File.Move(temporary,ini,true);}finally{if(File.Exists(temporary))File.Delete(temporary);}
+            }
+            WriteGraphicsLicense(folder);
+            if(installed||text!=old)Add(game,"hod2-graphics","repaired","Geprüften DirectDraw Wrapper eingerichtet und T&L für das originale House of the Dead 2 deaktiviert.",[dll,ini]);
+        }
+        static void WriteGraphicsLicense(string folder)
+        {
+            string path=Path.Combine(folder,"DeadeyeThirdParty","DDrawCompat-0BSD.txt");if(File.Exists(path))return;
+            using var stream=typeof(KnownFixes).Assembly.GetManifestResourceStream("Reaper.Core.DDrawCompatLicense.txt")??throw new InvalidDataException("DDrawCompat license resource missing.");
+            using var reader=new StreamReader(stream);string license=reader.ReadToEnd();Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllText(path,license);
+        }
     }
     public static Dictionary<string, string?> Snapshot(IEnumerable<string> files) => files.Distinct(StringComparer.OrdinalIgnoreCase)
         .ToDictionary(file => file, file => File.Exists(file) ? Hash(file) : null, StringComparer.OrdinalIgnoreCase);
@@ -186,6 +238,7 @@ public static class KnownFixes
     public static string[] InputFiles(GameEntry game, string data)
     {
         var files = new List<string>();
+        if(LegacyHod2(game))files.AddRange(new[]{Path.Combine(Path.GetDirectoryName(Path.GetFullPath(game.Executable))!,"ddraw.dll"),Path.Combine(Path.GetDirectoryName(Path.GetFullPath(game.Executable))!,"DDrawCompat.ini")});
         if(game.Source=="teknoparrot")files.AddRange(new[]{game.SourcePath,TeknoRequirements.TemplatePath(game)});
         if(TimeCrisis5Controls.Supports(game)) files.Add(TimeCrisis5Controls.ManagedPath(game));
         if(game.Source=="mame")
