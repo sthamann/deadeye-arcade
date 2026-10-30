@@ -746,6 +746,9 @@ RButton::y
     Check(repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[1].KeyboardId && repairedLegacy.Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Coin2").Element("RawInputButton")?.Element("DevicePath")?.Value==replayPair[0].KeyboardId,"Reversed generic coin labels follow the vendor's actual Coin1/Coin2 routing identifiers");
     var coinRows=OverlayControls.Read(repair with{SourcePath=matrixPath},root,replayPair).Rows;
     Check(coinRows.Single(r=>r.Function=="Coin").Player==2 && coinRows.Single(r=>r.Function=="Coin2").Player==1 && (await ControlSimulation.Replay(coinRows.Where(r=>r.Function is "Coin" or "Coin2"),replayPair)).All(r=>r.Status=="profile-routed"),"Active profile readers and button replay use the same actual coin ownership as the configuration writer");
+    var movedReplayGun=replayPair[0] with{MouseId="replacement-mouse",KeyboardId="replacement-keyboard"};
+    TeknoGunSetup.Configure(repair with{SourcePath=matrixPath},[movedReplayGun,replayPair[1]]);
+    Check(XDocument.Load(matrixPath).Descendants("JoystickButtons").Single(r=>r.Element("ButtonName")?.Value=="Player 1 Footpedal").Element("RawInputButton")?.Element("DevicePath")?.Value==movedReplayGun.MouseId,"A Deadeye-managed pedal follows a replacement gun while explicit external pedal assignments remain preserved");
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
     {
         matrixTemplate.Save(matrixPath);var pair=new[]{MatrixGun(firstModel,1),MatrixGun(secondModel,2)};var matrixGame=repair with{SourcePath=matrixPath};

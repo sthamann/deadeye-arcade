@@ -131,7 +131,8 @@ MAME checks include global and per-game overrides, preserving their unrelated
 settings and backing up changed input files. Time Crisis 5's reviewed helper is
 adapted to the selected gun for credits, both pedals, weapon change and crosshair.
 Custom helpers are retained for review. TeknoParrot checks compare the active
-profile with the independent template shipped by the emulator, detect missing
+profile with the independent template shipped by the emulator, keep managed pedal
+routes aligned with the selected guns while preserving explicit external pedals, detect missing
 rows and stale action identifiers, and restore supported routes with backups.
 Aim routes are checked against the exact physical gun for each player. Unknown
 action ownership stays pending. Each game report records the app version and

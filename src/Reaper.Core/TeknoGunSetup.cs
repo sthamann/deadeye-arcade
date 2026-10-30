@@ -71,7 +71,9 @@ public static class TeknoGunSetup
             }
             // These are distinct vendor actions, not aliases of grenades/action.
             // Keep weapon change and Option reachable on separate RS3 controls.
-            if(control is "Footpedal" or "Foot Pedal" or "Pedal" &&
+            bool managedPedal=Regex.IsMatch(row.Element("BindNameRi")?.Value??"",@"^Reaper P[12]\b")
+                || Regex.IsMatch(row.Element("BindName")?.Value??"",@"^Reaper P[12]\b");
+            if(control is "Footpedal" or "Foot Pedal" or "Pedal" && !managedPedal &&
                 !string.IsNullOrWhiteSpace(row.Element("RawInputButton")?.Element("DevicePath")?.Value)) continue;
             bool extra=player.SystemId is "rs3" or "xgunner" or "blamcon" or "sinden" && control is "Change" or "Option" or "Sub Trigger" or "Controller Select" or "Option L" or "Option R" or "Footpedal" or "Foot Pedal" or "Pedal" or "Hyperenergy Tech Lever Forward (Attack)" or "Hyperenergy Tech Lever Backwards (Defense)";
             if(extra)
