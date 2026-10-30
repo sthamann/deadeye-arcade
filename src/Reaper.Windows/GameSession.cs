@@ -150,16 +150,19 @@ public sealed class GameSession
         finally { CloseHandle(handle); }
         return rows;
     }
-    public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
+    public async Task Run(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings, CancellationToken cancellationToken = default, bool fixesPrepared = false)
     {
         if (Interlocked.CompareExchange(ref reserved,1,0)!=0) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         var helpers = new List<Process>();
         GameInputPreparation? input = null;
         try
         {
-            await AutomaticFixes.Run([game], dataDirectory);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!fixesPrepared) await AutomaticFixes.Run([game], dataDirectory);
+            cancellationToken.ThrowIfCancellationRequested();
             _ = LaunchRules.Prepare(game);
             input = await GameInputPreparation.Prepare(game, dataDirectory, bindings);
+            cancellationToken.ThrowIfCancellationRequested();
             bridge=input.Bridge;
             game = input.Game;
             var players = input.Players;
@@ -169,6 +172,7 @@ public sealed class GameSession
             KnownFixes.RecordChanges(game, dataDirectory, "multiplayer-plugin", beforeHelpers, helperFiles);
             foreach (var helper in game.Helpers ?? [])
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var previous = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(helper.Executable));
                 bool running = previous.Length > 0; foreach (var p in previous) p.Dispose();
                 if (running) throw new IOException(I18n.T("Der Helfer läuft bereits. Bitte vor dem Start schließen: ") + Path.GetFileName(helper.Executable));
@@ -176,7 +180,7 @@ public sealed class GameSession
                 foreach (var argument in helper.Arguments) info.ArgumentList.Add(argument);
                 helpers.Add(Process.Start(info) ?? throw new IOException(I18n.T("Helfer konnte nicht gestartet werden.")));
             }
-            await RunGame(game, dataDirectory, players);
+            await RunGame(game, dataDirectory, players, cancellationToken);
         }
         finally
         {
@@ -188,8 +192,12 @@ public sealed class GameSession
             if (helpers.Count > 0) await Task.Delay(1200);
             foreach (var helper in helpers)
             {
-                try { if (!helper.HasExited) helper.Kill(true); }
-                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                try
+                {
+                    if (!helper.HasExited) helper.Kill(true);
+                    await helper.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(3));
+                }
+                catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or TimeoutException) { }
                 helper.Dispose();
             }
             lock(sync) { if(job!=0) {CloseHandle(job);job=0;} }
@@ -198,7 +206,7 @@ public sealed class GameSession
             finally {Active=false;gameWindow=0;Interlocked.Exchange(ref reserved,0);Changed?.Invoke("ended");}
         }
     }
-    private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings)
+    private async Task RunGame(GameEntry game, string dataDirectory, IEnumerable<GunBinding> bindings, CancellationToken cancellationToken)
     {
         if (Active) throw new InvalidOperationException(I18n.T("Es läuft bereits ein Spiel."));
         var profileFiles = game.Source == "teknoparrot" ? new[] { game.SourcePath } : new[] { Path.Combine(game.WorkingDirectory, "EMULATOR.INI") };
@@ -243,6 +251,7 @@ public sealed class GameSession
         HashSet<int> existing = Snapshot().Select(p => p.Id).ToHashSet();
         targetExecutable = target;
         var started = DateTime.Now; owned.Clear(); stop = false; ending = null; overlayVisible = false; overlayWindows.Clear();
+        cancellationToken.ThrowIfCancellationRequested();
         using var process = Process.Start(info) ?? throw new IOException(I18n.T("Das Spiel konnte nicht gestartet werden."));
         CreateSessionJob(process);
         lock (sync) owned[process.Id] = process.StartTime;
@@ -255,7 +264,7 @@ public sealed class GameSession
         nint legendWindow=0; long legendSince=0;
         try
         {
-            while (!stop)
+            while (!stop && !cancellationToken.IsCancellationRequested)
             {
                 var snapshot = Snapshot();
                 lock (sync)
@@ -330,7 +339,7 @@ public sealed class GameSession
                 }
                 await Task.Delay(200);
             }
-            if(!stop && ending is null && game.Source!="teknoparrot" && process.HasExited && process.ExitCode!=0)
+            if(!stop && !cancellationToken.IsCancellationRequested && ending is null && game.Source!="teknoparrot" && process.HasExited && process.ExitCode!=0)
                 throw new IOException(I18n.F($"Das Spiel wurde mit Fehlercode {process.ExitCode} beendet. Bitte das Emulatorprotokoll prüfen."));
         }
         finally

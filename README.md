@@ -27,7 +27,9 @@ setup problems, and return to the library with your gun.
 - **Prepare supported games automatically:** player assignments, emulator profiles,
   recognized multiplayer integrations, runtime checks and reviewed repair rules.
 - **Keep the way out clear:** a controls introduction, in-game menu, independent
-  emergency exit and a persistent button back to Windows.
+  emergency exit and a persistent button back to Windows. Pending launches are
+  cancelled when you close the app; repeated launch requests are ignored while a
+  session is being prepared or running.
 
 [Supported lightguns](#supported-lightguns) · [Firing range](#try-your-guns-before-launching-a-game) · [Game profiles](#how-gun-profiles-reach-your-games) · [Windows setup](#get-started-on-windows)
 
@@ -97,7 +99,8 @@ The header shows the detected count, active P1/P2 models and setup status. USB
 presence, software preparation and a received button event have separate states.
 For wireless hardware, detecting the receiver alone does not confirm a gun is
 awake and sending inputs. Deadeye renews its input registrations after Windows
-unlock, resume and Remote Desktop transitions.
+unlock, resume and Remote Desktop transitions. Recovery clears stale button-test
+locks and pressed-button highlights so old input state cannot block the menu.
 
 ### Physical buttons and action bindings
 

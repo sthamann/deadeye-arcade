@@ -61,13 +61,15 @@ public static class App
                     var session=new GameSession(); bool windowObserved=false;string? error=null;
                     var elapsed=System.Diagnostics.Stopwatch.StartNew();
                     session.GameWindowReady+=_=>windowObserved=true;
+                    using var cancellation = new CancellationTokenSource();
                     Task run;
-                    try {run=session.Run(game,data,state.Bindings);} catch(Exception e) {run=Task.FromException(e);}
+                    try {run=session.Run(game,data,state.Bindings,cancellation.Token);} catch(Exception e) {run=Task.FromException(e);}
                     Task.WhenAny(run,Task.Delay(seconds*1000)).GetAwaiter().GetResult();
                     bool exitedEarly=run.IsCompleted;
                     var before=session.LiveProcesses(); var processDetails=session.InspectProcesses(); bool foreground=session.HasGameForeground();
                     bool gameWindowAvailable=session.GameWindowAvailable;
                     double observedSeconds=elapsed.Elapsed.TotalSeconds;
+                    cancellation.Cancel();
                     session.End().GetAwaiter().GetResult();
                     try {run.GetAwaiter().GetResult();} catch(Exception e) {error=e.Message;}
                     if(error is null && (exitedEarly || before.Length==0)) error="The game exited before the observation period ended.";
@@ -127,8 +129,24 @@ public static class App
             return;
         }
         var app = new Application();
-        app.DispatcherUnhandledException += (_, e) => { MessageBox.Show(e.Exception.Message, "Deadeye Arcade"); e.Handled = true; };
+        app.DispatcherUnhandledException += (_, e) =>
+        {
+            ReportFailure(e.Exception);
+            e.Handled = true;
+            app.MainWindow?.Close();
+        };
         try { app.Run(new ArcadeWindow()); }
-        catch (Exception e) { MessageBox.Show(e.Message, I18n.T("Deadeye Arcade konnte nicht starten")); }
+        catch (Exception e) { ReportFailure(e); Environment.ExitCode = 1; }
+    }
+    private static void ReportFailure(Exception error)
+    {
+        try
+        {
+            string data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ReaperArcade");
+            Directory.CreateDirectory(data);
+            File.AppendAllText(Path.Combine(data, "activity.log"), $"{DateTimeOffset.Now:O} unhandled failure: {error}{Environment.NewLine}");
+        }
+        catch (Exception logError) when (logError is IOException or UnauthorizedAccessException) { }
+        MessageBox.Show(error.Message, "Deadeye Arcade", MessageBoxButton.OK, MessageBoxImage.Error);
     }
 }

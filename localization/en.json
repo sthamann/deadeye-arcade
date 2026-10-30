@@ -957,5 +957,6 @@
   "Waffenwechsel testen": "Test weapon change",
   "Diese Taste zuerst unter Meine Guns erfassen: ": "Capture this control in My Guns first: ",
   "Vyper: Magazinzug = Nachladen, A = zweite Aktion, B = dritte Aktion. Magazin und optionales Pedal teilen den Anschluss. Der zweistufige Abzugsweg hat einen elektrischen Schusseingang.": "Vyper: pull the magazine to reload, A for the second action, B for the third. The magazine and optional pedal share a channel. The two-stage trigger pull has one electrical shoot input.",
-  "XGunner: Die Magazinentriegelung ist laut Anleitung mechanisch. Nachladen erfolgt über die rechte Maustaste oder Space; für die Entriegelung ist kein separater HID-Eingang dokumentiert.": "XGunner: the manual identifies a mechanical magazine release. Reload uses right mouse or Space; no separate HID input is documented for the release."
+  "XGunner: Die Magazinentriegelung ist laut Anleitung mechanisch. Nachladen erfolgt über die rechte Maustaste oder Space; für die Entriegelung ist kein separater HID-Eingang dokumentiert.": "XGunner: the manual identifies a mechanical magazine release. Reload uses right mouse or Space; no separate HID input is documented for the release.",
+  "Die Oberfläche konnte nicht gestartet werden. Bitte Deadeye Arcade erneut öffnen. Details stehen in activity.log.": "The interface could not start. Please reopen Deadeye Arcade. Details have been saved in activity.log."
 }

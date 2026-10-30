@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {devicePlayer} from './src/GunIdentity.ts';
+assert.equal(devicePlayer({player:1,mouseId:'HID#VID_0483&PID_5751',systemId:'rs3'}),2);
+assert.equal(devicePlayer({player:2,mouseId:'HID#VID_0483&PID_5750',systemId:'rs3'}),1);
+assert.equal(devicePlayer({player:2,mouseId:'PID_5750',systemId:'xgunner',hardwarePlayer:2}),2);
+assert.equal(devicePlayer({player:2,mouseId:'PID_5750',systemId:'blamcon'}),2);
+assert.equal(devicePlayer({player:1,mouseId:'legacy-unknown'}),1);
+assert.equal(devicePlayer(undefined,2),2);
+assert.equal(devicePlayer({player:1,mouseId:'PID_5751',hardwarePlayer:null}),2);
+console.log('PASS: 7 UI device identity cases, including swapped receiver and game slots.');

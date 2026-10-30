@@ -1,3 +1,4 @@
+import {devicePlayer} from './GunIdentity';
 import {useEffect,useRef,useState} from 'react';
 import type {State,Binding} from './types';
 import {t} from './i18n';
@@ -65,7 +66,7 @@ export function ShootingRange({state,close}:{state:State;close:()=>void}){
   };id=requestAnimationFrame(draw);return()=>cancelAnimationFrame(id);
  },[]);
  const tokenFor=(b:Binding,c:Control)=>b.controlMap?.[c.id]??(b.systemId==='blamcon'&&['magazine','pedal'].includes(c.id)?(b.blamcon?.pedalMode??'assignable')==='assignable'?'key:82':b.blamcon?.pedalMode==='right'?'mouse:2':'mouse:3':c.token);
- const physical=(b:Binding,token:string)=>controls(b.systemId??'rs3',b.hardwarePlayer??b.player).filter(c=>!c.hardware&&tokenFor(b,c)===token).map(c=>t(c.label)).join(' / ')||token;
+ const physical=(b:Binding,token:string)=>controls(b.systemId??'rs3',devicePlayer(b)).filter(c=>!c.hardware&&tokenFor(b,c)===token).map(c=>t(c.label)).join(' / ')||token;
  const preview=(action:string,x?:number,y?:number)=>{if(state.native)return;const token='preview:'+action;const v={player:1,token,action,down:true,x,y};input.current(v);input.current({...v,down:false});};
  return <section className="shooting-range" role="dialog" aria-modal="true" aria-label={t('Schießstand')} data-frame={frame}>
   <header><div><small>DEADEYE LAB</small><h1>{t('Schießstand')}</h1><p>{t('Zielen. Schießen. Magazin nachladen. Beide Spieler gleichzeitig.')}</p></div><button className="secondary" data-test-navigation data-range-navigation onClick={close}>{t('Zurück zu meinen Guns')}</button></header>
@@ -74,7 +75,7 @@ export function ShootingRange({state,close}:{state:State;close:()=>void}){
   <div className="range-arena" ref={surface} onContextMenu={e=>{e.preventDefault();preview('reload');}} onClick={e=>{if((e.target as HTMLElement).tagName==='CANVAS')preview('shoot',e.clientX/innerWidth,e.clientY/innerHeight);}}><canvas ref={canvas} aria-label={t('Fässer als Ziele')}/><span className="range-instruction">{t('Zwei Treffer zerstören ein Fass. 12 Schuss pro Magazin.')}</span></div>
   <div className="range-players">{players.map(b=>{const p=engine.current.players.get(b.player)!;return <article key={b.player} style={{borderColor:colors[b.player-1]}} data-player={b.player}>
    <div className="range-player-heading"><b>P{b.player}</b><strong>{b.systemId==='blamcon'?'Blamcon Vyper':b.systemId==='xgunner'?'XGunner':b.systemId==='sinden'?'Sinden':'RS3 Reaper Pro'}</strong><span data-testid={'ammo-'+b.player}>{p.ammo} / 12</span></div>
-   <div className="range-gun"><GunShape model={b.systemId} pressed={new Set(controls(b.systemId??'rs3',b.hardwarePlayer??b.player).filter(c=>p.held.has(tokenFor(b,c)??'')).map(c=>c.id))}/><div><p>{t('Treffer: {0} · Schüsse: {1}',p.hits,p.shots)}</p><p>{t('Nachgeladen: {0} · Münzen: {1}',p.reloads,p.coins)}</p><p>{t('Waffe: {0}',p.weapon+1)}</p><strong className={p.ammo===0?'range-empty':''}>{p.ammo===0?t('Magazin leer. Nachladen!'):t('Bereit')}</strong></div></div>
+   <div className="range-gun"><GunShape model={b.systemId} pressed={new Set(controls(b.systemId??'rs3',devicePlayer(b)).filter(c=>p.held.has(tokenFor(b,c)??'')).map(c=>c.id))}/><div><p>{t('Treffer: {0} · Schüsse: {1}',p.hits,p.shots)}</p><p>{t('Nachgeladen: {0} · Münzen: {1}',p.reloads,p.coins)}</p><p>{t('Waffe: {0}',p.weapon+1)}</p><strong className={p.ammo===0?'range-empty':''}>{p.ammo===0?t('Magazin leer. Nachladen!'):t('Bereit')}</strong></div></div>
    <div className="range-last" role="status">{p.last?physical(b,p.last):t('Warte auf Eingabe')}<small>{p.last?t(({shoot:'Schießen',reload:'Nachladen',secondary:'Zusatzaktion',auxiliary:'Dritte Aktion',mode:'Modus / Waffenwechsel',coin:'Münze',start:'Start'} as Record<string,string>)[p.lastAction]??p.lastAction):''}</small></div>
    <div className="range-tested">{Array.from(p.seen).map(token=><span key={token}>{physical(b,token)}</span>)}</div>
   </article>})}</div>

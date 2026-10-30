@@ -1,9 +1,10 @@
+import {devicePlayer} from './GunIdentity';
 import {t} from './i18n';
 import {controls,factoryMap} from './GunHardware';
 import type {Binding} from './types';
 export function GunMenuGuide({binding}:{binding?:Binding}){
  if(!binding)return null;
- const model=binding.systemId??'rs3',physical=controls(model,binding.hardwarePlayer??binding.player),map=binding.buttonMap??factoryMap(binding.hardwarePlayer??binding.player,model);
+ const model=binding.systemId??'rs3',physical=controls(model,devicePlayer(binding)),map=binding.buttonMap??factoryMap(devicePlayer(binding),model);
  const names=(action:string)=>Object.keys(map).filter(token=>map[token]===action).map(token=>physical.find(c=>(binding.controlMap?.[c.id]??c.token)===token)).filter(c=>!!c).map(c=>t(c!.label));
  const directions=['up','down','left','right'].every(action=>names(action).length>0);
  return <section className="gun-menu-guide" aria-label={t('Menüsteuerung dieser Gun')}>

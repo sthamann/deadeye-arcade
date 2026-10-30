@@ -67,6 +67,7 @@ public sealed class ArcadeWindow : Window
     private int? bindPlayer;
     private string? bindMouse;
     private bool ready, busy, closing, closeRequested, launching;
+    private CancellationTokenSource? launchCancellation;
     private readonly Button exitButton = new()
     {
         Content = I18n.T("App schließen · Windows"), MinWidth = 260, Height = 64,
@@ -204,11 +205,11 @@ public sealed class ArcadeWindow : Window
         updateTimer.Start();
         Closing += async (_, e) =>
         {
-            if (session.Active)
+            if (launching || session.Active)
             {
                 e.Cancel = true;
                 if (closeRequested) return;
-                closeRequested = true; exitButton.Content = I18n.T("Spiel wird beendet …");
+                closeRequested = true; launchCancellation?.Cancel(); exitButton.Content = I18n.T("Spiel wird beendet …");
                 await session.End();
                 while (session.Active) await Task.Delay(100);
                 if (!launching && !closing) Close();
@@ -233,7 +234,8 @@ public sealed class ArcadeWindow : Window
             raw.Recover(reason);
             aim.RetainDevices(new(StringComparer.OrdinalIgnoreCase));
             foreach (var hold in triggerHolds.Values) hold.Reset();
-            desktopTrigger.Reset(); buttonTestHold.Reset(); gestures.Clear(); gunSignals.Clear();
+            desktopTrigger.Reset(); buttonTestHold.Reset(); buttonTestPlayer = null; buttonTestRelease = false; gestures.Clear(); gunSignals.Clear();
+            Send("button-test-ended", new {});
             session.ResetInput();
             Log($"input recovery: {reason}; generation={raw.Generation}; devices={raw.Devices.Count}; registration={raw.OwnsRegistration()}");
             if (ready) { gunTimer.Stop(); gunTimer.Start(); SendState(); }
@@ -247,7 +249,9 @@ public sealed class ArcadeWindow : Window
             string webDirectory = Path.Combine(AppContext.BaseDirectory, "web");
             if (!System.IO.File.Exists(Path.Combine(webDirectory, "index.html"))) throw new IOException(I18n.T("Die Oberfläche fehlt. Bitte das vollständige Windows-Paket entpacken."));
             var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(store.DirectoryPath, "browser"));
+            if (closing) return;
             await web.EnsureCoreWebView2Async(env);
+            if (closing) return;
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("reaper.local", webDirectory, CoreWebView2HostResourceAccessKind.DenyCors);
             Directory.CreateDirectory(Path.Combine(store.DirectoryPath, "covers"));
             web.CoreWebView2.SetVirtualHostNameToFolderMapping("covers.reaper.local", Path.Combine(store.DirectoryPath, "covers"), CoreWebView2HostResourceAccessKind.DenyCors);
@@ -267,11 +271,20 @@ public sealed class ArcadeWindow : Window
             {
                 if (!e.Source.StartsWith("https://reaper.local/", StringComparison.Ordinal)) return;
                 try { using var doc = JsonDocument.Parse(e.WebMessageAsJson); await Handle(doc.RootElement.Clone()); }
-                catch (Exception error) { Log("error: " + error.Message); Send("error", new { message = error.Message }); }
+                catch (Exception error) { Log("error: " + error); Send("error", new { message = error.Message }); }
             };
             SetFullscreen(state.Settings.Fullscreen); web.Source = new Uri("https://reaper.local/index.html");
         }
-        catch (WebView2RuntimeNotFoundException) { MessageBox.Show(I18n.T("Für die Oberfläche wird Microsoft Edge WebView2 Runtime benötigt.\nDownload: https://developer.microsoft.com/microsoft-edge/webview2/"), Title); Close(); }
+        catch (Exception error) when (!closing)
+        {
+            Log("web initialization failed: " + error);
+            string message = error is WebView2RuntimeNotFoundException
+                ? I18n.T("Für die Oberfläche wird Microsoft Edge WebView2 Runtime benötigt.\nDownload: https://developer.microsoft.com/microsoft-edge/webview2/")
+                : I18n.T("Die Oberfläche konnte nicht gestartet werden. Bitte Deadeye Arcade erneut öffnen. Details stehen in activity.log.") + "\n\n" + error.Message;
+            MessageBox.Show(this, message, Title, MessageBoxButton.OK, MessageBoxImage.Error);
+            Close();
+        }
+        catch (Exception error) when (closing) { Log("web initialization interrupted by close: " + error); }
     }
     private void SetFullscreen(bool enabled)
     { WindowState = WindowState.Normal; WindowStyle = enabled ? WindowStyle.None : WindowStyle.SingleBorderWindow; ResizeMode = enabled ? ResizeMode.NoResize : ResizeMode.CanResize; if (enabled) WindowState = WindowState.Maximized; }
@@ -329,7 +342,7 @@ public sealed class ArcadeWindow : Window
             ?? MediaPaths.Url(file, Path.Combine(store.DirectoryPath, "media"), "media.reaper.local")
             ?? MediaPaths.Url(file, @"C:\Lightgun\Media", "collection.reaper.local");
     }
-    private void Persist() { store.Save(state); SendState(); }
+    private void Persist() { gestures.Clear(); store.Save(state); SendState(); }
     private void Log(string message) { System.IO.File.AppendAllText(logPath, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine); }
     private void Input(RawPacket packet)
     {
@@ -374,7 +387,7 @@ public sealed class ArcadeWindow : Window
             || packet.Kind == "hid" && guns.Any(g => g.Id == b.PhysicalId && g.InputIds.Contains(packet.DeviceId, StringComparer.OrdinalIgnoreCase)));
         if (packet.Kind == "keyboard" && binding is not null && buttonTestPlayer is null && !buttonTestRelease && !rangeTesting)
         {
-            if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new();
+            if (!gestures.TryGetValue(packet.DeviceId, out var gesture)) gestures[packet.DeviceId] = gesture = new(binding);
             gesture.Key(packet.Key, packet.Down, DateTimeOffset.UtcNow);
         }
         if (binding is not null)
@@ -667,6 +680,7 @@ public sealed class ArcadeWindow : Window
             I18n.Language = language; exitButton.Content = I18n.T("App schließen · Windows"); Persist(); return;
         }
         if (type == "close") { Close(); return; }
+        if (type == "launch" && (launching || session.Active || closeRequested)) return;
         if (type == "browse-path") { picker.Browse(Str("path")); return; }
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
@@ -1101,13 +1115,17 @@ public sealed class ArcadeWindow : Window
         // Reserve the entire launch, including dependency checks and helper setup.
         if (launching || session.Active || closing || closeRequested) return;
         busy = true; launching = true;
+        using var cancellation = new CancellationTokenSource();
+        launchCancellation = cancellation;
         try
         {
             Send("busy", new { message = I18n.T("Spiel wird geprüft und vorbereitet …") });
             await AutomaticFixes.Run([game], store.DirectoryPath);
+            cancellation.Token.ThrowIfCancellationRequested();
             _ = LaunchRules.Prepare(game);
             Send("busy", new { message = I18n.T("Spiel wird gestartet …") });
             var launchDependencies = await Task.Run(() => RuntimeInstaller.Scan([game]));
+            cancellation.Token.ThrowIfCancellationRequested();
             if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
             {
                 await CheckDependencies();
@@ -1118,10 +1136,12 @@ public sealed class ArcadeWindow : Window
             foreach (var gesture in gestures.Values) gesture.Reset();
             foreach (var hold in triggerHolds.Values) hold.Reset(); activeGame = game;
             state.Games[state.Games.IndexOf(game)] = game with { LastPlayed = DateTimeOffset.UtcNow }; store.Save(state); Log("launch: " + game.Title);
-            await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))));
+            await session.Run(game, store.DirectoryPath, state.Bindings.Where(b => guns.Any(g => g.MouseId is not null && string.Equals(g.MouseId, b.MouseId, StringComparison.OrdinalIgnoreCase))), cancellation.Token, fixesPrepared: true);
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { Log("launch: cancelled before returning to desktop"); }
         finally
         {
+            launchCancellation = null;
             busy = false; launching = false; activeGame = null;
             Send("busy", new { message = "" });
             if (closeRequested) Close(); else SendState();

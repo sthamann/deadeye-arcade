@@ -1,3 +1,4 @@
+import {devicePlayer} from './GunIdentity';
 import { t, message } from "./i18n";
 import { useEffect, useState } from "react";
 import {
@@ -183,6 +184,9 @@ export function GunStudio({
   }, [
     player,
     binding?.physicalId,
+    binding?.mouseId,
+    binding?.keyboardId,
+    state.inputTransport?.generation,
     (state.guns ?? []).some((g) => g.id === binding?.physicalId),
   ]);
   useEffect(() => {
@@ -199,8 +203,8 @@ export function GunStudio({
   const online = !!gun;
   const selected = models().find((m) => m.id === model)!;
   const softwareDependencies = state.gunSoftware?.find(s=>s.id===model)?.dependencies;
-  const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(binding?.hardwarePlayer ?? player,model) : factoryMap(binding?.hardwarePlayer ?? player,model);
-  const hardwarePlayer = binding?.hardwarePlayer ?? (binding?.systemId === "rs3" ? +(binding.mouseId.match(/PID_575([0-3])/i)?.[1] ?? (player - 1)) + 1 : player);
+  const hardwarePlayer = binding?.systemId===model ? devicePlayer(binding,player) : player;
+  const map = binding?.systemId===model ? binding.buttonMap ?? factoryMap(hardwarePlayer,model) : factoryMap(hardwarePlayer,model);
   const physicalControls = controls(model,hardwarePlayer);
   const tokenFor = (id:string) => (binding?.systemId===model ? binding.controlMap?.[id] : undefined) ?? (model==="blamcon" && (id==="magazine" || id==="pedal") ? ((binding?.blamcon?.pedalMode??"assignable")==="assignable"?"key:82":(binding?.blamcon?.pedalMode??"assignable")==="right"?"mouse:2":(binding?.blamcon?.pedalMode??"assignable")==="middle"?"mouse:3":undefined) : physicalControls.find(c=>c.id===id)?.token);
   const controlNames = (token:string) => physicalControls.filter(c=>tokenFor(c.id)===token).map(c=>t(c.label)).join(' / ') || tokenLabel(token);

@@ -135,13 +135,23 @@ public static class LaunchRules
 public sealed class ExitGesture
 {
     private readonly HashSet<int> down = [];
+    private readonly (int Start, int Coin)[] pairs;
+    public ExitGesture(GunBinding? binding = null)
+    {
+        if (binding is null) { pairs = [(0x31, 0x35), (0x32, 0x36)]; return; }
+        var physical = StartupControls.PhysicalGameHardware(binding);
+        static int Key(string? token) => token?.StartsWith("key:") == true && int.TryParse(token[4..], out int key) && key is > 0 and < 256 ? key : 0;
+        int start = Key(physical.FirstOrDefault(c => c.Id == "start")?.Token);
+        int coin = Key(physical.FirstOrDefault(c => c.Id == "coin")?.Token);
+        pairs = start > 0 && coin > 0 && start != coin ? [(start, coin)] : [];
+    }
     private DateTimeOffset? since;
     private bool consumed;
     public void Key(int code, bool pressed, DateTimeOffset now)
     {
         if (pressed) down.Add(code); else down.Remove(code);
         if (consumed) { if (down.Count == 0) consumed = false; else return; }
-        bool chord = down.Contains(0x31) && down.Contains(0x35) || down.Contains(0x32) && down.Contains(0x36);
+        bool chord = pairs.Any(pair => down.Contains(pair.Start) && down.Contains(pair.Coin));
         if (chord) since ??= now; else since = null;
     }
     public bool Ready(DateTimeOffset now) => since.HasValue && now - since.Value >= TimeSpan.FromSeconds(1.8);
