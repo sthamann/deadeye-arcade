@@ -7,7 +7,7 @@ namespace Reaper.Core;
 
 public record SimulatedAction(int Player,string Function,string Expression,string Scope,string Status,string[] Buttons,bool? Pressed,bool? Held,bool? Released,bool Isolated,string? Error=null);
 public record SimulatedGame(string GameId,string Title,string Status,GameControlReview Audit,SimulatedAction[] Actions,string? Error=null);
-public record ControlSimulationReport(DateTimeOffset Time,SimulatedGame[] Games,bool HardwareVerified=false,bool GameplayVerified=false);
+public record ControlSimulationReport(DateTimeOffset Time,SimulatedGame[] Games,GunBinding[] TestedAssignments,bool HardwareVerified=false,bool GameplayVerified=false);
 
 // Replay physical down/hold/up events. DSU profiles use the production bridge's
 // actual wire frames; other profiles are expression checks, not game injection.
@@ -43,7 +43,7 @@ public static class ControlSimulation
             catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or System.Xml.XmlException)
             {results.Add(new(game.Id,game.Title,"needs-action",new(game.Id,game.Title,game.Source,"needs-action",[],e.Message),[],e.Message));}
         }
-        return new(DateTimeOffset.UtcNow,results.ToArray());
+        return new(DateTimeOffset.UtcNow,results.ToArray(),guns);
     }
     public static async Task<SimulatedAction[]> Replay(IEnumerable<ControlRow> rows,IEnumerable<GunBinding> bindings,IEnumerable<InputDevice>? devices=null)
     {
