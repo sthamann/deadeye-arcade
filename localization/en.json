@@ -978,5 +978,7 @@
   "Time Crisis 5 benötigt eine Gun auf P1.": "Time Crisis 5 needs a gun assigned to P1.",
   "Benötigter Eingang fehlt im Spielprofil: ": "Required input is missing from the game profile: ",
   "Spielaktion ohne geprüfte Spielerzuordnung: ": "Game action without verified player ownership: ",
-  "Mehrere Spielaktionen verwenden dieselbe Gun-Taste: ": "Different game actions share one gun input: "
+  "Mehrere Spielaktionen verwenden dieselbe Gun-Taste: ": "Different game actions share one gun input: ",
+  "Flycast Basisprofile der Geräte. Spielspezifische Überschreibungen und Reaktionen im Spiel sind noch nicht geprüft.": "Flycast base device profiles. Game specific overrides and in game reactions remain unverified.",
+  "P{0}: Flycast Aktionen {1} und {2} benötigen getrennte Gun Tasten.": "P{0}: Flycast actions {1} and {2} need separate gun buttons."
 }

@@ -108,6 +108,14 @@ RetroArch keeps alternative bindings for each action and reports offscreen
 shooting separately from reload. Simulation never
 marks a game's reaction, physical tracking or feedback as verified.
 
+Flycast writes a separate mouse and keyboard profile for each selected gun.
+Trigger, offscreen reload, the secondary action, Start, credits and directions
+follow the saved gun assignments. A Vyper magazine captured as a keyboard input
+is supported alongside its mouse buttons. The controls reference and simulation
+read these base device profiles and check their player ports. Conflicting physical
+bindings are rejected before files change. Game specific Flycast overrides and
+complete per-title action requirements remain marked for review.
+
 Use `--test-library --resume` to keep successful results whose app version,
 gun assignments and relevant files still match. Resume first reaches titles
 left untested by an interrupted run, then retries failures. Executables and

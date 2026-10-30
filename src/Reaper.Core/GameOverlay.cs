@@ -44,6 +44,7 @@ public static class OverlayControls
             if (MultiplayerSetup.SupportsHouseDead2Remake(game)) return MultiplayerSetup.ReadCompactGunAssignments(MultiplayerSetup.HouseDead2RemakeConfigPath(), bindings);
             if (Rpcs3Setup.IsRpcs3(game)) return Rpcs3Setup.Read(game, bindings);
             if (SupermodelSetup.IsSupermodel(game)) return SupermodelSetup.Read(game, bindings, enumeration ?? []);
+            if (FlycastSetup.IsFlycast(game)) return FlycastSetup.Read(game,bindings,enumeration??[]);
             if (game.Source == "mame")
             {
                 if(MameControls.Read(game,dataDirectory) is {} titleControls)return titleControls;

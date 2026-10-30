@@ -1,10 +1,9 @@
-Keep the game window, controls reference and launch checks aligned.
+Bring your selected gun controls into Flycast.
 
-- Follow replacement game windows even while an earlier window remains visible.
-- Select Dolphin's actual renderer in both display modes and retain it when its library or configuration windows are raised.
-- Give a replacement renderer a fresh observation interval during library checks.
-- Include standard error-dialog messages in local game reports for more useful startup diagnosis.
-- Route Mars Sortie weapon change independently for the selected P1 and P2 guns.
-- Keep cabinet menu navigation and explicitly labeled skip-game debug controls separate from required gameplay actions.
+- Write individual mouse and keyboard profiles for each selected player, using Flycast's native input codes.
+- Route trigger, offscreen reload, the secondary action, Start, credits and directions through the saved gun action map. Mouse middle no longer inherits the emulator's default Start action.
+- Support Vyper magazine reload as a captured keyboard input alongside its A button.
+- Read the saved base device mappings and player ports for the controls reference and profile simulation.
+- Reject conflicting physical bindings before any configuration files are changed. Keep backups of replaced profiles.
 
-Validation includes native Windows window selection and dialog tests, shared profile checks and button replay. Physical tracking, recoil and in-game reactions retain their own verification status.
+Per-game overrides and complete Flycast game action requirements remain marked for review. Input routing checks retain their distinction from physical aim, feedback and in-game reaction tests.

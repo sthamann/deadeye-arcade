@@ -527,8 +527,23 @@ RButton::y
     string flyText=File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg"));
     Check(DolphinSetup.Value(flyText,"input","maple_"+FlycastSetup.DeviceId(flyP1.MouseId,"mouse"))=="0" && DolphinSetup.Value(flyText,"input","maple_"+FlycastSetup.DeviceId(flyP2.MouseId,"mouse"))=="1","Flycast pins actual P1/P2 USB paths independently of enumeration order");
     Check(DolphinSetup.Value(flyText,"input","maple_"+FlycastSetup.DeviceId(@"\\?\Root#RDP_MOU","mouse"))=="-1","Flycast excludes the remote desktop mouse from both player ports");
-    string flyKeyboard=Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*5751*arcade.cfg").Single();
+    string flyKeyboard=Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*raw_keyboard*5751*arcade.cfg").Single();
     Check(File.ReadAllText(flyKeyboard).Contains("31:btn_start") && File.ReadAllText(flyKeyboard).Contains("35:btn_d") && !File.ReadAllText(flyKeyboard).Contains("btn_fforward"),"Flycast P2 Start/Coin use its factory USB keys and gun buttons cannot trigger fast-forward");
+    string[] flyMouseFiles=Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*raw_mouse*arcade.cfg");
+    Check(flyMouseFiles.Length==2 && flyMouseFiles.All(f=>File.ReadAllText(f).Contains("2:btn_a") && File.ReadAllText(f).Contains("1:reload") && File.ReadAllText(f).Contains("3:btn_b") && !File.ReadAllText(f).Contains("3:btn_start")),"Flycast explicitly maps trigger, reload and secondary for each mouse using the emulator's inverted left/right input codes");
+    var flyVyper=vyper with{MouseId=flyP1.MouseId,KeyboardId=flyP1.KeyboardId};
+    FlycastSetup.Configure(flycastGame,[flyVyper,flyP2],flyDevices,flyNames);
+    var vyperFlyKeyboard=Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*raw_keyboard*arcade.cfg").Select(File.ReadAllText).ToArray();
+    Check(vyperFlyKeyboard.Any(t=>t.Contains("21:reload")) && Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*raw_mouse*arcade.cfg").Select(File.ReadAllText).Any(t=>t.Contains("1:btn_b") && !t.Contains("3:btn_start")),"Vyper magazine reload and A reach separate Flycast inputs instead of inheriting mouse middle as Start");
+    var learnedFlyTrigger=BlamconSetup.Learn(flyVyper,"trigger","key:75");
+    FlycastSetup.Configure(flycastGame,[learnedFlyTrigger,flyP2],flyDevices,flyNames);
+    Check(Directory.GetFiles(Path.Combine(flycastRoot,"mappings"),"*raw_keyboard*arcade.cfg").Select(File.ReadAllText).Any(t=>t.Contains("14:btn_a")),"Flycast gun actions follow a captured keyboard trigger and the Studio action map");
+    var flyLegend=OverlayControls.Read(flycastGame with{Platform="Arcade — Sega Naomi"},root,[learnedFlyTrigger,flyP2],flyDevices);
+    Check(flyLegend.Rows.Any(r=>r.Player==1 && r.Function==I18n.T("Nachladen") && r.Expression=="P1|key:82") && flyLegend.Rows.Any(r=>r.Player==2 && r.Function==I18n.T("Abzug") && r.Expression=="P2|mouse:1") && (await ControlSimulation.Replay(flyLegend.Rows.Where(r=>!r.IsAim),[learnedFlyTrigger,flyP2],flyDevices)).All(r=>r.Status=="profile-routed"),"Flycast legends and button replay read the generated device files for each player rather than assuming mouse defaults");
+    string beforeConflict=File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg"));bool flyConflict=false;
+    try {FlycastSetup.Configure(flycastGame,[new GunBinding(1,flyP1.MouseId,flyP1.KeyboardId,SystemId:"blamcon",ButtonMap:new(){["mouse:1"]="shoot"},Blamcon:new(){PedalMode="right"})],flyDevices,flyNames);}
+    catch(InvalidOperationException){flyConflict=true;}
+    Check(flyConflict && File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg"))==beforeConflict,"Conflicting physical Flycast actions are rejected before any configuration is changed");
     FlycastSetup.Configure(flycastGame,[flyP1],flyDevices,flyNames);
     Check(DolphinSetup.Value(File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg")),"input","device2")=="10" && DolphinSetup.Value(File.ReadAllText(Path.Combine(flycastRoot,"emu.cfg")),"input","maple_"+FlycastSetup.DeviceId(flyP2.MouseId,"mouse"))=="-1","Disconnecting P2 disables its Flycast port rather than assigning a foreign mouse");
     MultiplayerSetup.Configure(multiGame,[p1,p2]);
