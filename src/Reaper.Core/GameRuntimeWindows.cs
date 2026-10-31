@@ -19,7 +19,11 @@ public static class GameRuntimeWindows
         if(Path.GetFileName(launcher).Equals("Hotd3Arcade_Launcher.exe",StringComparison.OrdinalIgnoreCase))return name.Equals("hod3pc.exe",StringComparison.OrdinalIgnoreCase);
         string[] parts=Path.GetRelativePath(root,full).Replace('\\','/').Split('/');
         return parts.Length>=3 && parts[^3].Equals("Binaries",StringComparison.OrdinalIgnoreCase)
-            && (parts[^2].Equals("Win64",StringComparison.OrdinalIgnoreCase) && name.EndsWith("-Win64-Shipping.exe",StringComparison.OrdinalIgnoreCase)
-                || parts[^2].Equals("Win32",StringComparison.OrdinalIgnoreCase) && name.EndsWith("-Win32-Shipping.exe",StringComparison.OrdinalIgnoreCase));
+            && (parts[^2].Equals("Win64",StringComparison.OrdinalIgnoreCase)||parts[^2].Equals("Win32",StringComparison.OrdinalIgnoreCase))
+            && (name.EndsWith("-"+parts[^2]+"-Shipping.exe",StringComparison.OrdinalIgnoreCase)
+                // Packaged development builds keep the bootstrap's exact name.
+                // This still requires an owned child inside the configured game
+                // tree, under Binaries/Win32 or Binaries/Win64, never an updater.
+                || !KnownLauncher(launcher)&&name.Equals(Path.GetFileName(launcher),StringComparison.OrdinalIgnoreCase));
     }
 }
