@@ -1064,10 +1064,12 @@ RButton::y
     Check(File.ReadAllText(Path.Combine(elfPreparedRoot,"data","asset.bin"))=="original-asset"&&Directory.Exists(Path.Combine(elfPreparedRoot,"empty-save-folder")),"Preparing pm/game retains sibling assets and empty save directories");
     File.WriteAllText(Path.Combine(elfPreparedRoot,"save.dat"),"player-progress");
     Check(ElfGameData.Prepare(elfPrepared,elfStorage)==elfPrepared&&File.ReadAllText(Path.Combine(elfPreparedRoot,"save.dat"))=="player-progress"&&File.ReadAllText(elfSave)=="original-save","Repeated launches preserve game-created progress and all original game data");
+    DateTime unchangedElfTime=File.GetLastWriteTimeUtc(elfOriginal);File.WriteAllText(elfOriginal,"patched-executable");File.SetLastWriteTimeUtc(elfOriginal,unchangedElfTime);
+    Check(ElfGameData.Prepare(elfPrepared,elfStorage)==elfPrepared&&File.ReadAllText(elfPrepared)=="patched-executable","Executable patches propagate even when file length and modification time are preserved");
     File.WriteAllText(elfAsset,"updated-source-asset");
     Check(ElfGameData.Prepare(elfPrepared,elfStorage)==elfPrepared&&File.ReadAllText(Path.Combine(elfPreparedRoot,"data","asset.bin"))=="updated-source-asset"&&File.ReadAllText(Path.Combine(elfPreparedRoot,"save.dat"))=="player-progress","Source asset patches propagate through a saved prepared path without resetting unchanged player saves");
     File.Delete(Path.Combine(elfPreparedRoot,"data","asset.bin"));ElfGameData.Prepare(elfPrepared,elfStorage);
-    Check(File.Exists(Path.Combine(elfPreparedRoot,"data","asset.bin"))&&File.ReadAllText(elfOriginal)=="fixture-executable","A missing prepared asset is restored while the original executable remains intact");
+    Check(File.Exists(Path.Combine(elfPreparedRoot,"data","asset.bin"))&&File.ReadAllText(elfOriginal)=="patched-executable","A missing prepared asset is restored while the original executable remains intact");
     File.Delete(elfAsset);ElfGameData.Prepare(elfPrepared,elfStorage);
     Check(!File.Exists(Path.Combine(elfPreparedRoot,"data","asset.bin"))&&Directory.GetFiles(Path.Combine(elfStorage,".retired"),"asset.bin",SearchOption.AllDirectories).Length==1,"A source patch retires removed assets outside the live game while retaining a recoverable copy");
     File.Delete(elfSave);ElfGameData.Prepare(elfPrepared,elfStorage);

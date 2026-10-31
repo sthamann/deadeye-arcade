@@ -10,11 +10,20 @@ namespace Reaper.Core;
 public static class ElfGameData
 {
     private const string ManifestName = ".deadeye-game-source.json";
-    private sealed record Stamp(long Length, long Modified);
+    private sealed record Stamp(long Length, long Modified, string? ContentHash = null);
     private sealed record Manifest(string SourceRoot, Dictionary<string, Stamp> Files);
     private static StringComparison Comparison => OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
     private static string Key(string source) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(OperatingSystem.IsWindows() ? source.ToUpperInvariant() : source)))[..24];
     private static bool Inside(string path, string root) => path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, Comparison);
+    private static Stamp Describe(FileInfo file, bool hash)
+    {
+        string? content = null;
+        if (hash) { using var stream = file.OpenRead(); content = Convert.ToHexString(SHA256.HashData(stream)); }
+        return new(file.Length, file.LastWriteTimeUtc.Ticks, content);
+    }
+    private static bool CodeFile(FileInfo file) => file.Extension.Length == 0 ||
+        new[] { ".exe", ".dll", ".elf", ".so" }.Contains(file.Extension, StringComparer.OrdinalIgnoreCase) ||
+        file.Name.Contains(".so.", StringComparison.OrdinalIgnoreCase);
     private static Manifest? ReadManifest(string file)
     {
         if (!File.Exists(file) && !File.Exists(file + ".bak")) return null;
@@ -80,7 +89,8 @@ public static class ElfGameData
         string manifestFile = Path.Combine(cache, ManifestName);
         Manifest? previous = ReadManifest(manifestFile);
         if (previous is not null && !previous.SourceRoot.Equals(source, Comparison)) throw new IOException("Prepared game storage belongs to a different source.");
-        var stamps = files.ToDictionary(f => Path.GetRelativePath(source, f.FullName), f => new Stamp(f.Length, f.LastWriteTimeUtc.Ticks));
+        var stamps = files.ToDictionary(f => Path.GetRelativePath(source, f.FullName), f => Describe(f,
+            CodeFile(f) || f.FullName.Equals(physical, Comparison) || previous?.Files.GetValueOrDefault(Path.GetRelativePath(source, f.FullName))?.ContentHash is not null));
         var changed = files.Where(f => !File.Exists(Path.Combine(cache, Path.GetRelativePath(source, f.FullName))) || previous is null ||
             !previous.Files.TryGetValue(Path.GetRelativePath(source, f.FullName), out var old) || old != stamps[Path.GetRelativePath(source, f.FullName)]).ToArray();
         long required = checked(changed.Sum(f => f.Length) + 64L * 1024 * 1024);
@@ -103,7 +113,8 @@ public static class ElfGameData
                 File.Copy(item.FullName, copy);
                 File.SetLastWriteTimeUtc(copy, item.LastWriteTimeUtc);
                 item.Refresh();
-                if (new Stamp(item.Length, item.LastWriteTimeUtc.Ticks) != stamps[Path.GetRelativePath(source, item.FullName)]) throw new IOException("Game data changed while it was being prepared. Please finish updating the game and try again.");
+                var expected = stamps[Path.GetRelativePath(source, item.FullName)];
+                if (Describe(item, expected.ContentHash is not null) != expected) throw new IOException("Game data changed while it was being prepared. Please finish updating the game and try again.");
                 File.Move(copy, target, true);
             }
             finally { if (File.Exists(copy)) File.Delete(copy); }
@@ -116,7 +127,7 @@ public static class ElfGameData
             if (!File.Exists(oldPath)) continue;
             var old = new FileInfo(oldPath);
             if (old.LinkTarget is not null || !PhysicalDirectory(old.DirectoryName!).Equals(old.DirectoryName, Comparison)) throw new IOException("Prepared game data contains a link.");
-            if (new Stamp(old.Length, old.LastWriteTimeUtc.Ticks) != removed.Value) continue;
+            if (Describe(old, removed.Value.ContentHash is not null) != removed.Value) continue;
             string retired = Path.Combine(storageRoot, ".retired", Key(source), Guid.NewGuid().ToString("N"), removed.Key);
             EnsureDirectory(Path.GetDirectoryName(retired)!);
             File.Move(oldPath, retired);

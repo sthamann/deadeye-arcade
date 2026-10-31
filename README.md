@@ -143,7 +143,9 @@ paths receive validated physical ASCII locations when needed, with a backup of
 the profile. Linux games that resolve an ASCII junction back to a Unicode folder
 get a real prepared game copy. Originals are retained, `pm/game` keeps its sibling
 assets, and missing prepared files are restored. Later source asset changes reach
-the prepared copy while unchanged player saves remain intact. Removed source
+the prepared copy while unchanged player saves remain intact. Executables and
+libraries are also checked by content so binary patches are detected even when
+file size and timestamps stay unchanged. Removed source
 assets are kept outside the active game in a recoverable archive.
 
 Preparation checks available disk space and requires room for the game copy on

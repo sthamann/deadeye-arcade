@@ -4,6 +4,7 @@ Prepare Linux arcade games in real ASCII directories so a readable launcher path
 - Prepare a physical game copy while keeping original files and gun bindings intact.
 - Retain sibling assets and empty save folders for pm/game layouts.
 - Reuse prepared data, restore missing files and apply changed source assets while preserving unchanged player progress.
+- Detect executable and library patches by content, including changes that preserve file length and timestamps.
 - Move removed source assets to a recoverable archive when their prepared copies have not been modified by the player.
 - Check free space, replace assets atomically and recover damaged preparation metadata from a backup.
 - Keep a separate profile backup for the physical path repair and enable long path support in the Windows application manifest.
