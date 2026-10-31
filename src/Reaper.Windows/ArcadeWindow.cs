@@ -719,7 +719,7 @@ public sealed class ArcadeWindow : Window
         if (type == "choose-path") { picker.Choose(Str("path")); return; }
         if (type == "cancel-picker") { picker.Cancel(); return; }
         if (picker.Active) throw new InvalidOperationException(I18n.T("Bitte zuerst die Dateiauswahl schließen."));
-        if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); await CheckDependencies(); if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); return; }
+        if (type == "ready") { ready = true; SendState(); await DiscoverGuns(); LoadLastReports(); if (state.Settings.CheckForUpdates) _ = CheckAppUpdate(); return; }
         if(type=="range-test") {
             if(session.Active)return;
             rangeTesting=payload.GetProperty("enabled").GetBoolean();
@@ -1150,6 +1150,27 @@ public sealed class ArcadeWindow : Window
         uncheckedCount = dependencies.Unchecked.Length,
         uncheckedFiles = dependencies.Unchecked.Take(50)
     };
+    private void LoadLastReports()
+    {
+        // A full library repair can hash/copy large game assets. Keep startup usable;
+        // every launch still repairs and validates the selected game's current files.
+        dependencies = ReadLastReport<DependencyReport>("dependencies.json");
+        if (dependencies is not null && (dependencies.Findings is null || dependencies.Unchecked is null)) dependencies = null;
+        fixes = ReadLastReport<FixReport>("fix-report.json");
+        if (fixes is not null && fixes.Findings is null) fixes = null;
+        SendState();
+    }
+    private T? ReadLastReport<T>(string name) where T : class
+    {
+        try
+        {
+            string path = Path.Combine(store.DirectoryPath, name);
+            if (!System.IO.File.Exists(path) || new FileInfo(path).Length > 2_097_152) return null;
+            return JsonSerializer.Deserialize<T>(System.IO.File.ReadAllText(path), JsonDefaults.Options);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        { Log("Previous check report unavailable: " + name + ": " + error.Message); return null; }
+    }
     private async Task CheckDependencies()
     {
         busy = true; Send("busy", new { message = I18n.T("Laufzeiten für Spiele und Emulatoren werden geprüft …") });
@@ -1177,7 +1198,7 @@ public sealed class ArcadeWindow : Window
         try
         {
             Send("busy", new { message = I18n.T("Spiel wird geprüft und vorbereitet …") });
-            await AutomaticFixes.Run([game], store.DirectoryPath);
+            fixes = await AutomaticFixes.Run([game], store.DirectoryPath);
             cancellation.Token.ThrowIfCancellationRequested();
             _ = LaunchRules.Prepare(game);
             Send("busy", new { message = I18n.T("Spiel wird gestartet …") });
@@ -1185,7 +1206,9 @@ public sealed class ArcadeWindow : Window
             cancellation.Token.ThrowIfCancellationRequested();
             if (launchDependencies.Findings.Any(f => f.Missing && f.Required && f.PackageId is not null))
             {
-                await CheckDependencies();
+                dependencies = launchDependencies;
+                System.IO.File.WriteAllText(Path.Combine(store.DirectoryPath, "dependencies.json"), JsonSerializer.Serialize(dependencies, JsonDefaults.Options));
+                SendState();
                 Send("dependency-blocked", new { message = I18n.T("Für dieses Spiel fehlen Laufzeiten. Du kannst sie hier installieren und danach erneut starten.") });
                 return;
             }

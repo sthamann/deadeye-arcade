@@ -115,6 +115,10 @@ physical monitor. Range effects do not certify a game's recoil integration.
 
 ## Profiles, dependencies and automatic repairs
 
+Deadeye opens using the latest saved check results. It checks and repairs the
+selected game before launch; a full library repair runs when you choose it in
+Settings. Aim and button tests are optional and never required to launch a game.
+
 At launch, Deadeye reads the selected physical guns and prepares supported game
 input files. Common actions follow your saved bindings; additional functions such
 as weapon change, grenades or pedals use reviewed title-specific routes. The

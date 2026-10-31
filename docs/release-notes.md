@@ -1,3 +1,10 @@
+Open Deadeye without waiting for a full-library repair.
+
+- Show the saved dependency and repair reports at startup instead of hashing and repairing every game before enabling Launch.
+- Repair and validate the selected game immediately before each launch.
+- Keep the full-library check available through the explicit check and repair action.
+- Show a selected game's missing runtime directly, without starting another full-library scan.
+
 Game launching and gun navigation fixes.
 
 - Let every installed game reach native automatic repair and current-file validation, including entries with an old incomplete setup status.
