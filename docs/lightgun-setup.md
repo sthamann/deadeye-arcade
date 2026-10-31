@@ -64,6 +64,8 @@ mode changes without restarting the frontend.
   calibration module when required.
 - **Calibration:** run the integrated fullscreen four-target calibration for the
   selected gun, then the separate five-target aim test at the physical monitor.
+  Aim and button tests are optional. You can leave either test and launch games
+  immediately. Button testing starts only when you select **Start button test**.
 - **Configuration and feedback:** mouse mode, 16:9/4:3, offscreen reload and bounded
   recoil/rumble test pulses. Recoil and grip rumble are separate mechanisms. The
   hardware switches and specified power supply govern mechanical recoil; Deadeye

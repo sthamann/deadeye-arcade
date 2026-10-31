@@ -74,7 +74,8 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.waitForFunction(()=>document.querySelector('[data-control="trigger"].pressed'));
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'hid:1',down:false,action:'shoot'}));
  await native.waitForFunction(()=>!document.querySelector('[data-control="trigger"].pressed'));
- // Pure button testing retains visualization while suppressing menu routes.
+ // Pure button testing is opt-in and retains visualization while suppressing menu routes.
+ await clickRaw('Tastentest starten');
  await native.waitForFunction(()=>window.fixture.sent.some(m=>m.type==='button-test'&&m.payload.player===1));
  await native.evaluate(()=>{
   window.fixture.emit('menu-action',{action:'coin'});
@@ -100,6 +101,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  const singleGunState=await native.evaluate(()=>window.fixture.lastState);
  await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,bindings:[...window.fixture.lastState.bindings,{player:2,mouseId:'gun-2',keyboardId:'key-2',serialPort:'COM4',systemId:'rs3',physicalId:'physical-2',softwareConfigured:true}],guns:[...window.fixture.lastState.guns,{id:'physical-2',name:'3A-3H Retro Shooter 2',systemId:'rs3',mouseId:'gun-2',keyboardId:'key-2',port:'COM4',inputIds:['gun-2','key-2'],driverHealthy:true,issues:[],identityEvidence:'Fixture container'}]}));
  await clickRaw(/^P2\s*Verbunden$/,2);
+ await clickRaw('Tastentest starten',2);
  await native.waitForFunction(()=>window.fixture.sent.at(-1)?.type==='button-test'&&window.fixture.sent.at(-1)?.payload.player===2);
  await clickRaw('Einrichtung & Prüfung',2);
  await clickRaw('P2 am Bildschirm kalibrieren',2);
@@ -114,7 +116,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByRole('button',{name:'Einstellungen',exact:true}).click();
  await native.getByRole('textbox',{name:'SteamGridDB API Schlüssel'}).waitFor();
  await native.getByRole('button',{name:'Meine Guns',exact:true}).click();
- await native.getByRole('button',{name:'Tastentest beenden',exact:true}).waitFor();
+ await native.getByRole('button',{name:'Tastentest starten',exact:true}).click();
  await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:false}));
  await clickRaw('Einstellungen');
  assert.equal(await native.getByRole('heading',{name:'Deine Gun. Dein Setup.'}).count(),1,'Returning to the physical screen restores pure button testing');
@@ -124,7 +126,7 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await clickRaw('Einstellungen');
  await native.getByRole('textbox',{name:'SteamGridDB API Schlüssel'}).waitFor();
  await clickRaw('Meine Guns');
- await native.getByRole('button',{name:'Tastentest beenden',exact:true}).evaluate(b=>b.click());
+ await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
  // Physical highlight follows the input, even when its assigned action is changed.
  await native.evaluate(()=>window.fixture.emit('gun-input',{player:1,token:'mouse:1',down:true,action:'reload'}));
  await native.waitForFunction(()=>document.querySelector('[data-control="trigger"].pressed'));
@@ -323,6 +325,21 @@ const url=process.env.REAPER_PREVIEW_URL||'http://127.0.0.1:5199/';
  await native.getByText('Automatische Reparaturen',{exact:true}).waitFor();
  await native.getByText('Fehlende OpenAL-Laufzeit in passender Architektur ergänzt und erneut gelesen.',{exact:true}).waitFor();
  console.log('Repair UI passed: native command, persisted findings/history, English/German switching and honest RDP display scope.');
+ // Incomplete/stale import status must reach native repair even with no completed aim or button test.
+ await native.reload();
+ await native.getByRole('button',{name:'Meine Guns',exact:true}).waitFor();
+ await native.getByRole('button',{name:'Meine Guns',exact:true}).evaluate(b=>b.click());
+ await native.getByText('Gun steuert das Menü',{exact:true}).waitFor();
+ await native.getByRole('button',{name:'Einrichtung & Prüfung',exact:true}).evaluate(b=>b.click());
+ await native.getByRole('button',{name:'Zieltest',exact:true}).evaluate(b=>b.click());
+ await native.getByText('Optionaler Test. Du kannst jederzeit abbrechen und Spiele starten.', {exact:false}).waitFor();
+ await clickRaw('Beenden');
+ await native.evaluate(()=>window.fixture.emit('state',{...window.fixture.lastState,remoteSession:true,settings:{...window.fixture.lastState.settings,language:'de'},games:[{id:'jurassic-fixture',title:'Jurassic Park',platform:'TeknoParrot',source:'teknoparrot',status:'needs-setup',executable:'TeknoParrotUi.exe',arguments:[],workingDirectory:'C:/Arcade',sourcePath:'JurassicPark.xml',aspect:'16:9'}]}));
+ await native.getByRole('button',{name:'Spielen',exact:true}).click();
+ assert(await native.getByRole('button',{name:'Spiel starten',exact:true}).isEnabled(),'Stale setup status cannot prevent native automatic repairs');
+ await native.getByRole('button',{name:'Spiel starten',exact:true}).click();
+ await native.locator('.launch-confirm').click();
+ assert(await native.evaluate(()=>window.fixture.sent.some(m=>m.type==='launch'&&m.payload.id==='jurassic-fixture')),'An untested gun and stale import status reach the real launch command');
  assert.equal(errors.length,0,errors.join('\n'));
  console.log('UI passed: empty-library honesty, eight preview entries, selection/filter/search, target test, browser-native boundary, raw-input navigation, player isolation, binding command, four pages at five widths.');
  await browser.close();

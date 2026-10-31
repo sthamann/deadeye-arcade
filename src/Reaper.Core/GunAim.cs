@@ -9,6 +9,9 @@ public sealed class GunAim
     public void Remember(string device, bool absolute, int x, int y, bool virtualDesktop)
     {
         if (absolute) positions[device] = new(Math.Clamp(x, 0, 65535), Math.Clamp(y, 0, 65535), virtualDesktop);
+        // A gun can switch to relative mouse output without disconnecting.
+        // Keep aim for button-only packets, but never pin actual movement to an old absolute sample.
+        else if (x != 0 || y != 0) positions.Remove(device);
     }
     public bool TryGet(string device, out Position position) => positions.TryGetValue(device, out position);
     public void RetainDevices(HashSet<string> connected)

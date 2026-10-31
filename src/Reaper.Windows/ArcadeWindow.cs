@@ -48,6 +48,9 @@ public sealed class ArcadeWindow : Window
     private readonly TriggerHold desktopTrigger = new();
     private readonly TriggerHold buttonTestHold = new();
     private int? buttonTestPlayer;
+    private int? aimTestPlayer;
+    private int aimTestSamples;
+    private long nextAimTestSample;
     private bool buttonTestRelease;
     private bool rangeTesting;
     private InGameOverlay? overlay;
@@ -470,6 +473,16 @@ public sealed class ArcadeWindow : Window
         long now = Environment.TickCount64;
         if (packet.Kind == "mouse" && packet.Buttons == 0 && now - lastMove < 30) return;
         if (packet.Kind == "mouse") lastMove = now;
+        if (packet.Kind == "mouse" && aimTestPlayer is not null && binding is not null && binding.Player == aimTestPlayer && aimTestSamples < 24 && now >= nextAimTestSample)
+        {
+            nextAimTestSample = now + 500; aimTestSamples++;
+            var screen = PacketPoint(packet); var client = web.PointFromScreen(screen);
+            GetCursorPos(out var desktop); var dpi = VisualTreeHelper.GetDpi(web);
+            Log("aim-test: " + JsonSerializer.Serialize(new { player=binding.Player, packet.Absolute, packet.VirtualDesktop,
+                rawX=packet.X, rawY=packet.Y, screenX=screen.X, screenY=screen.Y, desktopX=desktop.X, desktopY=desktop.Y,
+                x=client.X/Math.Max(1,web.ActualWidth), y=client.Y/Math.Max(1,web.ActualHeight),
+                width=web.ActualWidth, height=web.ActualHeight, dpiX=dpi.DpiScaleX, dpiY=dpi.DpiScaleY }));
+        }
         if (binding is not null && packet.Kind == "mouse" && !testing)
             foreach (var signal in Signals(packet).Where(s => s.Down))
             {
@@ -712,6 +725,12 @@ public sealed class ArcadeWindow : Window
             rangeTesting=payload.GetProperty("enabled").GetBoolean();
             buttonTestPlayer=null; buttonTestRelease=false; buttonTestHold.Reset(); gestures.Clear();
             learningPlayer=null;learningControl=null;learningAction=null;menuLearning=null;return;
+        }
+        if (type == "aim-test")
+        {
+            aimTestPlayer = payload.TryGetProperty("player", out var aimPlayer) && aimPlayer.ValueKind == JsonValueKind.Number ? Player() : null;
+            aimTestSamples = 0; nextAimTestSample = 0;
+            return;
         }
         if (type == "button-test")
         {
@@ -1149,6 +1168,9 @@ public sealed class ArcadeWindow : Window
     {
         // Reserve the entire launch, including dependency checks and helper setup.
         if (launching || session.Active || closing || closeRequested) return;
+        rangeTesting = false; aimTestPlayer = null; buttonTestPlayer = null; buttonTestRelease = false; buttonTestHold.Reset();
+        learningPlayer = null; learningAction = null; learningControl = null; menuLearning = null;
+        Send("button-test-ended", new {});
         busy = true; launching = true;
         using var cancellation = new CancellationTokenSource();
         launchCancellation = cancellation;

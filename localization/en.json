@@ -986,5 +986,6 @@
   "House of the Dead 2 Grafik": "House of the Dead 2 graphics",
   "Tasten funktionieren, aber der Zeiger bleibt stehen? Zuerst Maus/Tastatur aktivieren. In ARC Tracking die tatsächliche IR-Anordnung wählen: 2 Up 2 Down für vier Ecken oder je zwei Punkte oben und unten; Crosshair nur für einen Punkt mittig an jeder Kante. In Live View müssen vier Punkte sichtbar sein; danach kalibrieren.": "Buttons work, but the pointer stays still? Enable Mouse/Keyboard first. Match ARC Tracking to the actual IR layout: 2 Up 2 Down for four corners or two upper and two lower points; Crosshair only for one point in the middle of each edge. Live View must show four points before calibration.",
   "Schießen": "Shoot",
-  "Zusatzaktion": "Secondary action"
+  "Zusatzaktion": "Secondary action",
+  "Optionaler Test. Du kannst jederzeit abbrechen und Spiele starten.": "Optional test. You can leave at any time and launch games."
 }

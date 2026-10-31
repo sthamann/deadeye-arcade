@@ -1,12 +1,9 @@
-Prepare Linux arcade games in real ASCII directories so a readable launcher path also works when the game resolves its asset location.
+Game launching and gun navigation fixes.
 
-- Detect Unicode physical paths behind existing ASCII junctions.
-- Prepare a physical game copy while keeping original files and gun bindings intact.
-- Retain sibling assets and empty save folders for pm/game layouts.
-- Reuse prepared data, restore missing files and apply changed source assets while preserving unchanged player progress.
-- Detect executable and library patches by content, including changes that preserve file length and timestamps.
-- Move removed source assets to a recoverable archive when their prepared copies have not been modified by the player.
-- Check free space, replace assets atomically and recover damaged preparation metadata from a backup.
-- Keep a separate profile backup for the physical path repair and enable long path support in the Windows application manifest.
+- Let every installed game reach native automatic repair and current-file validation, including entries with an old incomplete setup status.
+- Keep aim and button tests optional. Button testing starts only when selected, and launch preparation clears test and learning modes.
+- Let informational status messages pass pointer input through to the controls beneath them.
+- Release stale absolute aiming coordinates when a gun changes to relative mouse movement, while keeping independent aim for button-only packets.
+- Record a bounded coordinate sample during the aim test so Windows pointer positions, raw gun coordinates and display scaling can be compared when diagnosing tracking issues.
 
-Includes the cabinet control routes and packaged Unreal runtime recognition. Launch checks and profile routing do not certify physical aiming, recoil or cooperative gameplay.
+Existing libraries, gun assignments and calibration data are preserved. Physical aiming still needs a test at the connected display.

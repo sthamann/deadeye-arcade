@@ -274,6 +274,9 @@ Check(DesktopAim.Binding([desktopP1,desktopP2 with {MouseId="gun-one"}],"gun-one
 var gunAim=new GunAim();gunAim.Remember("P1",true,12000,20000,false);gunAim.Remember("P2",true,52000,43000,true);
 gunAim.Remember("P2",false,0,0,false);
 Check(gunAim.TryGet("p2",out var p2Aim) && p2Aim==new GunAim.Position(52000,43000,true) && gunAim.TryGet("P1",out var p1Aim) && p1Aim.X==12000,"Button-only packets keep each gun's independent aim instead of the shared desktop cursor");
+gunAim.Remember("P2",false,4,-8,false);
+Check(!gunAim.TryGet("P2",out _) && gunAim.TryGet("P1",out _),"Switching to relative mouse movement releases stale absolute aim without disturbing the other gun");
+gunAim.Remember("P2",true,52000,43000,true);
 gunAim.RetainDevices(new(StringComparer.OrdinalIgnoreCase){"p1"});
 Check(!gunAim.TryGet("P2",out _) && gunAim.TryGet("P1",out _),"Disconnecting a gun removes its stale aim while retaining the other player's position");
 

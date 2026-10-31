@@ -163,7 +163,7 @@ export function GunStudio({
   const binding = state.bindings.find((b) => b.player === player);
   const [model, setModel] = useState(binding?.systemId ?? "rs3");
   const [tab, setTab] = useState("buttons");
-  const [buttonTesting, setButtonTesting] = useState(true);
+  const [buttonTesting, setButtonTesting] = useState(false);
   useEffect(() => {
     const end = () => setButtonTesting(false);
     window.addEventListener("deadeye-button-test-ended", end);

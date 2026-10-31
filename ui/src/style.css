@@ -1255,6 +1255,7 @@ main {
   z-index: 25;
 }
 .toast {
+  pointer-events: none;
   position: fixed;
   bottom: 30px;
   left: 50%;

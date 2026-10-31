@@ -200,6 +200,11 @@ function App() {
     modalRef.current = modal;
   }, [modal]);
   useEffect(() => {
+    if (modal?.type !== "test" || !window.chrome?.webview) return;
+    send("aim-test", { player: modal.player });
+    return () => send("aim-test", { player: null });
+  }, [modal?.type === "test" ? modal.player : null]);
+  useEffect(() => {
     stepRef.current = testStep;
     errorsRef.current = testErrors;
   }, [testStep, testErrors]);
@@ -491,14 +496,6 @@ function App() {
       );
       return;
     }
-    if (g.status === "needs-setup") {
-      announce(
-        t(
-          "Die Einrichtung ist noch unvollst\u00E4ndig. In den Spieldetails findest du die fehlenden Dateien; danach Bibliothek erneut pr\u00FCfen.",
-        ),
-      );
-      return;
-    }
     setModal({ type: "launch", game: g });
   };
   const test = (player: number) => {
@@ -679,7 +676,7 @@ function App() {
                         <button
                           className="primary"
                           onClick={() => start(featured)}
-                          disabled={!!busy || featured.status === "needs-setup"}
+                          disabled={!!busy}
                         >
                           <Play size={20} fill="currentColor" />
                           {featured.source === "demo"
@@ -1691,7 +1688,7 @@ function App() {
                 <div className="detail-actions">
                   <button
                     className="primary"
-                    disabled={modal.game.status === "needs-setup"}
+                    disabled={!!busy}
                     onClick={() => start(modal.game)}
                   >
                     <Play size={18} />
@@ -1830,6 +1827,7 @@ function App() {
                   : t("F\u00FCnf Ziele getroffen.")}
               </h2>
               <p>
+                {t("Optionaler Test. Du kannst jederzeit abbrechen und Spiele starten.")}{" "}
                 {state.native
                   ? t("Nur Eingaben der zugeordneten Gun werden gewertet.")
                   : t(
