@@ -1057,6 +1057,8 @@ RButton::y
         junctionInfo.ArgumentList.Add("/c");junctionInfo.ArgumentList.Add("mklink");junctionInfo.ArgumentList.Add("/J");junctionInfo.ArgumentList.Add(elfAlias);junctionInfo.ArgumentList.Add(Path.Combine(elfSource,"pm"));
         using var junction=System.Diagnostics.Process.Start(junctionInfo)!;junction.WaitForExit();Check(junction.ExitCode==0,"The regression fixture creates a real Windows junction to Unicode game data");
     } else Directory.CreateSymbolicLink(elfAlias,Path.Combine(elfSource,"pm"));
+    try
+    {
     string elfPrepared=ElfGameData.Prepare(Path.Combine(elfAlias,"game"),elfStorage),elfPreparedRoot=Path.GetDirectoryName(Path.GetDirectoryName(elfPrepared))!;
     Check(elfPrepared.All(c=>c<128)&&File.ReadAllText(elfPrepared)=="fixture-executable"&&new DirectoryInfo(elfPreparedRoot).LinkTarget is null,"ASCII aliases to Unicode game directories are replaced with real prepared game data");
     Check(File.ReadAllText(Path.Combine(elfPreparedRoot,"data","asset.bin"))=="original-asset"&&Directory.Exists(Path.Combine(elfPreparedRoot,"empty-save-folder")),"Preparing pm/game retains sibling assets and empty save directories");
@@ -1075,6 +1077,9 @@ RButton::y
     Throws(()=>ElfGameData.Prepare(elfOriginal,Path.Combine(elfSource,"cache")),"Prepared data cannot recursively copy the game into itself");
     int preparedDirectories=Directory.GetDirectories(elfStorage).Length;string unchangedAscii=ElfGameData.Prepare(asciiTarget,elfStorage);
     Check(File.Exists(unchangedAscii)&&File.ReadAllText(unchangedAscii)==File.ReadAllText(asciiTarget)&&Directory.GetDirectories(elfStorage).Length==preparedDirectories,"Games already in physical ASCII directories avoid preparation");
+    }
+    finally { if(new DirectoryInfo(elfAlias).LinkTarget is not null)Directory.Delete(elfAlias,false); }
+    Check(File.Exists(elfOriginal)&&!Directory.Exists(elfAlias),"Fixture cleanup removes the junction before its source folder and preserves the original game data");
     string dolphin = Path.Combine(root,"Dolphin.exe"); File.WriteAllText(dolphin, ""); File.WriteAllText(Path.Combine(root,"portable.txt"), "");
     Directory.CreateDirectory(Path.Combine(root,"User","Config")); File.WriteAllText(Path.Combine(root,"User","Config","WiimoteNew.ini"), "[Wiimote1]\nButtons/A = `Click 1`\nButtons/B = `Click 2`\n[Wiimote2]\nButtons/A = `D2`\n");
     var dolphinControls = OverlayControls.Read(scarlet with { Source="pc", Executable=dolphin, Arguments=[] }, root, []);
