@@ -14,7 +14,7 @@ const root=path.join(__dirname,'..');const output=path.join(root,'work','readme-
   }
   return {id:'showcase-'+i,title:g.title,platform:g.platform,aspect:g.aspect||'16:9',source:'custom',executable:'',arguments:[],workingDirectory:'',sourcePath:'',status:'unverified',favorite:i<3,lastPlayed:null,setupIssues:[],...assets};
  });
- const state={native:false,remoteSession:false,version:'0.3.5',games,bindings:[],devices:[],guns:[],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'en',checkForUpdates:true},bindingStage:null,installations:[]};
+ const state={native:false,remoteSession:false,version:(await fs.readFile(path.join(root,'src/Reaper.Windows/Reaper.Windows.csproj'),'utf8')).match(/<Version>([^<]+)<\/Version>/)[1],games,bindings:[],devices:[],guns:[],ports:[],settings:{fullscreen:true,startWithWindows:false,hasCoverKey:false,language:'en',checkForUpdates:true},bindingStage:null,installations:[]};
  await fs.mkdir(output,{recursive:true});
  const browser=await chromium.launch();
  async function record(name,steps){
@@ -39,12 +39,12 @@ const root=path.join(__dirname,'..');const output=path.join(root,'work','readme-
   const video=page.video();await context.close();await video.saveAs(path.join(output,name+'.webm'));
  }
  await record('deadeye-library',async({page,click,hold,playing})=>{
-  await page.screenshot({path:path.join(root,'docs/images/deadeye-library.png')});await hold(2700);
+  await page.screenshot({path:path.join(root,'docs/images/deadeye-library.jpg')});await hold(2700);
   await click('Page down');await hold(1000);
   await click('Time Crisis 5 select');await page.getByRole('heading',{name:'Time Crisis 5',exact:true}).waitFor();await playing();assert.equal(await page.evaluate(()=>window.scrollY),0);await hold(3200);
   await click('Jurassic Park select');await page.getByRole('heading',{name:'Jurassic Park',exact:true}).waitFor();await playing();await hold(3200);
   await click('Blue Estate select');await page.getByRole('heading',{name:'Blue Estate',exact:true}).waitFor();await page.waitForFunction(()=>document.querySelector('.hero-art img')?.naturalWidth>0);await hold();
-  await page.screenshot({path:path.join(root,'docs/images/deadeye-details.png')});await hold(1700);
+  await page.screenshot({path:path.join(root,'docs/images/deadeye-details.jpg')});await hold(1700);
   await click('House of the Dead: Scarlet Dawn select');await playing();await hold(2500);
   await click('Pause preview');await page.waitForFunction(()=>document.querySelector('video')?.paused===true,undefined,{timeout:3000});await hold(1300);
   await click('Play preview');await playing();await hold(1800);
@@ -52,12 +52,11 @@ const root=path.join(__dirname,'..');const output=path.join(root,'work','readme-
  await record('deadeye-gun-studio',async({page,click,hold})=>{
   await click('My Guns');
   await page.locator('.studio-console').evaluate(el=>window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-50));await hold();
-  await page.screenshot({path:path.join(root,'docs/images/deadeye-gun-studio.png')});await hold(2500);
+  await page.screenshot({path:path.join(root,'docs/images/deadeye-gun-studio.jpg')});await hold(2500);
   for(const name of [/Sinden Lightgun.*USB/,/X-Gunner Wireless/,/Blamcon Vyper/,/RS3 Reaper Pro.*USB/]){
    await page.getByRole('button',{name}).dispatchEvent('click');await page.locator('.studio-console').evaluate(el=>window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-50));await hold(1800);
   }
-  await click('Settings');await click('Deutsch');await click('Meine Guns');await hold(2000);
-  await click('Einstellungen');await click('English');await click('My Guns');await hold(1700);
+  assert.equal(await page.locator('html').getAttribute('lang'),'en','Public recordings remain English');
  });
  await browser.close();console.log('Recorded actual media playback, screenshot preview, library navigation and Gun Studio.');
 })().catch(e=>{console.error(e);process.exit(1)});
