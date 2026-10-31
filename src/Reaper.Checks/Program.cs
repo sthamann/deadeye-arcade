@@ -901,6 +901,18 @@ RButton::y
         var pedals=OverlayControls.Read(routeGame,root,pair).Rows.Where(r=>r.Function.StartsWith("Pedal ")).ToArray();
         Check(pedals.Length==2 && pedals.All(r=>r.Player==1 && StartupControls.Resolve(r,pair[0]).Resolved) && pedals.Select(r=>r.Expression).Distinct().Count()==2 && (await ControlSimulation.Replay(pedals,pair)).All(r=>r.Status=="profile-routed"),"Too Spicy keeps left and right movement on separate captured "+routeModel+" directions for its P1 cabinet");
     }
+    foreach(var scenario in new[]{(Profile:"WartranTroopers",Function:"Enter",Mapping:"P1Button5",Control:"start"),(Profile:"RawThrillsGUN",Function:"Toggle Cursor",Mapping:"P1ButtonRight",Control:"right")})
+    foreach(string cabinetModel in GunSystems.Catalog.Select(g=>g.Id))
+    {
+        var cabinet=new XDocument(matrixTemplate);cabinet.Root!.Element("EmulationProfile")!.Value=scenario.Profile;
+        cabinet.Root.Element("JoystickButtons")!.Add(new XElement("JoystickButtons",new XElement("ButtonName",scenario.Function),new XElement("InputMapping",scenario.Mapping)));
+        cabinet.Save(matrixPath);var pair=new[]{MatrixGun(cabinetModel,1),MatrixGun(cabinetModel,2)};var cabinetGame=repair with{SourcePath=matrixPath};
+        TeknoGunSetup.Configure(cabinetGame,pair);
+        var action=OverlayControls.Read(cabinetGame,root,pair).Rows.Single(r=>r.Function==scenario.Function);
+        string? expected=StartupControls.GameHardware(pair[0]).FirstOrDefault(h=>h.Id==scenario.Control)?.Token;
+        Check(expected is not null && action.Player==1 && action.Expression=="P1|"+expected && StartupControls.Resolve(action,pair[0]).Resolved && (await ControlSimulation.Replay([action],pair)).Single().Status=="profile-routed",scenario.Function+" reaches the captured "+cabinetModel+" control through the actual cabinet profile without using P2 input");
+    }
+    Check(TeknoActionRoutes.Find("WartranTroopers","Enter","P1Button4") is null && TeknoActionRoutes.Find("RawThrillsGUN","Toggle Cursor","P1ButtonLeft") is null,"Cabinet confirm and cursor actions require their exact vendor routing identifiers");
     Check(TeknoActionRoutes.Find("WartranTroopers","Player 1 Throw","P1Button2") is null && TeknoActionRoutes.Find("TooSpicy","Pedal Left","P1ButtonRight") is null,"Throw and pedal routes require the exact vendor action and native routing identifier");
     matrixTemplate.Save(Path.Combine(tp,"GameProfiles","model-matrix.xml"));
     foreach(string firstModel in GunSystems.Catalog.Select(g=>g.Id))foreach(string secondModel in GunSystems.Catalog.Select(g=>g.Id))
