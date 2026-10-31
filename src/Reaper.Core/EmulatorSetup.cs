@@ -81,15 +81,16 @@ public static class EmulatorSetup
         foreach(string name in two?new[]{"GamePath","GamePath2"}:new[]{"GamePath"})
         {
             var path=profile.Root.Element(name);
-            if(path is null || path.Value.All(c=>c<128))continue;
-            string safe=Path.GetFullPath(resolve(Path.GetFullPath(path.Value,game.WorkingDirectory)),game.WorkingDirectory);
+            if(path is null || string.IsNullOrWhiteSpace(path.Value))continue;
+            string original=Path.GetFullPath(path.Value,game.WorkingDirectory);
+            string safe=Path.GetFullPath(resolve(original),game.WorkingDirectory);
             if(safe.Any(c=>c>=128))throw new IOException("ElfLoader 2 requires an ASCII game path.");
-            if(safe==path.Value)continue;
+            if(safe.Equals(original,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal))continue;
             if(!File.Exists(safe))throw new FileNotFoundException("The ASCII game path does not exist.",safe);
             changes.Add((path,safe));
         }
         if(changes.Count==0)return false;
-        string backup=game.SourcePath+".before-deadeye-ascii-fix";if(!File.Exists(backup))File.Copy(game.SourcePath,backup);
+        string backup=game.SourcePath+".before-deadeye-physical-path-fix";if(!File.Exists(backup))File.Copy(game.SourcePath,backup);
         foreach(var change in changes)change.Node.Value=change.Path;
         string temporary=game.SourcePath+".deadeye-new";profile.Save(temporary);File.Move(temporary,game.SourcePath,true);
         return true;

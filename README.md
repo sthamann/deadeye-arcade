@@ -139,7 +139,18 @@ When an installed TeknoParrot vendor profile requires a second executable, Deade
 refreshes the corresponding loader metadata and repairs an unavailable companion
 path only when the exact vendor filename exists beside the main game binary.
 Working custom paths and gun bindings are preserved. Both required ElfLoader
-paths receive validated ASCII aliases when needed, with a backup of the profile.
+paths receive validated physical ASCII locations when needed, with a backup of
+the profile. Linux games that resolve an ASCII junction back to a Unicode folder
+get a real prepared game copy. Originals are retained, `pm/game` keeps its sibling
+assets, and missing prepared files are restored. Later source asset changes reach
+the prepared copy while unchanged player saves remain intact. Removed source
+assets are kept outside the active game in a recoverable archive.
+
+Preparation checks available disk space and requires room for the game copy on
+the drive containing Public Documents. The first preparation copies the data;
+later launches reuse it. Linked data inside the source folder requires a physical
+source copy first. Preparation failures remain visible instead of starting a
+known broken path.
 Missing companion files remain visible setup errors.
 
 The original 32 bit Windows House of the Dead 2 has a reviewed graphics repair.
