@@ -1,7 +1,8 @@
-Recognize packaged Unreal development builds as the running game.
+Make cabinet confirmation and cursor controls reachable from the selected lightgun.
 
-- Follow the owned game process when a packaged development build keeps the bootstrap executable name under Binaries/Win32 or Binaries/Win64.
-- Keep the configured game directory boundary, exact executable name and known launcher exclusions. Updaters and unrelated processes cannot certify a successful launch.
-- Preserve the existing Shipping renderer and input focus behavior.
+- Map the Raccoon Rampage vendor Enter action to Player 1 Start.
+- Map the Aliens Armageddon vendor Toggle Cursor action to Player 1 Right.
+- Match exact vendor emulation, action and native input identifiers. Preserve independent device routing for Player 1 and Player 2.
+- Check both routes through the production profile writer, reader and routing replay for all supported gun models.
 
-Validated with regression checks and a native Windows startup, foreground observation and clean exit test. Physical aiming, button response and multiplayer remain separate verification steps.
+Includes packaged Unreal development runtime recognition. Profile routing checks do not replace physical aiming, button and multiplayer playtests.
